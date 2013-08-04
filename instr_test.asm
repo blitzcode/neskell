@@ -29,9 +29,6 @@ lbl:
 ;
 ; C  Carry Flag         Set if overflow in bit 7
 ; Z  Zero Flag          Set if A = 0
-; I  Interrupt Disable  Not affected
-; D  Decimal Mode Flag  Not affected
-; B  Break Command      Not affected
 ; V  Overflow Flag      Set if sign bit is incorrect
 ; N  Negative Flag      Set if bit 7 set
 ;
@@ -54,12 +51,7 @@ ADC ($44),Y  ;Indirect,Y    $71  2   5+
 ;    A AND M -> A                     N Z C I D V
 ;                                     + + - - - -
 ;
-; C Carry Flag        Not affected
 ; Z Zero Flag         Set if A = 0
-; I Interrupt Disable Not affected
-; D Decimal Mode Flag Not affected
-; B Break Command     Not affected
-; V Overflow Flag     Not affected
 ; N Negative Flag     Set if bit 7 set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
@@ -86,10 +78,6 @@ AND ($44),Y  ;Indirect,Y    $31  2   5+
 ;
 ; C Carry Flag        Set to contents of old bit 7
 ; Z Zero Flag         Set if A = 0
-; I Interrupt Disable Not affected
-; D Decimal Mode Flag Not affected
-; B Break Command     Not affected
-; V Overflow Flag     Not affected
 ; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
@@ -101,106 +89,201 @@ ASL $4400    ;Absolute      $0E  3   6
 ASL $4400,X  ;Absolute,X    $1E  3   7
 
 ; BCC - Branch on Carry Clear
-
+;
+; If the carry flag is clear then add the relative displacement to the program
+; counter to cause a branch to a new location.
+;
+;    branch on C = 0                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BCC lbl      ;Relative      $90  2   2++
 
-; BCS - Branch on carry set
-
+; BCS - Branch on Carry Set
+;
+; If the carry flag is set then add the relative displacement to the program
+; counter to cause a branch to a new location.
+;
+;    branch on C = 1                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BCS lbl      ;Relative      $B0  2   2++
 
 ; BEQ - Branch on Result Zero
-
+;
+; If the zero flag is set then add the relative displacement to the program
+; counter to cause a branch to a new location.
+;
+;    branch on Z = 1                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BEQ lbl      ;Relative      $F0  2   2++
 
 ; BIT - Test Bits in Memory with Accumulator
-
+;
+; This instructions is used to test if one or more bits are set in a target
+; memory location. The mask pattern in A is ANDed with the value in memory to
+; set or clear the zero flag, but the result is not kept. Bits 7 and 6 of the
+; value from memory are copied into the N and V flags.
+;
+;    A AND M, M7 -> N, M6 -> V        N Z C I D V
+;                                    M7 + - - - M6
+;
+; Z Zero Flag         Set if the result if the AND is zero
+; V Overflow Flag     Set to bit 6 of the memory value
+; N Negative Flag     Set to bit 7 of the memory value
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BIT $44      ;Zero Page     $24  2   3
 BIT $4400    ;Absolute      $2C  3   4
 
-; BMI - Branch on Result Minus
-
+; BMI - Branch on Result Negative
+;
+; If the negative flag is set then add the relative displacement to the
+; program counter to cause a branch to a new location.
+;
+;    branch on N = 1                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BMI lbl      ;Relative      $30  2   2++
 
 ; BNE - Branch on Result not Zero
-
+;
+; If the zero flag is clear then add the relative displacement to the program
+; counter to cause a branch to a new location.
+;
+;    branch on Z = 0                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BNE lbl      ;Relative      $D0  2   2++
 
-; BPL - Branch on Result Plus
-
+; BPL - Branch on Result Positive
+;
+; If the negative flag is clear then add the relative displacement to the
+; program counter to cause a branch to a new location.
+;
+;    branch on N = 0                  N Z C I D V
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BPL lbl      ;Relative      $10  2   2++
 
 ; BRK - Force Break
-
+;
+; The BRK instruction forces the generation of an interrupt request. The
+; program counter and processor status are pushed on the stack (with the B bit
+; set), then the interrupt-disable I flag is set and the IRQ interrupt vector
+; at $FFFE/F is loaded into the PC.
+;
+;    interrupt,                       N Z C I D V
+;    push PC+2, push SR               - - - 1 - -
+;
+; I Interrupt Disable Set to 1
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BRK          ;Implied       $00  1   7
 
 ; BVC - Branch on Overflow Clear
-
+;
+; If the overflow flag is clear then add the relative displacement to the
+; program counter to cause a branch to a new location.
+;
+;    branch on V = 0                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BVC lbl      ;Relative      $50  2   2++
 
 ; BVS - Branch on Overflow Set
-
+;
+; If the overflow flag is set then add the relative displacement to the
+; program counter to cause a branch to a new location.
+;
+;    branch on V = 1                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 BVS lbl      ;Relative      $70  2   2++
 
 ; CLC - Clear Carry Flag
-
+;
+; Set the carry flag to zero.
+;
+;    0 -> C                           N Z C I D V
+;                                     - - 0 - - -
+;
+; C Carry Flag        Set to 0
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 CLC          ;Implied       $18  1   2
 
 ; CLD - Clear Decimal Mode
-
+;
+; Set the decimal mode flag to zero.
+;
+;    0 -> D                           N Z C I D V
+;                                     - - - - 0 -
+;
+; D Decimal Mode Flag Set to 0
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 CLD          ;Implied       $D8  1   2
 
 ; CLI - Clear Interrupt Disable Bit
-
+;
+; Clear the interrupt disable flag allowing normal interrupt requests to be
+; serviced.
+;
+;    0 -> I                           N Z C I D V
+;                                     - - - 0 - -
+;
+; I Interrupt Disable Set to 0
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 CLI          ;Implied       $58  1   2
 
 ; CLV - Clear Overflow Flag
-
+;
+; Clear the overflow flag.
+;
+;    0 -> V                           N Z C I D V
+;                                     - - - - - 0
+;
+; V Overflow Flag     Set to 0
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 CLV          ;Implied       $B8  1   2
 
 ; CMP - Compare Memory with Accumulator
-
+;
+; Compare sets flags as if a subtraction had been carried out. If the value in
+; the accumulator is equal or greater than the compared value, the Carry will
+; be set. The equal (Z) and negative (N) flags will be set based on equality
+; or lack thereof and the sign (i.e. A>=$80) of the accumulator. 
+;
+;    A - M                            N Z C I D V
+;                                     + + + - - -
+;
+; C Carry Flag        Set if A >= M
+; Z Zero Flag         Set if A = M
+; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
