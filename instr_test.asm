@@ -5,13 +5,16 @@
 ;
 ; This file is basically a carefully merged version of the references below
 ; and used as ground truth during emulator development, also suitable as an
-; assembler / disassembler test. I just wanted to have it all in one place.
+; assembler / disassembler test. I just wanted to have it all in one place,
+; plus each of these documents have typos, omissions and errors which I
+; discovered during the N-way merge.
 ;
 ; References / Sources / Originals:
 ;
 ; http://www.6502.org/tutorials/6502opcodes.html
 ; http://e-tradition.net/bytes/6502/6502_instruction_set.html
 ; http://www.obelisk.demon.co.uk/6502/reference.html
+; http://www.atariarchives.org/alp/appendix_1.php
 
 ; Instructions with all addressing modes in alphabetical order
 ; ------------------------------------------------------------
@@ -23,6 +26,10 @@ lbl:
 ; This instruction adds the contents of a memory location to the accumulator
 ; together with the carry bit. If overflow occurs the carry bit is set, this
 ; enables multiple byte addition to be performed.
+;
+; ADC results are dependant on the setting of the decimal flag. In decimal
+; mode, addition is carried out on the assumption that the values involved are
+; packed BCD (Binary Coded Decimal). 
 ;
 ;    A + M + C -> A, C                N Z C I D V
 ;                                     + + + - - +
@@ -297,7 +304,17 @@ CMP ($44,X)  ;Indirect,X    $C1  2   6
 CMP ($44),Y  ;Indirect,Y    $D1  2   5+
 
 ; CPX - Compare Memory and Index X
-
+;
+; This instruction compares the contents of the X register with another memory
+; held value and sets the zero and carry flags as appropriate. Operation and
+; flag results are identical to equivalent mode accumulator CMP ops. 
+;
+;    X - M                            N Z C I D V
+;                                     + + + - - -
+;
+; C Carry Flag        Set if X >= M
+; Z Zero Flag         Set if X = M
+; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -306,7 +323,17 @@ CPX $44      ;Zero Page     $E4  2   3
 CPX $4400    ;Absolute      $EC  3   4
 
 ; CPY - Compare Memory and Index Y
-
+;
+; This instruction compares the contents of the Y register with another memory
+; held value and sets the zero and carry flags as appropriate. Operation and
+; flag results are identical to equivalent mode accumulator CMP ops. 
+;
+;    Y - M                            N Z C I D V
+;                                     + + + - - -
+;
+; C Carry Flag        Set if Y >= M
+; Z Zero Flag         Set if Y = M
+; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -315,7 +342,15 @@ CPY $44      ;Zero Page     $C4  2   3
 CPY $4400    ;Absolute      $CC  3   4
 
 ; DEC - Decrement Memory by One
-
+;
+; Subtracts one from the value held at a specified memory location, setting
+; the zero and negative flags as appropriate.
+;
+;    M - 1 -> M                       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if result is zero
+; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -325,21 +360,45 @@ DEC $4400    ;Absolute      $CE  3   6
 DEC $4400,X  ;Absolute,X    $DE  3   7
 
 ; DEX - Decrement Index X by One
-
+;
+; Subtracts one from the X register, setting the zero and negative flags as
+; appropriate.
+;
+;    X - 1 -> X                       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if X is zero
+; N Negative Flag     Set if bit 7 of X is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 DEX          ;Implied       $CA  1   2
 
 ; DEY - Decrement Index Y by One
-
+;
+; Subtracts one from the Y register, setting the zero and negative flags as
+; appropriate.
+;
+;    Y - 1 -> Y                       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if Y is zero
+; N Negative Flag     Set if bit 7 of Y is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 DEY          ;Implied       $88  1   2
 
 ; EOR - Exclusive-OR Memory with Accumulator
-
+;
+; An exclusive OR is performed, bit by bit, on the accumulator contents using
+; the contents of a byte of memory.
+;
+;    A EOR M -> A                     N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -353,7 +412,15 @@ EOR ($44,X)  ;Indirect,X    $41  2   6
 EOR ($44),Y  ;Indirect,Y    $51  2   5+
 
 ; INC - Increment Memory by One
-
+;
+; Adds one to the value held at a specified memory location, setting the zero
+; and negative flags as appropriate.
+;
+;    M + 1 -> M                       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if result is zero
+; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -363,21 +430,48 @@ INC $4400    ;Absolute      $EE  3   6
 INC $4400,X  ;Absolute,X    $FE  3   7
 
 ; INX - Increment Index X by One
-
+;
+; Adds one to the X register, setting the zero and negative flags as
+; appropriate.
+;
+;    X + 1 -> X                       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if X is zero
+; N Negative Flag     Set if bit 7 of X is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 INX          ;Implied       $E8  1   2
 
 ; INY - Increment Index Y by One
-
+;
+; Adds one to the Y register, setting the zero and negative flags as
+; appropriate.
+;
+;    Y + 1 -> Y                       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if Y is zero
+; N Negative Flag     Set if bit 7 of Y is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 INY          ;Implied       $C8  1   2
 
 ; JMP - Jump to New Location
-
+;
+; Sets the program counter to the address specified by the operand.
+;
+; An original 6502 has does not correctly fetch the target address if the
+; indirect vector falls on a page boundary (e.g. $xxFF where xx is and value
+; from $00 to $FF). In this case fetches the LSB from $xxFF as expected but;
+; takes the MSB from $xx00. This is fixed in some later chips like the 65SC02
+; so for compatibility always ensure the indirect vector is not at the end of
+; the page.
+;
+;    (PC+1) -> PCL                    N Z C I D V
+;    (PC+2) -> PCH                    - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -385,14 +479,28 @@ JMP $5597    ;Absolute      $4C  3   3
 JMP ($5597)  ;Indirect      $6C  3   5
 
 ; JSR - Jump to New Location Saving Return Address
-
+;
+; The JSR instruction pushes the address (minus one) of the return point on to
+; the stack and then sets the program counter to the target memory address.
+;
+;    push (PC+2),                     N Z C I D V
+;    (PC+1) -> PCL                    - - - - - -
+;    (PC+2) -> PCH
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 JSR $5597    ;Absolute      $20  3   6
 
 ; LDA - Load Accumulator with Memory
-
+;
+; Loads a byte of memory into the accumulator setting the zero and negative
+; flags as appropriate.
+;
+;    M -> A                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of A is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -406,7 +514,15 @@ LDA ($44,X)  ;Indirect,X    $A1  2   6
 LDA ($44),Y  ;Indirect,Y    $B1  2   5+
 
 ; LDX - Load Index X with Memory
-
+;
+; Loads a byte of memory into the X register setting the zero and negative
+; flags as appropriate.
+;
+;    M -> X                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if X = 0
+; N Negative Flag     Set if bit 7 of A is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -417,7 +533,15 @@ LDX $4400    ;Absolute      $AE  3   4
 LDX $4400,Y  ;Absolute,Y    $BE  3   4+
 
 ; LDY - Load Index Y with Memory
-
+;
+; Loads a byte of memory into the Y register setting the zero and negative
+; flags as appropriate.
+;
+;    M -> Y                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if Y = 0
+; N Negative Flag     Set if bit 7 of A is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -428,7 +552,18 @@ LDY $4400    ;Absolute      $AC  3   4
 LDY $4400,X  ;Absolute,X    $BC  3   4+
 
 ; LSR - Shift One Bit Right (Memory or Accumulator)
-
+;
+; Each of the bits in A or M is shifted one place to the right. The bit that
+; was in bit 0 is shifted into the carry flag. Bit 7 is set to zero. Since
+; the high bit of the number being addressed is always forced to zero, the
+; Negative flag is always reset by this operation.
+; 
+;    0 -> [76543210] -> C             N Z C I D V
+;                                     0 + + - - -
+;
+; C Carry Flag        Set to contents of old bit 0
+; Z Zero Flag         Set if result = 0
+; N Negative Flag     Set to 0
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -439,14 +574,27 @@ LSR $4400    ;Absolute      $4E  3   6
 LSR $4400,X  ;Absolute,X    $5E  3   7
 
 ; NOP - No Operation
-
+;
+; The NOP instruction causes no changes to the processor other than the normal
+; incrementing of the program counter to the next instruction.
+;
+;    ---                              N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 NOP          ;Implied       $EA  1   2
 
 ; ORA - OR Memory with Accumulator
-
+;
+; An inclusive OR is performed, bit by bit, on the accumulator contents using
+; the contents of a byte of memory.
+;
+;    A OR M -> A                      N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -460,35 +608,73 @@ ORA ($44,X)  ;Indirect,X    $01  2   6
 ORA ($44),Y  ;Indirect,Y    $11  2   5+
 
 ; PHA - Push Accumulator on Stack
-
+;
+; Pushes a copy of the accumulator on to the stack.
+;
+;    push A                           N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 PHA          ;Implied       $48  1   3
 
 ; PHP - Push Processor Status on Stack
-
+;
+; Pushes a copy of the status flags on to the stack (B bit set).
+;
+;    push SR                          N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 PHP          ;Implied       $08  1   3
 
 ; PLA - Pull Accumulator from Stack
-
+;
+; Pulls an 8 bit value from the stack and into the accumulator. The zero and
+; negative flags are set as appropriate.
+;
+;    pull A                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of A is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 PLA          ;Implied       $68  1   4
 
 ; PLP - Pull Processor Status from Stack
-
+;
+; Pulls an 8 bit value from the stack and into the processor flags. The flags
+; will take on new states as determined by the value pulled.
+;
+;    pull SR                          N Z C I D V
+;                                     from stack
+;
+; C Carry Flag        Set from stack
+; Z Zero Flag         Set from stack
+; I Interrupt Disable Set from stack
+; D Decimal Mode Flag Set from stack
+; V Overflow Flag     Set from stack
+; N Negative Flag     Set from stack
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 PLP          ;Implied       $28  1   4
 
 ; ROL - Rotate One Bit Left (Memory or Accumulator)
-
+;
+; Move each of the bits in either A or M one place to the left. Bit 0 is
+; filled with the current value of the carry flag whilst the old bit 7
+; becomes the new carry flag value.
+;
+;    C <- [76543210] <- C             N Z C I D V
+;                                     + + + - - -
+;
+; C Carry Flag        Set to contents of old bit 7
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -499,7 +685,17 @@ ROL $4400    ;Absolute      $2E  3   6
 ROL $4400,X  ;Absolute,X    $3E  3   7
 
 ; ROR - Rotate One Bit Right (Memory or Accumulator)
-
+;
+; Move each of the bits in either A or M one place to the right. Bit 7 is
+; filled with the current value of the carry flag whilst the old bit 0
+; becomes the new carry flag value.
+;
+;    C -> [76543210] -> C             N Z C I D V
+;                                     + + + - - -
+;
+; C Carry Flag        Set to contents of old bit 0
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of the result is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -510,21 +706,56 @@ ROR $4400    ;Absolute      $6E  3   6
 ROR $4400,X  ;Absolute,X    $7E  3   7
 
 ; RTI - Return from Interrupt
-
+;
+; The RTI instruction is used at the end of an interrupt processing routine.
+; It pulls the processor flags from the stack followed by the program counter.
+; Note that unlike RTS, the return address on the stack is the actual address
+; rather than the address - 1.
+;
+;    pull SR, pull PC                 N Z C I D V
+;                                     from stack
+;
+; C Carry Flag        Set from stack
+; Z Zero Flag         Set from stack
+; I Interrupt Disable Set from stack
+; D Decimal Mode Flag Set from stack
+; V Overflow Flag     Set from stack
+; N Negative Flag     Set from stack
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 RTI          ;Implied       $40  1   6
 
 ; RTS - Return from Subroutine
-
+;
+; RTS pulls the top two bytes off the stack (low byte first) and transfers
+; program control to that address+1. It is used, as expected, to exit a
+; subroutine invoked via JSR which pushed the address - 1. 
+;
+;    pull PC, PC+1 -> PC              N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 RTS          ;Implied       $60  1   6
 
 ; SBC - Subtract Memory from Accumulator with Borrow
-
+;
+; This instruction subtracts the contents of a memory location from the
+; accumulator together with the not of the carry bit. If overflow occurs the
+; carry bit is cleared, this enables multiple byte subtraction to be performed.
+;
+; SBC results are dependant on the setting of the decimal flag. In decimal
+; mode, subtraction is carried out on the assumption that the values involved
+; are packed BCD (Binary Coded Decimal). 
+;
+;    A - M - C -> A                   N Z C I D V
+;                                     + + + - - +
+;
+; C Carry Flag        Clear if overflow in bit 7
+; Z Zero Flag         Set if A = 0
+; V Overflow Flag     Set if sign bit is incorrect
+; N Negative Flag     Set if bit 7 set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -538,28 +769,50 @@ SBC ($44,X)  ;Indirect,X    $E1  2   6
 SBC ($44),Y  ;Indirect,Y    $F1  2   5+
 
 ; SEC - Set Carry Flag
-
+;
+; Set the carry flag to one.
+;
+;    1 -> C                           N Z C I D V
+;                                     - - 1 - - -
+;
+; C Carry Flag        Set to 1
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 SEC          ;Implied       $38  1   2
 
 ; SED - Set Decimal Flag
-
+;
+; Set the decimal flag to one.
+;
+;    1 -> D                           N Z C I D V
+;                                     - - - - 1 -
+;
+; D Decimal Mode Flag Set to 1
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 SED          ;Implied       $F8  1   2
 
 ; SEI - Set Interrupt Disable Status
-
+;
+; Set the Interrupt disable flag to one.
+;
+;    1 -> I                           N Z C I D V
+;                                     - - - 1 - -
+;
+; D Interrupt Disable Set to 1
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 SEI          ;Implied       $78  1   2
 
 ; STA - Store Accumulator in Memory
-
+;
+; Stores the contents of the accumulator into memory.
+;
+;    A -> M                           N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -572,7 +825,11 @@ STA ($44,X)  ;Indirect,X    $81  2   6
 STA ($44),Y  ;Indirect,Y    $91  2   6
 
 ; STX - Store Index X in Memory
-
+;
+; Stores the contents of the X register into memory.
+;
+;    X -> M                           N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -581,7 +838,11 @@ STX $44,Y    ;Zero Page,Y   $96  2   4
 STX $4400    ;Absolute      $8E  3   4
 
 ; STY - Store Index Y in Memory
-
+;
+; Stores the contents of the Y register into memory.
+;
+;    Y -> M                           N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -590,42 +851,84 @@ STY $44,X    ;Zero Page,X   $94  2   4
 STY $4400    ;Absolute      $8C  3   4
 
 ; TAX - Transfer Accumulator to Index X
-
+;
+; Copies the current contents of the accumulator into the X register and sets
+; the zero and negative flags as appropriate.
+;
+;    A -> X                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if X = 0
+; N Negative Flag     Set if bit 7 of X is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 TAX          ;Implied       $AA  1   2
 
 ; TAY - Transfer Accumulator to Index Y
-
+;
+; Copies the current contents of the accumulator into the Y register and sets
+; the zero and negative flags as appropriate.
+;
+;    A -> Y                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if Y = 0
+; N Negative Flag     Set if bit 7 of Y is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 TAY          ;Implied       $A8  1   2
 
 ; TSX - Transfer Stack Pointer to Index X
-
+;
+; Copies the current contents of the stack pointer into the X register.
+;
+;    SP -> X                          N Z C I D V
+;                                     + + - - - -
+; Z Zero Flag         Set if X = 0
+; N Negative Flag     Set if bit 7 of X is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 TSX          ;Implied       $BA  1   2
 
 ; TXA - Transfer Index X to Accumulator
-
+;
+; Copies the current contents of X register into the accumulator and sets the
+; zero and negative flags as appropriate.
+;
+;    X -> A                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if X = 0
+; N Negative Flag     Set if bit 7 of X is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 TXA          ;Implied       $8A  1   2
 
 ; TXS - Transfer Index X to Stack Register
-
+;
+; Copies the current contents of the X register into the stack register.
+;
+;    X -> SP                          N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 TXS          ;Implied       $9A  1   2
 
 ; TYA - Transfer Index Y to Accumulator
-
+;
+; Copies the current contents of Y register into the accumulator and sets the
+; zero and negative flags as appropriate.
+;
+;    Y -> A                           N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of A is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
