@@ -5,9 +5,18 @@
 ;
 ; This file is basically a carefully merged version of the references below
 ; and used as ground truth during emulator development, also suitable as an
-; assembler / disassembler test. I just wanted to have it all in one place,
-; plus each of these documents have typos, omissions and errors which I
-; discovered during the N-way merge.
+; assembler / disassembler test. Nice to have it all in one place, plus each
+; of these documents have typos, omissions and errors which were discovered
+; during the N-way merge.
+;
+; For testing disassembly / instruction decoding, the file 'instr_test.bin'
+; is an assembled version of this file, and its disassembly should match
+; 'instr_test_ref_disasm.asm'. Those two files were generated using the tools
+; of 6502js (https://github.com/skilldrick/6502js). Note that all instruction
+; arguments are sequential numbers from $00 to $AA. A bug prevents the relative
+; addressing in branch instructions to assemble, only labels can be targeted.
+; As a workaround, all branch instructions target 'lbl' and were later
+; manually fixed in the binary / disassembly to their correct targets.
 ;
 ; References / Sources / Originals:
 ;
@@ -41,14 +50,14 @@ lbl:
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-ADC #$44     ;Immediate     $69  2   2
-ADC $44      ;Zero Page     $65  2   3
-ADC $44,X    ;Zero Page,X   $75  2   4
-ADC $4400    ;Absolute      $6D  3   4
-ADC $4400,X  ;Absolute,X    $7D  3   4+
-ADC $4400,Y  ;Absolute,Y    $79  3   4+
-ADC ($44,X)  ;Indirect,X    $61  2   6
-ADC ($44),Y  ;Indirect,Y    $71  2   5+
+ADC #$01     ;Immediate     $69  2   2
+ADC $02      ;Zero Page     $65  2   3
+ADC $03,X    ;Zero Page,X   $75  2   4
+ADC $0405    ;Absolute      $6D  3   4
+ADC $0607,X  ;Absolute,X    $7D  3   4+
+ADC $0809,Y  ;Absolute,Y    $79  3   4+
+ADC ($0A,X)  ;Indirect,X    $61  2   6
+ADC ($0B),Y  ;Indirect,Y    $71  2   5+
 
 ; AND - Bitwise AND with Accumulator
 ;
@@ -63,14 +72,14 @@ ADC ($44),Y  ;Indirect,Y    $71  2   5+
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-AND #$44     ;Immediate     $29  2   2
-AND $44      ;Zero Page     $25  2   3
-AND $44,X    ;Zero Page,X   $35  2   4
-AND $4400    ;Absolute      $2D  3   4
-AND $4400,X  ;Absolute,X    $3D  3   4+
-AND $4400,Y  ;Absolute,Y    $39  3   4+
-AND ($44,X)  ;Indirect,X    $21  2   6
-AND ($44),Y  ;Indirect,Y    $31  2   5+
+AND #$0C     ;Immediate     $29  2   2
+AND $0D      ;Zero Page     $25  2   3
+AND $0E,X    ;Zero Page,X   $35  2   4
+AND $0F10    ;Absolute      $2D  3   4
+AND $1112,X  ;Absolute,X    $3D  3   4+
+AND $1314,Y  ;Absolute,Y    $39  3   4+
+AND ($15,X)  ;Indirect,X    $21  2   6
+AND ($16),Y  ;Indirect,Y    $31  2   5+
 
 ; ASL - Arithmetic Shift Left
 ;
@@ -90,10 +99,10 @@ AND ($44),Y  ;Indirect,Y    $31  2   5+
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ASL A        ;Accumulator   $0A  1   2
-ASL $44      ;Zero Page     $06  2   5
-ASL $44,X    ;Zero Page,X   $16  2   6
-ASL $4400    ;Absolute      $0E  3   6
-ASL $4400,X  ;Absolute,X    $1E  3   7
+ASL $17      ;Zero Page     $06  2   5
+ASL $18,X    ;Zero Page,X   $16  2   6
+ASL $191A    ;Absolute      $0E  3   6
+ASL $1B1C,X  ;Absolute,X    $1E  3   7
 
 ; BCC - Branch on Carry Clear
 ;
@@ -147,8 +156,8 @@ BEQ lbl      ;Relative      $F0  2   2++
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-BIT $44      ;Zero Page     $24  2   3
-BIT $4400    ;Absolute      $2C  3   4
+BIT $20      ;Zero Page     $24  2   3
+BIT $2122    ;Absolute      $2C  3   4
 
 ; BMI - Branch on Result Negative
 ;
@@ -294,14 +303,14 @@ CLV          ;Implied       $B8  1   2
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-CMP #$44     ;Immediate     $C9  2   2
-CMP $44      ;Zero Page     $C5  2   3
-CMP $44,X    ;Zero Page,X   $D5  2   4
-CMP $4400    ;Absolute      $CD  3   4
-CMP $4400,X  ;Absolute,X    $DD  3   4+
-CMP $4400,Y  ;Absolute,Y    $D9  3   4+
-CMP ($44,X)  ;Indirect,X    $C1  2   6
-CMP ($44),Y  ;Indirect,Y    $D1  2   5+
+CMP #$28     ;Immediate     $C9  2   2
+CMP $29      ;Zero Page     $C5  2   3
+CMP $2A,X    ;Zero Page,X   $D5  2   4
+CMP $2B2C    ;Absolute      $CD  3   4
+CMP $2D2E,X  ;Absolute,X    $DD  3   4+
+CMP $2F30,Y  ;Absolute,Y    $D9  3   4+
+CMP ($31,X)  ;Indirect,X    $C1  2   6
+CMP ($32),Y  ;Indirect,Y    $D1  2   5+
 
 ; CPX - Compare Memory and Index X
 ;
@@ -318,9 +327,9 @@ CMP ($44),Y  ;Indirect,Y    $D1  2   5+
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-CPX #$44     ;Immediate     $E0  2   2
-CPX $44      ;Zero Page     $E4  2   3
-CPX $4400    ;Absolute      $EC  3   4
+CPX #$33     ;Immediate     $E0  2   2
+CPX $34      ;Zero Page     $E4  2   3
+CPX $3536    ;Absolute      $EC  3   4
 
 ; CPY - Compare Memory and Index Y
 ;
@@ -337,9 +346,9 @@ CPX $4400    ;Absolute      $EC  3   4
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-CPY #$44     ;Immediate     $C0  2   2
-CPY $44      ;Zero Page     $C4  2   3
-CPY $4400    ;Absolute      $CC  3   4
+CPY #$37     ;Immediate     $C0  2   2
+CPY $38      ;Zero Page     $C4  2   3
+CPY $393A    ;Absolute      $CC  3   4
 
 ; DEC - Decrement Memory by One
 ;
@@ -354,10 +363,10 @@ CPY $4400    ;Absolute      $CC  3   4
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-DEC $44      ;Zero Page     $C6  2   5
-DEC $44,X    ;Zero Page,X   $D6  2   6
-DEC $4400    ;Absolute      $CE  3   6
-DEC $4400,X  ;Absolute,X    $DE  3   7
+DEC $3B      ;Zero Page     $C6  2   5
+DEC $3C,X    ;Zero Page,X   $D6  2   6
+DEC $3D3E    ;Absolute      $CE  3   6
+DEC $3F40,X  ;Absolute,X    $DE  3   7
 
 ; DEX - Decrement Index X by One
 ;
@@ -402,14 +411,14 @@ DEY          ;Implied       $88  1   2
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-EOR #$44     ;Immediate     $49  2   2
-EOR $44      ;Zero Page     $45  2   3
-EOR $44,X    ;Zero Page,X   $55  2   4
-EOR $4400    ;Absolute      $4D  3   4
-EOR $4400,X  ;Absolute,X    $5D  3   4+
-EOR $4400,Y  ;Absolute,Y    $59  3   4+
-EOR ($44,X)  ;Indirect,X    $41  2   6
-EOR ($44),Y  ;Indirect,Y    $51  2   5+
+EOR #$41     ;Immediate     $49  2   2
+EOR $42      ;Zero Page     $45  2   3
+EOR $43,X    ;Zero Page,X   $55  2   4
+EOR $4445    ;Absolute      $4D  3   4
+EOR $4647,X  ;Absolute,X    $5D  3   4+
+EOR $4849,Y  ;Absolute,Y    $59  3   4+
+EOR ($4A,X)  ;Indirect,X    $41  2   6
+EOR ($4B),Y  ;Indirect,Y    $51  2   5+
 
 ; INC - Increment Memory by One
 ;
@@ -424,10 +433,10 @@ EOR ($44),Y  ;Indirect,Y    $51  2   5+
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-INC $44      ;Zero Page     $E6  2   5
-INC $44,X    ;Zero Page,X   $F6  2   6
-INC $4400    ;Absolute      $EE  3   6
-INC $4400,X  ;Absolute,X    $FE  3   7
+INC $4C      ;Zero Page     $E6  2   5
+INC $4D,X    ;Zero Page,X   $F6  2   6
+INC $4E4F    ;Absolute      $EE  3   6
+INC $5051,X  ;Absolute,X    $FE  3   7
 
 ; INX - Increment Index X by One
 ;
@@ -475,8 +484,8 @@ INY          ;Implied       $C8  1   2
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-JMP $5597    ;Absolute      $4C  3   3
-JMP ($5597)  ;Indirect      $6C  3   5
+JMP $5253    ;Absolute      $4C  3   3
+JMP ($5455)  ;Indirect      $6C  3   5
 
 ; JSR - Jump to New Location Saving Return Address
 ;
@@ -489,7 +498,7 @@ JMP ($5597)  ;Indirect      $6C  3   5
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-JSR $5597    ;Absolute      $20  3   6
+JSR $5657    ;Absolute      $20  3   6
 
 ; LDA - Load Accumulator with Memory
 ;
@@ -504,14 +513,14 @@ JSR $5597    ;Absolute      $20  3   6
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-LDA #$44     ;Immediate     $A9  2   2
-LDA $44      ;Zero Page     $A5  2   3
-LDA $44,X    ;Zero Page,X   $B5  2   4
-LDA $4400    ;Absolute      $AD  3   4
-LDA $4400,X  ;Absolute,X    $BD  3   4+
-LDA $4400,Y  ;Absolute,Y    $B9  3   4+
-LDA ($44,X)  ;Indirect,X    $A1  2   6
-LDA ($44),Y  ;Indirect,Y    $B1  2   5+
+LDA #$58     ;Immediate     $A9  2   2
+LDA $59      ;Zero Page     $A5  2   3
+LDA $5A,X    ;Zero Page,X   $B5  2   4
+LDA $5B5C    ;Absolute      $AD  3   4
+LDA $5D5E,X  ;Absolute,X    $BD  3   4+
+LDA $5F60,Y  ;Absolute,Y    $B9  3   4+
+LDA ($61,X)  ;Indirect,X    $A1  2   6
+LDA ($62),Y  ;Indirect,Y    $B1  2   5+
 
 ; LDX - Load Index X with Memory
 ;
@@ -526,11 +535,11 @@ LDA ($44),Y  ;Indirect,Y    $B1  2   5+
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-LDX #$44     ;Immediate     $A2  2   2
-LDX $44      ;Zero Page     $A6  2   3
-LDX $44,Y    ;Zero Page,Y   $B6  2   4
-LDX $4400    ;Absolute      $AE  3   4
-LDX $4400,Y  ;Absolute,Y    $BE  3   4+
+LDX #$63     ;Immediate     $A2  2   2
+LDX $64      ;Zero Page     $A6  2   3
+LDX $65,Y    ;Zero Page,Y   $B6  2   4
+LDX $6667    ;Absolute      $AE  3   4
+LDX $6869,Y  ;Absolute,Y    $BE  3   4+
 
 ; LDY - Load Index Y with Memory
 ;
@@ -545,11 +554,11 @@ LDX $4400,Y  ;Absolute,Y    $BE  3   4+
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-LDY #$44     ;Immediate     $A0  2   2
-LDY $44      ;Zero Page     $A4  2   3
-LDY $44,X    ;Zero Page,X   $B4  2   4
-LDY $4400    ;Absolute      $AC  3   4
-LDY $4400,X  ;Absolute,X    $BC  3   4+
+LDY #$6A     ;Immediate     $A0  2   2
+LDY $6B      ;Zero Page     $A4  2   3
+LDY $6C,X    ;Zero Page,X   $B4  2   4
+LDY $6D6E    ;Absolute      $AC  3   4
+LDY $6F70,X  ;Absolute,X    $BC  3   4+
 
 ; LSR - Shift One Bit Right (Memory or Accumulator)
 ;
@@ -568,10 +577,10 @@ LDY $4400,X  ;Absolute,X    $BC  3   4+
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 LSR A        ;Accumulator   $4A  1   2
-LSR $44      ;Zero Page     $46  2   5
-LSR $44,X    ;Zero Page,X   $56  2   6
-LSR $4400    ;Absolute      $4E  3   6
-LSR $4400,X  ;Absolute,X    $5E  3   7
+LSR $71      ;Zero Page     $46  2   5
+LSR $72,X    ;Zero Page,X   $56  2   6
+LSR $7374    ;Absolute      $4E  3   6
+LSR $7576,X  ;Absolute,X    $5E  3   7
 
 ; NOP - No Operation
 ;
@@ -598,14 +607,14 @@ NOP          ;Implied       $EA  1   2
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-ORA #$44     ;Immediate     $09  2   2
-ORA $44      ;Zero Page     $05  2   3
-ORA $44,X    ;Zero Page,X   $15  2   4
-ORA $4400    ;Absolute      $0D  3   4
-ORA $4400,X  ;Absolute,X    $1D  3   4+
-ORA $4400,Y  ;Absolute,Y    $19  3   4+
-ORA ($44,X)  ;Indirect,X    $01  2   6
-ORA ($44),Y  ;Indirect,Y    $11  2   5+
+ORA #$77     ;Immediate     $09  2   2
+ORA $78      ;Zero Page     $05  2   3
+ORA $79,X    ;Zero Page,X   $15  2   4
+ORA $7A7B    ;Absolute      $0D  3   4
+ORA $7C7D,X  ;Absolute,X    $1D  3   4+
+ORA $7E7F,Y  ;Absolute,Y    $19  3   4+
+ORA ($80,X)  ;Indirect,X    $01  2   6
+ORA ($81),Y  ;Indirect,Y    $11  2   5+
 
 ; PHA - Push Accumulator on Stack
 ;
@@ -679,10 +688,10 @@ PLP          ;Implied       $28  1   4
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ROL A        ;Accumulator   $2A  1   2
-ROL $44      ;Zero Page     $26  2   5
-ROL $44,X    ;Zero Page,X   $36  2   6
-ROL $4400    ;Absolute      $2E  3   6
-ROL $4400,X  ;Absolute,X    $3E  3   7
+ROL $82      ;Zero Page     $26  2   5
+ROL $83,X    ;Zero Page,X   $36  2   6
+ROL $8485    ;Absolute      $2E  3   6
+ROL $8687,X  ;Absolute,X    $3E  3   7
 
 ; ROR - Rotate One Bit Right (Memory or Accumulator)
 ;
@@ -700,10 +709,10 @@ ROL $4400,X  ;Absolute,X    $3E  3   7
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ROR A        ;Accumulator   $6A  1   2
-ROR $44      ;Zero Page     $66  2   5
-ROR $44,X    ;Zero Page,X   $76  2   6
-ROR $4400    ;Absolute      $6E  3   6
-ROR $4400,X  ;Absolute,X    $7E  3   7
+ROR $88      ;Zero Page     $66  2   5
+ROR $89,X    ;Zero Page,X   $76  2   6
+ROR $8A8B    ;Absolute      $6E  3   6
+ROR $8C8D,X  ;Absolute,X    $7E  3   7
 
 ; RTI - Return from Interrupt
 ;
@@ -759,14 +768,14 @@ RTS          ;Implied       $60  1   6
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-SBC #$44     ;Immediate     $E9  2   2
-SBC $44      ;Zero Page     $E5  2   3
-SBC $44,X    ;Zero Page,X   $F5  2   4
-SBC $4400    ;Absolute      $ED  3   4
-SBC $4400,X  ;Absolute,X    $FD  3   4+
-SBC $4400,Y  ;Absolute,Y    $F9  3   4+
-SBC ($44,X)  ;Indirect,X    $E1  2   6
-SBC ($44),Y  ;Indirect,Y    $F1  2   5+
+SBC #$8E     ;Immediate     $E9  2   2
+SBC $8F      ;Zero Page     $E5  2   3
+SBC $90,X    ;Zero Page,X   $F5  2   4
+SBC $9192    ;Absolute      $ED  3   4
+SBC $9394,X  ;Absolute,X    $FD  3   4+
+SBC $9596,Y  ;Absolute,Y    $F9  3   4+
+SBC ($97,X)  ;Indirect,X    $E1  2   6
+SBC ($98),Y  ;Indirect,Y    $F1  2   5+
 
 ; SEC - Set Carry Flag
 ;
@@ -816,13 +825,13 @@ SEI          ;Implied       $78  1   2
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-STA $44      ;Zero Page     $85  2   3
-STA $44,X    ;Zero Page,X   $95  2   4
-STA $4400    ;Absolute      $8D  3   4
-STA $4400,X  ;Absolute,X    $9D  3   5
-STA $4400,Y  ;Absolute,Y    $99  3   5
-STA ($44,X)  ;Indirect,X    $81  2   6
-STA ($44),Y  ;Indirect,Y    $91  2   6
+STA $99      ;Zero Page     $85  2   3
+STA $9A,X    ;Zero Page,X   $95  2   4
+STA $9B9C    ;Absolute      $8D  3   4
+STA $9D9E,X  ;Absolute,X    $9D  3   5
+STA $9FA0,Y  ;Absolute,Y    $99  3   5
+STA ($A1,X)  ;Indirect,X    $81  2   6
+STA ($A2),Y  ;Indirect,Y    $91  2   6
 
 ; STX - Store Index X in Memory
 ;
@@ -833,9 +842,9 @@ STA ($44),Y  ;Indirect,Y    $91  2   6
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-STX $44      ;Zero Page     $86  2   3
-STX $44,Y    ;Zero Page,Y   $96  2   4
-STX $4400    ;Absolute      $8E  3   4
+STX $A3      ;Zero Page     $86  2   3
+STX $A4,Y    ;Zero Page,Y   $96  2   4
+STX $A5A6    ;Absolute      $8E  3   4
 
 ; STY - Store Index Y in Memory
 ;
@@ -846,9 +855,9 @@ STX $4400    ;Absolute      $8E  3   4
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-STY $44      ;Zero Page     $84  2   3
-STY $44,X    ;Zero Page,X   $94  2   4
-STY $4400    ;Absolute      $8C  3   4
+STY $A7      ;Zero Page     $84  2   3
+STY $A8,X    ;Zero Page,X   $94  2   4
+STY $A9AA    ;Absolute      $8C  3   4
 
 ; TAX - Transfer Accumulator to Index X
 ;
