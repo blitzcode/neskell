@@ -1,0 +1,20 @@
+
+# Default target depending on main program
+.PHONY : all
+all: out
+
+WARN_FLAGS = -Wall
+LLVM_FLAGS = -fllvm -optlo-O3
+# Run with '+RTS -p -s'
+# PROF_FLAGS = -prof -fprof-auto -DNO_TH
+GHC_FLAGS = $(PROF_FLAGS) $(WARN_FLAGS) $(LLVM_FLAGS) -rtsopts -O2 -threaded -H512m
+
+# Rule for producing the main program
+out:
+	ghc $(GHC_FLAGS) -o $@ --make Main
+
+HSSRC = $(wildcard *.hs)
+.PHONY : clean
+clean:
+	$(RM) $(HSSRC:.hs=.hi) $(HSSRC:.hs=.o) out
+
