@@ -6,8 +6,7 @@ module Main where
 import Instruction
 
 import Control.Monad (when)
-import Control.Monad.Error
-import Control.Applicative ((<$>))
+import Control.Monad.Error (throwError)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Vector.Unboxed as VU
@@ -28,6 +27,7 @@ decodingTest bin ref = do
 
 runTests :: IO ()
 runTests = do
+    -- Decoding test
     bin <- B.readFile "./tests/instr_test.bin"
     ref <- B.readFile "./tests/instr_test_ref_disasm.asm"
     putStrLn $ "Decoding Test " ++ case decodingTest bin ref of

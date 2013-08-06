@@ -8,7 +8,7 @@ module Instruction ( AddressMode(..)
                    , decodeInstruction
                    ) where
 
-import Data.Word (Word8, Word16)
+import Data.Word (Word8)
 import Text.Printf
 import Data.Bits (shiftL, (.|.))
 import qualified Data.Vector.Unboxed as VU
@@ -136,28 +136,28 @@ instance Show Instruction where
     show (Instruction (OpCode mn am) op) =
         show mn ++ " " ++
         case am of
-            Implied     -> case op of []          ->        ""
-            Accumulator -> case op of []          ->        "A"
-            Immediate   -> case op of [opl]       -> printf "#$%02X"              opl
-            ZeroPage    -> case op of [opl]       -> printf "$%02X"               opl
-            ZeroPageX   -> case op of [opl]       -> printf "$%02X,X"             opl
-            ZeroPageY   -> case op of [opl]       -> printf "$%02X,Y"             opl
-            Relative    -> case op of [opl]       -> printf "$%02X"               opl
-            Absolute    -> case op of (opl:oph:_) -> printf "$%04X"     $ makeW16 opl oph
-            AbsoluteX   -> case op of (opl:oph:_) -> printf "$%04X,X"   $ makeW16 opl oph
-            AbsoluteY   -> case op of (opl:oph:_) -> printf "$%04X,Y"   $ makeW16 opl oph
-            Indirect    -> case op of (opl:oph:_) -> printf "($%04X)"   $ makeW16 opl oph
-            IdxInd      -> case op of [opl]       -> printf "($%02X,X)"           opl
-            IndIdx      -> case op of [opl]       -> printf "($%02X),Y"           opl
+            Implied     -> case op of []          ->        ""                            ; _ -> "OpErr"
+            Accumulator -> case op of []          ->        "A"                           ; _ -> "OpErr"
+            Immediate   -> case op of [opl]       -> printf "#$%02X"              opl     ; _ -> "OpErr"
+            ZeroPage    -> case op of [opl]       -> printf "$%02X"               opl     ; _ -> "OpErr"
+            ZeroPageX   -> case op of [opl]       -> printf "$%02X,X"             opl     ; _ -> "OpErr"
+            ZeroPageY   -> case op of [opl]       -> printf "$%02X,Y"             opl     ; _ -> "OpErr"
+            Relative    -> case op of [opl]       -> printf "$%02X"               opl     ; _ -> "OpErr"
+            Absolute    -> case op of (opl:oph:_) -> printf "$%04X"     $ makeW16 opl oph ; _ -> "OpErr"
+            AbsoluteX   -> case op of (opl:oph:_) -> printf "$%04X,X"   $ makeW16 opl oph ; _ -> "OpErr"
+            AbsoluteY   -> case op of (opl:oph:_) -> printf "$%04X,Y"   $ makeW16 opl oph ; _ -> "OpErr"
+            Indirect    -> case op of (opl:oph:_) -> printf "($%04X)"   $ makeW16 opl oph ; _ -> "OpErr"
+            IdxInd      -> case op of [opl]       -> printf "($%02X,X)"           opl     ; _ -> "OpErr"
+            IndIdx      -> case op of [opl]       -> printf "($%02X),Y"           opl     ; _ -> "OpErr"
 
 instructionLen :: Instruction -> Int
 instructionLen (Instruction (OpCode _ a) _) = 1 + operandLen a
 
 decodeInstruction :: VU.Vector Word8 -> Int -> Instruction
 decodeInstruction mem pc =
-    let opc@(OpCode mn am) = decodeOpCode $ mem VU.! pc
+    let opc@(OpCode _ am) = decodeOpCode $ mem VU.! pc
      in case operandLen am of
-            0 -> Instruction opc [                                      ]
             1 -> Instruction opc [ mem VU.! (pc + 1)                    ]
             2 -> Instruction opc [ mem VU.! (pc + 1), mem VU.! (pc + 2) ]
+            _ -> Instruction opc [                                      ]
 
