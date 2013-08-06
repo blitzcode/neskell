@@ -1,12 +1,12 @@
 
-module Instruction (
-      AddressMode(..)
-    , operandLen
-    , Mnemonic(..)
-    , decodeOpCode
-    , Instruction(..)
-    , instructionLen
-    , decodeInstruction) where
+module Instruction ( AddressMode(..)
+                   , operandLen
+                   , Mnemonic(..)
+                   , decodeOpCode
+                   , Instruction(..)
+                   , instructionLen
+                   , decodeInstruction
+                   ) where
 
 import Data.Word (Word8, Word16)
 import Text.Printf
@@ -14,6 +14,7 @@ import Data.Bits (shiftL, (.|.))
 import qualified Data.Vector.Unboxed as VU
 
 {-
+{-# LANGUAGE DataKinds, GADTs, ScopedTypeVariables, RankNTypes #-}
 data AddressMode a where
     Accumulator :: AddressMode undefined
     Immediate   :: Word8 -> AddressMode Word8
