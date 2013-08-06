@@ -5,6 +5,8 @@ module Main where
 
 import Data.Word (Word8, Word16)
 import Control.Monad (when)
+import Text.Printf
+import Data.Bits (shiftL, (.|.))
 import qualified Data.ByteString as B
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed as V
@@ -37,20 +39,20 @@ data AddressMode =
     | IndexedIndirect
     | IndirectIndexed
 
-operandSize :: AddressMode -> Int
-operandSize Implied         = 0
-operandSize Accumulator     = 0
-operandSize Immediate       = 1
-operandSize ZeroPage        = 1
-operandSize ZeroPageX       = 1
-operandSize ZeroPageY       = 1
-operandSize Relative        = 1
-operandSize Absolute        = 2
-operandSize AbsoluteX       = 2
-operandSize AbsoluteY       = 2
-operandSize Indirect        = 2
-operandSize IndexedIndirect = 1
-operandSize IndirectIndexed = 1
+operandLen :: AddressMode -> Int
+operandLen Implied         = 0
+operandLen Accumulator     = 0
+operandLen Immediate       = 1
+operandLen ZeroPage        = 1
+operandLen ZeroPageX       = 1
+operandLen ZeroPageY       = 1
+operandLen Relative        = 1
+operandLen Absolute        = 2
+operandLen AbsoluteX       = 2
+operandLen AbsoluteY       = 2
+operandLen Indirect        = 2
+operandLen IndexedIndirect = 1
+operandLen IndirectIndexed = 1
 
 data Mnemonic =
       ADC
@@ -270,19 +272,37 @@ decodeOpCode opc =
 
 data Instruction = Instruction OpCode [Word8]
 
-instance Show Instruction where
-    show (Instruction (OpCode mn am) op) = show mn
+makeW16 :: Word8 -> Word8 -> Int
+makeW16 l h = (fromIntegral l :: Int) .|. (fromIntegral h :: Int) `shiftL` 8
 
-instructionSize :: Instruction -> Int
-instructionSize (Instruction (OpCode _ a) _) = 1 + operandSize a
+instance Show Instruction where
+    show (Instruction (OpCode mn am) op) =
+        show mn ++ " " ++
+        case am of
+            Implied         -> case op of []          ->        ""
+            Accumulator     -> case op of []          ->        "A"
+            Immediate       -> case op of [opl]       -> printf "#$%02X"              opl
+            ZeroPage        -> case op of [opl]       -> printf "$%02X"               opl
+            ZeroPageX       -> case op of [opl]       -> printf "$%02X,X"             opl
+            ZeroPageY       -> case op of [opl]       -> printf "$%02X,Y"             opl
+            Relative        -> case op of [opl]       -> printf "$%02X"               opl
+            Absolute        -> case op of (opl:oph:_) -> printf "$%04X"     $ makeW16 opl oph
+            AbsoluteX       -> case op of (opl:oph:_) -> printf "$%04X,X"   $ makeW16 opl oph
+            AbsoluteY       -> case op of (opl:oph:_) -> printf "$%04X,Y"   $ makeW16 opl oph
+            Indirect        -> case op of (opl:oph:_) -> printf "($%04X)"   $ makeW16 opl oph
+            IndexedIndirect -> case op of [opl]       -> printf "($%02X,X)"           opl
+            IndirectIndexed -> case op of [opl]       -> printf "($%02X),Y"           opl
+
+instructionLen :: Instruction -> Int
+instructionLen (Instruction (OpCode _ a) _) = 1 + operandLen a
 
 decodeInstruction :: VU.Vector Word8 -> Int -> Instruction
 decodeInstruction mem pc =
     let opc@(OpCode mn am) = decodeOpCode $ mem VU.! pc
-     in case operandSize am of
-            0 -> Instruction opc []
-            1 -> Instruction opc [ mem VU.! pc + 1 ]
-            2 -> Instruction opc [ mem VU.! pc + 1, mem VU.! pc + 2 ]
+     in case operandLen am of
+            0 -> Instruction opc [                                      ]
+            1 -> Instruction opc [ mem VU.! (pc + 1)                    ]
+            2 -> Instruction opc [ mem VU.! (pc + 1), mem VU.! (pc + 2) ]
 
 main :: IO ()
 main = do
@@ -290,7 +310,7 @@ main = do
     let vec = VU.fromList (B.unpack bin)
         disassemble pc = do
             let instr = decodeInstruction vec pc
-                newPC = pc + instructionSize instr
+                newPC = pc + instructionLen instr
             putStrLn . show $ instr
             when (newPC < VU.length vec) $ disassemble newPC
      in disassemble 0
