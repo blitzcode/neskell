@@ -4,6 +4,7 @@
 module Main where
 
 import Instruction
+import CPU
 
 import Control.Monad (when)
 import Control.Monad.Error (throwError)

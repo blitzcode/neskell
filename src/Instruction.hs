@@ -67,7 +67,7 @@ data Mnemonic =
     | PHP | PLA | PLP | ROL | ROR | RTI
     | RTS | SBC | SEC | SED | SEI | STA
     | STX | STY | TAX | TAY | TSX | TXA
-    | TXS | TYA
+    | TXS | TYA | ILL
       deriving (Show)
 
 data OpCode = OpCode Mnemonic AddressMode
@@ -125,7 +125,7 @@ decodeOpCode opc =
         ; 0x8E -> OpCode STX Absolute    ; 0x84 -> OpCode STY ZeroPage    ; 0x94 -> OpCode STY ZeroPageX   
         ; 0x8C -> OpCode STY Absolute    ; 0xAA -> OpCode TAX Implied     ; 0xA8 -> OpCode TAY Implied     
         ; 0xBA -> OpCode TSX Implied     ; 0x8A -> OpCode TXA Implied     ; 0x9A -> OpCode TXS Implied     
-        ; 0x98 -> OpCode TYA Implied
+        ; 0x98 -> OpCode TYA Implied     ; _    -> OpCode ILL Implied
 
 data Instruction = Instruction OpCode [Word8]
 
