@@ -13,10 +13,11 @@
 ; is an assembled version of this file, and its disassembly should match
 ; 'instr_test_ref_disasm.asm'. Those two files were generated using the tools
 ; of 6502js (https://github.com/skilldrick/6502js). Note that all instruction
-; arguments are sequential numbers from $00 to $AA. A bug in 6502js prevents
+; arguments are sequential numbers from $00 to $AB. A bug in 6502js prevents
 ; the relative addressing in branch instructions to assemble, only labels can
 ; be targeted. As a workaround, all branch instructions target 'lbl' and were
 ; later manually fixed in the binary / disassembly to their correct targets.
+; We also handle 'DCB' slightly different, see end of the file.
 ;
 ; References / Sources / Originals:
 ;
@@ -945,4 +946,11 @@ TYA          ;Implied       $98  1   2
 
 ; +  = Add 1 to cycles if page boundary is crossed
 ; ++ = Add 1 to cycles if branch is taken, one more if branch occurs to different page
+
+; DCB -  Define Constant Byte
+;
+; Not an actual opcode, used for embedding data into the assembly, we map any
+; illegal instructions to it
+
+DCB #$AB
 

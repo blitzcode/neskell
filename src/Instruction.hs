@@ -53,7 +53,7 @@ data Mnemonic =
     | PHP | PLA | PLP | ROL | ROR | RTI
     | RTS | SBC | SEC | SED | SEI | STA
     | STX | STY | TAX | TAY | TSX | TXA
-    | TXS | TYA | ILL
+    | TXS | TYA | DCB Word8
       deriving (Show)
 
 data OpCode = OpCode Mnemonic AddressMode
@@ -111,7 +111,7 @@ decodeOpCode opc =
         ; 0x8E -> OpCode STX Absolute    ; 0x84 -> OpCode STY ZeroPage    ; 0x94 -> OpCode STY ZeroPageX   
         ; 0x8C -> OpCode STY Absolute    ; 0xAA -> OpCode TAX Implied     ; 0xA8 -> OpCode TAY Implied     
         ; 0xBA -> OpCode TSX Implied     ; 0x8A -> OpCode TXA Implied     ; 0x9A -> OpCode TXS Implied     
-        ; 0x98 -> OpCode TYA Implied     ; _    -> OpCode ILL Implied
+        ; 0x98 -> OpCode TYA Implied     ; _    -> OpCode (DCB opc) Implied
 
 data Instruction = Instruction OpCode [Word8]
 
@@ -119,6 +119,9 @@ makeW16 :: Word8 -> Word8 -> Int
 makeW16 l h = (fromIntegral l :: Int) .|. (fromIntegral h :: Int) `shiftL` 8
 
 instance Show Instruction where
+    -- Special case: DCB is not an instruction, but a mnemonic for embedding raw
+    -- bytes into the assembly. We decode all illegal opcodes to it
+    show (Instruction (OpCode (DCB b) Implied) []) = printf "DCB #$%02X" b
     show (Instruction (OpCode mn am) op) =
         show mn ++ " " ++
         case am of
