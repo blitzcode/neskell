@@ -1,6 +1,8 @@
 
 --{-# LANGUAGE RankNTypes #-}
 --{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+--{-# LANGUAGE TypeSynonymInstances, MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module CPU ( runEmulator
            , TerminationCond(..)
@@ -31,17 +33,19 @@ data CPUState s = CPUState
     , cpuCycle :: STRef s Word64
     }
 
-type RSTEmu s a = ReaderT (CPUState s) (ST s) a
+type RSTEmu s = ReaderT (CPUState s) (ST s)
 
-{-
 class (Functor m, Monad m) => MonadEmulator m where
-    dummy :: Int -> m ()
-    --load  :: Address -> m Word16
-    --store :: Address -> Word16 -> m ()
+    readRAM :: Word16 -> m Word8
+    writeRAM :: Word16 -> Word8 -> m ()
 
 instance MonadEmulator (RSTEmu s) where
-    dummy _ = return ()
--}
+    readRAM addr = do
+        ram <- asks cpuRAM
+        lift $ VUM.read ram (fromIntegral addr)
+    writeRAM addr val = do
+        ram <- asks cpuRAM
+        lift $ VUM.write ram (fromIntegral addr) val
 
 data TerminationCond = TermNever | TermOnPC Word16 | TermOnOpC OpCode | TermOnCycleGT Word64
 
@@ -60,12 +64,20 @@ runCPU tc = do
             unless terminate loop
      in loop
 
+loadBinary :: MonadEmulator m => B.ByteString -> Word16 -> m ()
+loadBinary bin offs = do
+    mapM_ (\i ->
+        writeRAM (offs + fromIntegral i) $
+        B.index   bin (fromIntegral offs + i)) [0..B.length bin]
+
+{-
 loadBinary :: B.ByteString -> Word16 -> RSTEmu s ()
 loadBinary bin offs = do
     ram <- asks cpuRAM
     mapM_ (\i -> lift $
         VUM.write ram (fromIntegral offs + i) $
         B.index   bin (fromIntegral offs + i)) [0..B.length bin]
+-}
 
 runEmulator :: B.ByteString -> Word16 -> Word16 -> TerminationCond -> Int
 runEmulator bin offs pc tc =
