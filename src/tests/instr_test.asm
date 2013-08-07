@@ -9,15 +9,17 @@
 ; of these documents has typos, omissions and errors which were discovered
 ; during the N-way merge.
 ;
-; For testing disassembly / instruction decoding, the file 'instr_test.bin'
-; is an assembled version of this file, and its disassembly should match
+; For testing disassembly / instruction decoding, the file 'instr_test.bin' is
+; an assembled version of this file, and its disassembly should match
 ; 'instr_test_ref_disasm.asm'. Those two files were generated using the tools
-; of 6502js (https://github.com/skilldrick/6502js). Note that all instruction
-; arguments are sequential numbers from $00 to $AB. A bug in 6502js prevents
-; the relative addressing in branch instructions to assemble, only labels can
-; be targeted. As a workaround, all branch instructions target 'lbl' and were
-; later manually fixed in the binary / disassembly to their correct targets.
-; We also handle 'DCB' slightly different, see end of the file.
+; of 6502js (https://github.com/skilldrick/6502js). The hexdump output
+; can be converted to a binary with 'cat hexdmp | xxd -r -seek -1536 > bin'.
+; Note that all instruction arguments are sequential numbers from $00 to $AB. A
+; bug in 6502js prevents the relative addressing in branch instructions to
+; assemble, only labels can be targeted. As a workaround, all branch
+; instructions target 'lbl' and were later manually fixed in the binary /
+; disassembly to their correct targets. We also handle 'DCB' slightly
+different, see end of the file.
 ;
 ; References / Sources / Originals:
 ;

@@ -4,7 +4,7 @@
 module Main where
 
 import Instruction
---import CPU
+import CPU
 
 import Data.Monoid (All(..), getAll)
 import Control.Monad (when, unless)
