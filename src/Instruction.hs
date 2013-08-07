@@ -2,6 +2,7 @@
 module Instruction ( AddressMode(..)
                    , operandLen
                    , Mnemonic(..)
+                   , OpCode(..)
                    , decodeOpCode
                    , Instruction(..)
                    , instructionLen

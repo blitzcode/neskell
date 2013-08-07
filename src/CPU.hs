@@ -1,11 +1,17 @@
 
 --{-# LANGUAGE RankNTypes #-}
+--{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 
-module CPU () where
+module CPU ( runEmulator
+           , TerminationCond(..)
+           ) where
+
+import Instruction
 
 import qualified Data.Vector.Unboxed.Mutable as VUM
 import qualified Data.ByteString as B
 import Data.Word (Word8, Word16, Word64)
+import Control.Monad (unless)
 
 --import Control.Applicative ((<$>))
 import Control.Monad.ST (ST, runST)
@@ -27,9 +33,32 @@ data CPUState s = CPUState
 
 type RSTEmu s a = ReaderT (CPUState s) (ST s) a
 
-runCPU :: RSTEmu s ()
-runCPU = do
-    return ()
+{-
+class (Functor m, Monad m) => MonadEmulator m where
+    dummy :: Int -> m ()
+    --load  :: Address -> m Word16
+    --store :: Address -> Word16 -> m ()
+
+instance MonadEmulator (RSTEmu s) where
+    dummy _ = return ()
+-}
+
+data TerminationCond = TermNever | TermOnPC Word16 | TermOnOpC OpCode | TermOnCycleGT Word64
+
+checkTC :: TerminationCond -> RSTEmu s Bool
+checkTC tc =
+    case tc of
+        TermNever       -> return False
+        TermOnPC pc     -> return False
+        TermOnOpC opc   -> return False
+        TermOnCycleGT c -> return False
+
+runCPU :: TerminationCond -> RSTEmu s ()
+runCPU tc = do
+    let loop = do
+            terminate <- checkTC tc
+            unless terminate loop
+     in loop
 
 loadBinary :: B.ByteString -> Word16 -> RSTEmu s ()
 loadBinary bin offs = do
@@ -38,8 +67,8 @@ loadBinary bin offs = do
         VUM.write ram (fromIntegral offs + i) $
         B.index   bin (fromIntegral offs + i)) [0..B.length bin]
 
-runEmulator :: B.ByteString -> Word16 -> Word16 -> Int
-runEmulator bin offs pc =
+runEmulator :: B.ByteString -> Word16 -> Word16 -> TerminationCond -> Int
+runEmulator bin offs pc tc =
     runST $ do
         initRAM   <- VUM.replicate (2 ^ (16 :: Int)) (0 :: Word8)
         initPC    <- newSTRef pc
@@ -61,7 +90,6 @@ runEmulator bin offs pc =
                   }
         runReaderT (do
             loadBinary bin offs
-            runCPU
-            :: RSTEmu s ()) cpu
+            runCPU tc) cpu
         return 0
 

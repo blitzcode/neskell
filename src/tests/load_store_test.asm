@@ -1,3 +1,14 @@
+
+# Test taken from hmc-6502
+# http://code.google.com/p/hmc-6502/source/browse/trunk/emu/testvectors/TestAllInstructions/
+
+# Tests instructions LDA/LDX/LDY and STA/STX/STY with all addressing modes
+#
+# Expected Results:
+#
+# $022A = 0x55 (decimal 85)
+# A = 0x55, X = 0x2A, Y = 0x73
+
 LDA #85
 LDX #42
 LDY #115
