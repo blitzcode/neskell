@@ -136,19 +136,19 @@ instance Show Instruction where
     show (Instruction (OpCode mn am) op) =
         show mn ++ " " ++
         case am of
-            Implied     -> case op of []          ->        ""                            ; _ -> "OpErr"
-            Accumulator -> case op of []          ->        "A"                           ; _ -> "OpErr"
-            Immediate   -> case op of [opl]       -> printf "#$%02X"              opl     ; _ -> "OpErr"
-            ZeroPage    -> case op of [opl]       -> printf "$%02X"               opl     ; _ -> "OpErr"
-            ZeroPageX   -> case op of [opl]       -> printf "$%02X,X"             opl     ; _ -> "OpErr"
-            ZeroPageY   -> case op of [opl]       -> printf "$%02X,Y"             opl     ; _ -> "OpErr"
-            Relative    -> case op of [opl]       -> printf "$%02X"               opl     ; _ -> "OpErr"
-            Absolute    -> case op of (opl:oph:_) -> printf "$%04X"     $ makeW16 opl oph ; _ -> "OpErr"
-            AbsoluteX   -> case op of (opl:oph:_) -> printf "$%04X,X"   $ makeW16 opl oph ; _ -> "OpErr"
-            AbsoluteY   -> case op of (opl:oph:_) -> printf "$%04X,Y"   $ makeW16 opl oph ; _ -> "OpErr"
-            Indirect    -> case op of (opl:oph:_) -> printf "($%04X)"   $ makeW16 opl oph ; _ -> "OpErr"
-            IdxInd      -> case op of [opl]       -> printf "($%02X,X)"           opl     ; _ -> "OpErr"
-            IndIdx      -> case op of [opl]       -> printf "($%02X),Y"           opl     ; _ -> "OpErr"
+            Implied     -> case op of []           ->        ""                            ; _ -> "OpLnErr"
+            Accumulator -> case op of []           ->        "A"                           ; _ -> "OpLnErr"
+            Immediate   -> case op of [opl]        -> printf "#$%02X"              opl     ; _ -> "OpLnErr"
+            ZeroPage    -> case op of [opl]        -> printf "$%02X"               opl     ; _ -> "OpLnErr"
+            ZeroPageX   -> case op of [opl]        -> printf "$%02X,X"             opl     ; _ -> "OpLnErr"
+            ZeroPageY   -> case op of [opl]        -> printf "$%02X,Y"             opl     ; _ -> "OpLnErr"
+            Relative    -> case op of [opl]        -> printf "$%02X"               opl     ; _ -> "OpLnErr"
+            Absolute    -> case op of (opl:oph:[]) -> printf "$%04X"     $ makeW16 opl oph ; _ -> "OpLnErr"
+            AbsoluteX   -> case op of (opl:oph:[]) -> printf "$%04X,X"   $ makeW16 opl oph ; _ -> "OpLnErr"
+            AbsoluteY   -> case op of (opl:oph:[]) -> printf "$%04X,Y"   $ makeW16 opl oph ; _ -> "OpLnErr"
+            Indirect    -> case op of (opl:oph:[]) -> printf "($%04X)"   $ makeW16 opl oph ; _ -> "OpLnErr"
+            IdxInd      -> case op of [opl]        -> printf "($%02X,X)"           opl     ; _ -> "OpLnErr"
+            IndIdx      -> case op of [opl]        -> printf "($%02X),Y"           opl     ; _ -> "OpLnErr"
 
 instructionLen :: Instruction -> Int
 instructionLen (Instruction (OpCode _ a) _) = 1 + operandLen a

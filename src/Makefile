@@ -9,6 +9,7 @@ GHC_FLAGS = $(PROF_FLAGS) $(WARN_FLAGS) $(LLVM_FLAGS) -rtsopts -O2 -threaded -H5
 .PHONY : out
 out:
 	ghc $(GHC_FLAGS) -o $@ --make Main
+	./out --test
 
 HSSRC = $(wildcard *.hs)
 .PHONY : clean
