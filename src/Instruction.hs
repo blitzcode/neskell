@@ -13,20 +13,6 @@ import Text.Printf
 import Data.Bits (shiftL, (.|.))
 import qualified Data.Vector.Unboxed as VU
 
-{-
-{-# LANGUAGE DataKinds, GADTs, ScopedTypeVariables, RankNTypes #-}
-data AddressMode a where
-    Accumulator :: AddressMode undefined
-    Immediate   :: Word8 -> AddressMode Word8
-    Absolute    :: Word16 -> AddressMode Word16
-
-operandSize :: (forall a. AddressMode a) -> Int
-operandSize (x :: AddressMode undefined) = 1
-operandSize (x :: AddressMode Word8) = 1
-operandSize (x :: AddressMode Word16) = 2
-
--}
-
 data AddressMode =
       Implied
     | Accumulator
