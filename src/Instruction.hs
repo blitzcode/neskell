@@ -14,6 +14,7 @@ module Instruction ( AddressMode(..)
 -- all official instructions of the 6502
 
 import MonadEmulator (MonadEmulator(..), LoadStore(..))
+import Util (makeW16, loadPC)
 
 import Data.Word (Word8, Word16)
 import Text.Printf
@@ -126,9 +127,6 @@ decodeOpCode opc =
 
 data Instruction = Instruction OpCode [Word8]
 
-makeW16 :: Word8 -> Word8 -> Word16
-makeW16 l h = (fromIntegral l :: Word16) .|. (fromIntegral h :: Word16) `shiftL` 8
-
 instance Show Instruction where
     -- Special case: DCB is not an instruction, but a mnemonic for embedding raw
     -- bytes into the assembly. We decode all illegal opcodes to it
@@ -163,7 +161,7 @@ decodeInstruction mem pc =
 
 decodeInstructionM :: MonadEmulator m => m Instruction
 decodeInstructionM = do
-    pc <- liftM2 (makeW16) (load PCH) (load PCL)
+    pc <- loadPC
     opc@(OpCode _ am) <- decodeOpCode <$> (load $ Addr pc)
     Instruction opc <$> case operandLen am of
             1 -> mapM (load . Addr) [ pc + 1         ]

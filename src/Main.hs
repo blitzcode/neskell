@@ -35,24 +35,31 @@ runTests = do
     -- We use a writer with an All monoid so we can return False if any test fails
     w <- execWriterT $ do -- WriterT All IO ()
         -- Decoding test
-        binInst <- liftIO $ B.readFile "./tests/instr_test.bin"
-        refInst <- liftIO $ B.readFile "./tests/instr_test_ref_disasm.asm"
-        case decodingTest binInst refInst of
-            Left err -> (tell $ All False) >> (liftIO . putStrLn $ "Decoding Test Failed: " ++ err)
-            Right _  -> return ()
+        do
+            bin <- liftIO $ B.readFile "./tests/instr_test.bin"
+            ref <- liftIO $ B.readFile "./tests/instr_test_ref_disasm.asm"
+            case decodingTest bin ref of
+                Left err -> (tell $ All False) >> (liftIO . putStrLn $ "Decoding Test Failed: " ++ err)
+                Right _  -> return ()
         -- Load / Store test
-        binLS <- liftIO $ B.readFile "./tests/load_store_test.bin"
-        let res = runEmulator [ (binLS, 0x0600) ]
-                              [ (PCH, 0x06)
-                              , (PCL, 0x00)
-                              ]
-                              [ CondOpC (OpCode BRK Implied) ]
-                              [ CondLS (Addr 0x022A) 0x55
-                              , CondLS A 0x55
-                              , CondLS X 0x2A
-                              , CondLS Y 0x73
-                              ]
-        return ()
+        do
+            bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
+            let (cond, cpust) = runEmulator [ (bin, 0x0600) ]
+                                            [ (PCH, 0x06)
+                                            , (PCL, 0x00)
+                                            ]
+                                            [ CondOpC (OpCode BRK Implied) ]
+                                            [ CondLS (Addr 0x022A) 0x55
+                                            , CondLS A 0x55
+                                            , CondLS X 0x2A
+                                            , CondLS Y 0x73
+                                            ]
+            unless (null cond) $ do
+                tell $ All False
+                liftIO $ putStrLn   "Load / Store Test Failed:"
+                liftIO $ putStrLn $ "    Unmet Conditions: " ++ show cond
+                liftIO $ putStrLn $ "    CPU State: "        ++ cpust
+
     return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
