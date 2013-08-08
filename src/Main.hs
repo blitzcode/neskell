@@ -44,21 +44,24 @@ runTests = do
         -- Load / Store test
         do
             bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
-            let (cond, cpust) = runEmulator [ (bin, 0x0600) ]
-                                            [ (PCH, 0x06)
-                                            , (PCL, 0x00)
-                                            ]
-                                            [ CondOpC (OpCode BRK Implied) ]
-                                            [ CondLS (Addr 0x022A) 0x55
-                                            , CondLS A 0x55
-                                            , CondLS X 0x2A
-                                            , CondLS Y 0x73
-                                            ]
+            let (cond, cpust, trace) = runEmulator [ (bin, 0x0600) ]
+                                                   [ (PCH, 0x06)
+                                                   , (PCL, 0x00)
+                                                   ]
+                                                   [ CondOpC (OpCode BRK Implied) ]
+                                                   [ CondLS (Addr 0x022A) 0x55
+                                                   , CondLS A 0x55
+                                                   , CondLS X 0x2A
+                                                   , CondLS Y 0x73
+                                                   ]
+                                                   True
             unless (null cond) $ do
                 tell $ All False
                 liftIO $ putStrLn   "Load / Store Test Failed:"
                 liftIO $ putStrLn $ "    Unmet Conditions: " ++ show cond
                 liftIO $ putStrLn $ "    CPU State: "        ++ cpust
+                liftIO $ putStrLn $ "    Trace: "
+                liftIO $ B8.putStr $ trace
 
     return $ getAll w
 

@@ -41,27 +41,18 @@ loadBinary bin offs = do
                  B.index bin i)
           [0..B.length bin - 1]
 
-cpuState :: MonadEmulator m => m String
-cpuState = do
-    a  <- load A
-    x  <- load X
-    y  <- load Y
-    sr <- load SR
-    sp <- load SP
-    pc <- loadPC
-    return $ printf "A: 0x%02X X: 0x%02X Y: 0x%02X SR: 0x%02X SP: 0x%02X PC: 0x%04X"
-        a x y sr sp pc
-
 runEmulator ::
     [(B.ByteString, Word16)] -> -- List of program binaries and their offsets
     [(LoadStore, Word8)]     -> -- Store operations to set up simulator state
     [Cond]                   -> -- The simulator will stop when all of these conditions are met
     [Cond]                   -> -- Conditions to verify once stopped
+    Bool                     -> -- Enable execution tracing
     ( [Cond]                    -- Conditions which were not met
     , String                    -- Debug string of last CPU state
+    , B.ByteString              -- Execution trace
     )
-runEmulator bins setup stopc verc =
-    runSTEmulator $ do
+runEmulator bins setup stopc verc trace =
+    runSTEmulator trace $ do
         mapM_ (\(bin, offs) -> loadBinary bin offs) bins
         mapM_ (\(ls, w8)    -> store ls w8) setup
         let loop = do
@@ -71,7 +62,8 @@ runEmulator bins setup stopc verc =
                 unless stop loop
          in do
                 loop
-                cond  <- filterM (\x -> not <$> checkCond x) verc
-                cpust <- cpuState
-                return (cond, cpust)
+                cond     <- filterM (\x -> not <$> checkCond x) verc
+                cpust    <- cpuState
+                cputrace <- getTrace
+                return (cond, cpust, cputrace)
 

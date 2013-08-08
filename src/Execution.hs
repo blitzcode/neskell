@@ -9,6 +9,8 @@ import Instruction
 import Util
 
 import Data.Word (Word8, Word16)
+import qualified Data.ByteString.Char8 as B8
+import Text.Printf
 
 -- data AddressMode = Implied | Accumulator | Immediate | ZeroPage | ZeroPageX | ZeroPageY | Relative | Absolute | AbsoluteX | AbsoluteY | Indirect | IdxInd | IndIdx
 -- data OpCode = OpCode Mnemonic AddressMode
@@ -17,8 +19,10 @@ import Data.Word (Word8, Word16)
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst = do
+    trace . B8.pack $ printf "\n%s" (show inst)
     updatePC ((fromIntegral $ instructionLen inst) +)
     case inst of
         Instruction (OpCode LDA am) oper -> return ()
         _ -> return ()
+    trace . B8.pack =<< cpuState
 
