@@ -7,14 +7,19 @@ module Instruction ( AddressMode(..)
                    , Instruction(..)
                    , instructionLen
                    , decodeInstruction
+                   , decodeInstructionM
                    ) where
 
 -- This module contains types and function for representing and decoding
 -- all official instructions of the 6502
 
-import Data.Word (Word8)
+import MonadEmulator (MonadEmulator(..), LoadStore(..))
+
+import Data.Word (Word8, Word16)
 import Text.Printf
 import Data.Bits (shiftL, (.|.))
+import Control.Applicative ((<$>))
+import Control.Monad (liftM2)
 import qualified Data.Vector.Unboxed as VU
 
 data AddressMode =
@@ -31,7 +36,7 @@ data AddressMode =
     | Indirect
     | IdxInd
     | IndIdx
-      deriving (Show)
+      deriving (Show, Eq)
 
 operandLen :: AddressMode -> Int
 operandLen Implied     = 0
@@ -59,9 +64,10 @@ data Mnemonic =
     | RTS | SBC | SEC | SED | SEI | STA
     | STX | STY | TAX | TAY | TSX | TXA
     | TXS | TYA | DCB Word8
-      deriving (Show)
+      deriving (Show, Eq)
 
-data OpCode = OpCode Mnemonic AddressMode deriving (Show)
+data OpCode = OpCode Mnemonic AddressMode
+              deriving (Show, Eq)
 
 decodeOpCode :: Word8 -> OpCode
 decodeOpCode opc =
@@ -120,8 +126,8 @@ decodeOpCode opc =
 
 data Instruction = Instruction OpCode [Word8]
 
-makeW16 :: Word8 -> Word8 -> Int
-makeW16 l h = (fromIntegral l :: Int) .|. (fromIntegral h :: Int) `shiftL` 8
+makeW16 :: Word8 -> Word8 -> Word16
+makeW16 l h = (fromIntegral l :: Word16) .|. (fromIntegral h :: Word16) `shiftL` 8
 
 instance Show Instruction where
     -- Special case: DCB is not an instruction, but a mnemonic for embedding raw
@@ -154,4 +160,13 @@ decodeInstruction mem pc =
             1 -> Instruction opc [ mem VU.! (pc + 1)                    ]
             2 -> Instruction opc [ mem VU.! (pc + 1), mem VU.! (pc + 2) ]
             _ -> Instruction opc [                                      ]
+
+decodeInstructionM :: MonadEmulator m => m Instruction
+decodeInstructionM = do
+    pc <- liftM2 (makeW16) (load PCH) (load PCL)
+    opc@(OpCode _ am) <- decodeOpCode <$> (load $ Addr pc)
+    Instruction opc <$> case operandLen am of
+            1 -> mapM (load . Addr) [ pc + 1         ]
+            2 -> mapM (load . Addr) [ pc + 1, pc + 2 ]
+            _ -> return             [                ]
 
