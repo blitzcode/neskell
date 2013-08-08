@@ -16,8 +16,14 @@ import Control.Monad.ST (ST, runST)
 import Data.STRef
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Trans (lift)
+import Text.Printf
 
 data LoadStore = A | X | Y | SR | SP | PCL | PCH | Addr Word16
+
+instance Show LoadStore where
+    show (Addr w) = printf "Addr 0x%04X" w
+    show A   = "A"  ; show X   = "X"  ; show Y   = "Y"  ; show SR  = "SR" ; show SP  = "SP"
+    show PCL = "PCL"; show PCH = "PCH"
 
 data CPUState s = CPUState
     { cpuState :: VUM.MVector s Word8

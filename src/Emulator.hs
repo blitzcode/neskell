@@ -1,6 +1,6 @@
 
 module Emulator ( runEmulator
-                , TerminationCond(..)
+                , Cond(..)
                 ) where
 
 -- Emulator main loop. Load a binary, set up the CPU and then run until a
@@ -12,17 +12,26 @@ import qualified Instruction as I
 
 import qualified Data.ByteString as B
 import Data.Word (Word8, Word16, Word64)
-import Control.Monad (unless)
+import Control.Monad (when, unless)
+import Control.Applicative ((<$>))
+import Text.Printf
 
-data TerminationCond = TermNever | TermOnPC Word16 | TermOnOpC I.OpCode | TermOnCycleGT Word64
+data Cond =
+      CondLS     LoadStore Word8 -- Compare any memory address / CPU state to
+    | CondOpC    I.OpCode        -- PC pointing to a specific opcode
+    | CondCycleR Word64 Word64   -- Cycle count in the specified closed interval
 
-checkTC :: MonadEmulator m => TerminationCond -> m Bool
-checkTC tc =
-    case tc of
-        TermNever       -> return False
-        TermOnPC pc     -> return False
-        TermOnOpC opc   -> return False
-        TermOnCycleGT c -> return False
+instance Show Cond where
+    show (CondLS ls w   ) = printf "%s == 0x%02X" (show ls) w
+    show (CondOpC opc   ) = "OpCode(PC) == " ++ show opc
+    show (CondCycleR l h) = unlines ["cycle E [", show l, show h, "]"]
+
+checkCond :: MonadEmulator m => Cond -> m Bool
+checkCond cond =
+    case cond of
+        CondLS     ls w -> return False
+        CondOpC    opc  -> return False
+        CondCycleR l h  -> return False
 
 loadBinary :: MonadEmulator m => B.ByteString -> Word16 -> m ()
 loadBinary bin offs = do
@@ -30,13 +39,20 @@ loadBinary bin offs = do
         store (Addr $ offs + fromIntegral i) $
         B.index bin (fromIntegral offs + i)) [0..B.length bin]
 
-runEmulator :: B.ByteString -> Word16 -> Word16 -> TerminationCond -> Int
-runEmulator bin offs pc tc =
+runEmulator ::
+    [(B.ByteString, Word16)] -> -- List of program binaries / data and their offsets
+    [(LoadStore, Word8)] ->     -- Store operations to set up simulator state
+    [Cond] ->                   -- The simulator will stop when all of these conditions are met
+    [Cond] ->                   -- Conditions to verify once stopped
+    Int
+runEmulator bins setup stopc verc =
     runSTEmulator $ do
-        loadBinary bin offs
+        mapM_ (\(bin, offs) -> loadBinary bin offs) bins
+        mapM_ (\(ls, w8) -> store ls w8) setup
         let loop = do
-                terminate <- checkTC tc
-                unless terminate loop
-         in loop
+                stop <- and <$> mapM (checkCond) stopc
+                unless stop loop
+         in do
+                loop
         return 0
 

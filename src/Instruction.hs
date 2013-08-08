@@ -31,6 +31,7 @@ data AddressMode =
     | Indirect
     | IdxInd
     | IndIdx
+      deriving (Show)
 
 operandLen :: AddressMode -> Int
 operandLen Implied     = 0
@@ -60,7 +61,7 @@ data Mnemonic =
     | TXS | TYA | DCB Word8
       deriving (Show)
 
-data OpCode = OpCode Mnemonic AddressMode
+data OpCode = OpCode Mnemonic AddressMode deriving (Show)
 
 decodeOpCode :: Word8 -> OpCode
 decodeOpCode opc =

@@ -3,8 +3,9 @@
 
 module Main (main) where
 
-import qualified Instruction as I
-import qualified Emulator as E
+import Instruction
+import Emulator
+import MonadEmulator (LoadStore(..))
 
 import Data.Monoid (All(..), getAll)
 import Control.Monad (when, unless)
@@ -41,7 +42,16 @@ runTests = do
             Right _  -> return ()
         -- Load / Store test
         binLS <- liftIO $ B.readFile "./tests/load_store_test.bin"
-        let res = E.runEmulator binLS 0x0600 0x0600 $ E.TermOnOpC (I.OpCode I.BRK I.Implied)
+        let res = runEmulator [ (binLS, 0x0600) ]
+                              [ (PCH, 0x06)
+                              , (PCL, 0x00)
+                              ]
+                              [ CondOpC (OpCode BRK Implied) ]
+                              [ CondLS (Addr 0x022A) 0x55
+                              , CondLS A 0x55
+                              , CondLS X 0x2A
+                              , CondLS Y 0x73
+                              ]
         return ()
     return $ getAll w
 
@@ -49,8 +59,8 @@ disassemble :: B.ByteString -> [B.ByteString]
 disassemble bin = do
     let vec = VU.fromList $ B.unpack bin
         disassemble' pc = do
-            let instr   = I.decodeInstruction vec pc
-                newPC   = pc + I.instructionLen instr
+            let instr   = decodeInstruction vec pc
+                newPC   = pc + instructionLen instr
                 showI   = B8.pack . show $ instr
                 validPC = newPC < VU.length vec
             -- Build result using : instead of ++, no stack overflow etc.
