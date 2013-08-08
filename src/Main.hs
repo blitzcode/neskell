@@ -1,10 +1,10 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+module Main (main) where
 
 import qualified Instruction as I
-import qualified CPU
+import qualified Emulator as E
 
 import Data.Monoid (All(..), getAll)
 import Control.Monad (when, unless)
@@ -41,7 +41,7 @@ runTests = do
             Right _  -> return ()
         -- Load / Store test
         binLS <- liftIO $ B.readFile "./tests/load_store_test.bin"
-        let res = CPU.runEmulator binLS 0x0600 0x0600 $ CPU.TermOnOpC (I.OpCode I.BRK I.Implied)
+        let res = E.runEmulator binLS 0x0600 0x0600 $ E.TermOnOpC (I.OpCode I.BRK I.Implied)
         return ()
     return $ getAll w
 

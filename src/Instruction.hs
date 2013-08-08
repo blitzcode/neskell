@@ -9,6 +9,9 @@ module Instruction ( AddressMode(..)
                    , decodeInstruction
                    ) where
 
+-- This module contains types and function for representing and decoding
+-- all official instructions of the 6502
+
 import Data.Word (Word8)
 import Text.Printf
 import Data.Bits (shiftL, (.|.))
