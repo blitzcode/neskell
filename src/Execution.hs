@@ -16,6 +16,10 @@ import Text.Printf
 -- data OpCode = OpCode Mnemonic AddressMode
 -- data Instruction = Instruction OpCode [Word8]
 -- instructionLen :: Instruction -> Int
+-- data LoadStore = A | X | Y | SR | SP | PCL | PCH | Addr Word16
+
+loadOperand :: MonadEmulator m => Instruction -> m (Either Word8 Word16)
+loadOperand (Instruction (OpCode _ am) oper) = return $ Left 5
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst = do

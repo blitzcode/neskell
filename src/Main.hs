@@ -61,7 +61,7 @@ runTests = do
                 liftIO $ putStrLn $ "    Unmet Conditions: " ++ show cond
                 liftIO $ putStrLn $ "    CPU State: "        ++ cpust
                 liftIO $ putStrLn $ "    Trace: "
-                liftIO $ B8.putStr $ trace
+                --liftIO $ B8.putStr $ trace
 
     return $ getAll w
 
