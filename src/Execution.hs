@@ -19,10 +19,11 @@ import Text.Printf
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst = do
-    trace . B8.pack $ printf "\n%s" (show inst)
+    trace . B8.pack $ printf "\n%s (%ib): " (show inst) (instructionLen inst)
     updatePC ((fromIntegral $ instructionLen inst) +)
     case inst of
         Instruction (OpCode LDA am) oper -> return ()
         _ -> return ()
-    trace . B8.pack =<< cpuState
+    cpustate <- cpuState
+    trace . B8.pack . printf "\n%s\n" $ cpustate
 

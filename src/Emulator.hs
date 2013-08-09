@@ -55,6 +55,8 @@ runEmulator bins setup stopc verc trace =
     runSTEmulator trace $ do
         mapM_ (\(bin, offs) -> loadBinary bin offs) bins
         mapM_ (\(ls, w8)    -> store ls w8) setup
+        store SP 0xFF
+        store SR . setFlag FI . setFlag F1 $ 0
         let loop = do
                 stop <- and <$> mapM (checkCond) stopc
                 inst <- I.decodeInstructionM

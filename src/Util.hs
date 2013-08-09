@@ -5,11 +5,15 @@ module Util ( makeW16
             , storePC
             , updatePC
             , cpuState
+            , Flag(..)
+            , getFlag
+            , setFlag
+            , clearFlag
             ) where
 
 import MonadEmulator (MonadEmulator(..), LoadStore(..))
 
-import Data.Bits ((.&.), (.|.), shiftL, shiftR)
+import Data.Bits
 import Data.Word (Word8, Word16)
 import Control.Monad (liftM, liftM2)
 import Text.Printf
@@ -29,6 +33,23 @@ storePC pc = case splitW16 pc of (l, h) -> store PCL l >> store PCH h
 updatePC :: MonadEmulator m => (Word16 -> Word16) -> m ()
 updatePC f = loadPC >>= return . f >>= storePC
 
+data Flag = FC | FZ | FI | FD | FB | F1 | FV | FN
+            deriving (Enum)
+
+getFlag :: Flag -> Word8 -> Bool
+getFlag f w = testBit w . fromEnum $ f
+
+setFlag :: Flag -> Word8 -> Word8
+setFlag f w = setBit w . fromEnum $ f
+
+clearFlag :: Flag -> Word8 -> Word8
+clearFlag f w = clearBit w . fromEnum $ f
+
+makeSRString :: Word8 -> String
+makeSRString w =
+    map (\(f, s) -> if getFlag f w then s else '-') $ zip
+        [FC .. FN] ['C', 'Z', 'I', 'D', 'B', '1', 'V', 'N']
+
 cpuState :: MonadEmulator m => m String
 cpuState = do
     a  <- load A
@@ -37,6 +58,6 @@ cpuState = do
     sr <- load SR
     sp <- load SP
     pc <- loadPC
-    return $ printf "A: 0x%02X X: 0x%02X Y: 0x%02X SR: 0x%02X SP: 0x%02X PC: 0x%04X"
-        a x y sr sp pc
+    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X"
+        a x y sr (makeSRString sr) sp pc
 

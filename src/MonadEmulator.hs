@@ -67,13 +67,13 @@ instance MonadEmulator (RSTEmu s) where
         lift $ VUM.read state . lsToStateIdx $ ls
     store ls val = do
         state <- asks cpuState
-        trace . B8.pack $ printf "0x%02X -> %s" val (show ls)
+        trace . B8.pack $ printf "0x%02X -> %s, " val (show ls)
         lift $ VUM.write state (lsToStateIdx ls) val
     trace b = do
          enable <- asks cpuTraceEnable
          when (enable) $ do
             cputrace <- asks cpuTrace 
-            lift $ modifySTRef cputrace (\log -> log `B.append` b `B8.snoc` '\n')
+            lift $ modifySTRef cputrace (\log -> log `B.append` b)
 
 -- We don't want to export this through MonadEmulator, only needs to be called
 -- from code directly inside runSTEmulator's argument function
