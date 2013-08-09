@@ -25,51 +25,62 @@ import Control.Applicative ((<$>))
 --    store8  :: LoadStore -> Word8  -> m ()
 --    store16 :: LoadStore -> Word16 -> m ()
 
-loadOperand8 :: MonadEmulator m => Instruction -> m Word8
-loadOperand8 (Instruction (OpCode _ am) oper) =
+-- Functions for loading and storing 8 bit operands for any instruction.
+-- Illegal instructions (writing to an Immediate operand, reading using the
+-- Indirect mode, having no operand data for anything but
+-- Immediate/Accumulator, etc.) will result in an error trace and a dummy
+-- return value
+
+getOperandAddr8 :: MonadEmulator m => Instruction -> m LoadStore
+getOperandAddr8 inst@(Instruction (OpCode _ am) oper) =
     case oper of 
-        []           -> case am of Accumulator -> load8 A
+        []           -> case am of Accumulator -> return A
                                    _           -> err
-        [w8]         -> case am of Immediate   -> return w8
-                                   ZeroPage    -> load8 (Addr $ fromIntegral w8)
+        [w8]         -> case am of ZeroPage    -> return . Addr $ fromIntegral w8
                                    ZeroPageX   -> do x <- load8 X
-                                                     load8 (Addr . fromIntegral $ w8 + x)
-                                   ZeroPageY   -> do y <- load8 X
-                                                     load8 (Addr . fromIntegral $ w8 + y)
-                                   Relative    -> return w8
+                                                     return $ Addr (fromIntegral $ w8 + x)
+                                   ZeroPageY   -> do y <- load8 Y
+                                                     return $ Addr (fromIntegral $ w8 + y)
                                    IdxInd      -> do x <- load8 X
                                                      let zp = w8 + x
-                                                     l   <- load8 . Addr . fromIntegral $ zp
-                                                     h   <- load8 . Addr . fromIntegral $ zp + 1
-                                                     mem <- load8 . Addr $ makeW16 l h
-                                                     return mem
-                                   IndIdx      -> do l   <- load8 . Addr . fromIntegral $ w8
-                                                     h   <- load8 . Addr . fromIntegral $ w8 + 1
-                                                     y   <- load8 Y
-                                                     mem <- load8 . Addr $ makeW16 l h + fromIntegral y
-                                                     return mem
+                                                     l <- load8 . Addr . fromIntegral $ zp
+                                                     h <- load8 . Addr . fromIntegral $ zp + 1
+                                                     return . Addr $ makeW16 l h
+                                   IndIdx      -> do l <- load8 . Addr . fromIntegral $ w8
+                                                     h <- load8 . Addr . fromIntegral $ w8 + 1
+                                                     y <- load8 Y
+                                                     return . Addr $ makeW16 l h + fromIntegral y
                                    _           -> err
-        -- Absolute can either mean we want an address or the word at that
-        -- location. Asking for an 8 bit operand means we'll return the word
-        (opl:oph:[]) -> case am of Absolute  ->    load8 . Addr $ makeW16 opl oph
+        (opl:oph:[]) -> case am of Absolute  ->    return . Addr $ makeW16 opl oph
                                    AbsoluteX -> do x <- load8 X
-                                                   load8 . Addr $ makeW16 opl oph + fromIntegral x
+                                                   return . Addr $ makeW16 opl oph + fromIntegral x
                                    AbsoluteY -> do y <- load8 Y
-                                                   load8 . Addr $ makeW16 opl oph + fromIntegral y
+                                                   return . Addr $ makeW16 opl oph + fromIntegral y
                                    _         -> err
         _            -> err
   where
-    err = trace "loadOperand8: OpLnErr" >> return 0
+    err = trace (B8.pack $ "getOperandAddr8: AM/OpLen Error: " ++ show inst) >> return A
+
+loadOperand8 :: MonadEmulator m => Instruction -> m Word8
+loadOperand8 inst@(Instruction (OpCode _ am) oper) =
+    case oper of 
+        [w8] -> case am of Immediate -> return w8
+                           _         -> load8 =<< getOperandAddr8 inst
+        _    ->                         load8 =<< getOperandAddr8 inst
+
+storeOperand8 :: MonadEmulator m => Instruction -> Word8 -> m ()
+storeOperand8 inst val = (\ls -> store8 ls val) =<< getOperandAddr8 inst
+
+-- There are no instructions storing 16 bit operands, and the only instructions
+-- that load them for actually doing anything with them besides looking up an 8
+-- bit value (covered by loadOperand8) are JMP / JSR with Absolute / Indirect
+-- addressing
 
 loadOperand16 :: MonadEmulator m => Instruction -> m Word16
-loadOperand16 (Instruction (OpCode _ am) oper) =
+loadOperand16 inst@(Instruction (OpCode _ am) oper) =
     case oper of
         (opl:oph:[]) -> case am of
             Absolute  ->    return $ makeW16 opl oph
-            AbsoluteX -> do x <- load8 X
-                            return $ makeW16 opl oph + fromIntegral x
-            AbsoluteY -> do y <- load8 Y
-                            return $ makeW16 opl oph + fromIntegral y
             Indirect  -> do l <- load8 . Addr $ makeW16  opl      oph
                             -- The NMOS 6502 actually does this
                             h <- load8 . Addr $ makeW16 (opl + 1) oph
@@ -77,48 +88,31 @@ loadOperand16 (Instruction (OpCode _ am) oper) =
             _         -> err
         _            -> err
   where
-    err = trace "loadOperand16: OpLnErr" >> return 0
-
-{-
-loadOperand :: MonadEmulator m => Instruction -> m L8R16
-loadOperand (Instruction (OpCode _ am) oper) =
-    case am of
-        Accumulator -> Left <$> load8 A
-        Immediate   -> case oper of [w8] -> return $ Left w8
-        ZeroPage    -> case oper of [w8] -> Left <$> load8 (Addr $ fromIntegral w8)
-        ZeroPageX   -> case oper of [w8] -> do x <- load8 X
-                                               Left <$> load8 (Addr . fromIntegral $ w8 + x)
-        ZeroPageY   -> case oper of [w8] -> do y <- load8 X
-                                               Left <$> load8 (Addr . fromIntegral $ w8 + y)
-        Relative    -> case oper of [w8] -> return $ Left w8
-        Absolute    -> case oper of (opl:oph:[]) -> return . Right $ makeW16 opl oph
-        AbsoluteX   -> case oper of (opl:oph:[]) -> do x <- load8 X
-                                                       return . Right $ makeW16 opl oph + fromIntegral x
-        AbsoluteY   -> case oper of (opl:oph:[]) -> do y <- load8 Y
-                                                       return . Right $ makeW16 opl oph + fromIntegral y
-        Indirect    -> case oper of (opl:oph:[]) -> do l <- load8 . Addr $ makeW16  opl      oph
-                                                       -- The NMOS 6502 actually does this
-                                                       h <- load8 . Addr $ makeW16 (opl + 1) oph
-                                                       return . Right $ makeW16 l h
-        IdxInd      -> case oper of [w8] -> do x <- load8 X
-                                               let zp = w8 + x
-                                               l <- load8 . Addr . fromIntegral $ zp
-                                               h <- load8 . Addr . fromIntegral $ zp + 1
-                                               mem <- load8 . Addr $ makeW16 l h
-                                               return $ Left mem
-        IndIdx      -> case oper of [w8] -> do l <- load8 . Addr . fromIntegral $ w8
-                                               h <- load8 . Addr . fromIntegral $ w8 + 1
-                                               y <- load8 Y
-                                               mem <- load8 . Addr $ makeW16 l h + fromIntegral y
-                                               return $ Left mem
--}
+    err = trace (B8.pack $ "loadOperand16: AM/OpLen Error: " ++ show inst) >> return 0
 
 execute :: MonadEmulator m => Instruction -> m ()
-execute inst = do
+execute inst@(Instruction (OpCode mn am) oper) = do
     trace . B8.pack $ printf "\n%s (%ib): " (show inst) (instructionLen inst)
     updatePC ((fromIntegral $ instructionLen inst) +)
-    case inst of
-        Instruction (OpCode LDA am) oper -> return ()
+    case mn of
+        LDA -> do
+            a <- loadOperand8 inst
+            store8 A a
+        LDX -> do
+            x <- loadOperand8 inst
+            store8 X x
+        LDY -> do
+            y <- loadOperand8 inst
+            store8 Y y
+        STA -> do
+            a <- load8 A
+            storeOperand8 inst a
+        STX -> do
+            x <- load8 X
+            storeOperand8 inst x
+        STY -> do
+            y <- load8 Y
+            storeOperand8 inst y
         _ -> return ()
     cpustate <- showCPUState
     trace . B8.pack . printf "\n%s\n" $ cpustate

@@ -14,5 +14,5 @@ out:
 HSSRC = $(wildcard *.hs)
 .PHONY : clean
 clean:
-	$(RM) $(HSSRC:.hs=.hi) $(HSSRC:.hs=.o) out
+	$(RM) $(HSSRC:.hs=.hi) $(HSSRC:.hs=.o) trace.log out
 
