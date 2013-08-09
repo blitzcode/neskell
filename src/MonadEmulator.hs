@@ -5,30 +5,35 @@ module MonadEmulator (MonadEmulator(..)
                      , LoadStore(..)
                      , runSTEmulator
                      , getTrace
+                     , updatePC
+                     , showCPUState
                      ) where
 
 -- Exports the principal monad in which emulator code modifying the state of
 -- the 6502 runs in. MonadEmulator provides a simple interface abstracting the
 -- internal representation and monad transformer stack
 
+import Util
+
 import qualified Data.Vector.Unboxed.Mutable as VUM
 import Data.Word (Word8, Word16, Word64)
+import Data.Bits
 import Control.Monad.ST (ST, runST)
 import Data.STRef
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Trans (lift)
-import Control.Monad (when)
+import Control.Monad (liftM, liftM2, when)
 import Text.Printf
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Builder as BB
 
-data LoadStore = A | X | Y | SR | SP | PCL | PCH | Addr Word16
+data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
 
 instance Show LoadStore where
     show (Addr w) = printf "Addr 0x%04X" w
     show A   = "A"  ; show X   = "X"  ; show Y   = "Y"  ; show SR  = "SR" ; show SP  = "SP"
-    show PCL = "PCL"; show PCH = "PCH"
+    show PC  = "PC" ; show PCL = "PCL"; show PCH = "PCH"
 
 data CPUState s = CPUState
     { cpuState       :: VUM.MVector s Word8
@@ -42,9 +47,37 @@ data CPUState s = CPUState
 type RSTEmu s = ReaderT (CPUState s) (ST s)
 
 class (Functor m, Monad m) => MonadEmulator m where
-    load  :: LoadStore -> m Word8
-    store :: LoadStore -> Word8 -> m ()
-    trace :: B.ByteString -> m ()
+    load8   :: LoadStore -> m Word8
+    load16  :: LoadStore -> m Word16
+    store8  :: LoadStore -> Word8  -> m ()
+    store16 :: LoadStore -> Word16 -> m ()
+    trace   :: B.ByteString -> m ()
+
+
+
+---
+--- Utility stuff
+---
+
+updatePC :: MonadEmulator m => (Word16 -> Word16) -> m ()
+updatePC f = load16 PC >>= return . f >>= store16 PC
+
+showCPUState :: MonadEmulator m => m String
+showCPUState = do
+    a  <- load8 A
+    x  <- load8 X
+    y  <- load8 Y
+    sr <- load8 SR
+    sp <- load8 SP
+    pc <- load16 PC
+    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X"
+        a x y sr (makeSRString sr) sp pc
+
+---
+---
+---
+
+
 
 lsToStateIdx :: LoadStore -> Int
 lsToStateIdx ls =
@@ -55,6 +88,7 @@ lsToStateIdx ls =
         Y      -> rbase + 2
         SR     -> rbase + 3
         SP     -> rbase + 4
+        PC     -> rbase + 5 -- Aliases with PCL/PCH, as expected
         PCL    -> rbase + 5
         PCH    -> rbase + 6
         Addr a -> fromIntegral a
@@ -62,18 +96,37 @@ lsToStateIdx ls =
     rbase = 65536
 
 instance MonadEmulator (RSTEmu s) where
-    load ls = do
+    load8 ls = do
         state <- asks cpuState
         lift $ VUM.read state . lsToStateIdx $ ls
-    store ls val = do
+    load16 ls = do
+        let e8 = error "16 bit load from 8 bit register"
         state <- asks cpuState
+        case ls of
+            A -> e8; X -> e8; Y -> e8; SR -> e8; SP -> e8; PCL -> e8; PCH -> e8
+            _ -> lift $ do let i = lsToStateIdx ls
+                           l <- VUM.read state i
+                           h <- VUM.read state (i + 1)
+                           return $ makeW16 l h
+    store8 ls val = do
         trace . B8.pack $ printf "0x%02X -> %s, " val (show ls)
+        state <- asks cpuState
         lift $ VUM.write state (lsToStateIdx ls) val
+    store16 ls val = do
+        trace . B8.pack $ printf "0x%04X -> %s, " val (show ls)
+        let e8 = error "16 bit store to 8 bit register"
+        state <- asks cpuState
+        case ls of
+            A -> e8; X -> e8; Y -> e8; SR -> e8; SP -> e8; PCL -> e8; PCH -> e8
+            _ -> lift $ do let (l, h) = splitW16 val
+                           let i = lsToStateIdx ls
+                           VUM.write state i l
+                           VUM.write state (i + 1) h
     trace b = do
          enable <- asks cpuTraceEnable
          when (enable) $ do
             cputrace <- asks cpuTrace 
-            lift $ modifySTRef cputrace (\log -> log `B.append` b)
+            lift $ modifySTRef cputrace (\logstr -> logstr `B.append` b)
 
 -- We don't want to export this through MonadEmulator, only needs to be called
 -- from code directly inside runSTEmulator's argument function
@@ -83,7 +136,7 @@ getTrace = do
     lift $ readSTRef cputrace
 
 runSTEmulator :: Bool -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
-runSTEmulator trace f = 
+runSTEmulator traceEnable f = 
     runST $ do
         initState <- VUM.replicate (65536 + 7) (0 :: Word8)
         initCycle <- newSTRef 0
@@ -92,7 +145,7 @@ runSTEmulator trace f =
                   { cpuState       = initState
                   , cpuCycle       = initCycle
                   , cpuTrace       = initTrace
-                  , cpuTraceEnable = trace
+                  , cpuTraceEnable = traceEnable
                   }
         runReaderT f cpu
 

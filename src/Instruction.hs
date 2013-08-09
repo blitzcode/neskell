@@ -13,8 +13,8 @@ module Instruction ( AddressMode(..)
 -- This module contains types and function for representing and decoding
 -- all official instructions of the 6502
 
-import MonadEmulator (MonadEmulator(..), LoadStore(..))
-import Util (makeW16, loadPC)
+import Util
+import MonadEmulator
 
 import Data.Word (Word8, Word16)
 import Text.Printf
@@ -161,10 +161,10 @@ decodeInstruction mem pc =
 
 decodeInstructionM :: MonadEmulator m => m Instruction
 decodeInstructionM = do
-    pc <- loadPC
-    opc@(OpCode _ am) <- decodeOpCode <$> (load $ Addr pc)
+    pc <- load16 PC
+    opc@(OpCode _ am) <- decodeOpCode <$> (load8 $ Addr pc)
     Instruction opc <$> case operandLen am of
-            1 -> mapM (load . Addr) [ pc + 1         ]
-            2 -> mapM (load . Addr) [ pc + 1, pc + 2 ]
-            _ -> return             [                ]
+            1 -> mapM (load8 . Addr) [ pc + 1         ]
+            2 -> mapM (load8 . Addr) [ pc + 1, pc + 2 ]
+            _ -> return              [                ]
 

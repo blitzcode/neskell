@@ -9,6 +9,7 @@ import MonadEmulator (LoadStore(..))
 
 import Data.Monoid (All(..), getAll)
 import Control.Monad (when, unless)
+import Control.Monad.Trans (lift)
 import Control.Monad.Writer (execWriterT, tell)
 import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (liftIO)
@@ -45,23 +46,23 @@ runTests = do
         do
             bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
             let (cond, cpust, trace) = runEmulator [ (bin, 0x0600) ]
-                                                   [ (PCH, 0x06)
-                                                   , (PCL, 0x00)
+                                                   [ (PC, Right 0x0600)
                                                    ]
-                                                   [ CondOpC (OpCode BRK Implied) ]
-                                                   [ CondLS (Addr 0x022A) 0x55
-                                                   , CondLS A 0x55
-                                                   , CondLS X 0x2A
-                                                   , CondLS Y 0x73
+                                                   [ CondOpC BRK ]
+                                                   [ CondLS (Addr 0x022A) (Left 0x55)
+                                                   , CondLS A (Left 0x55)
+                                                   , CondLS X (Left 0x2A)
+                                                   , CondLS Y (Left 0x73)
                                                    ]
                                                    True
             unless (null cond) $ do
                 tell $ All False
-                liftIO $ putStrLn   "Load / Store Test Failed:"
-                liftIO $ putStrLn $ "    Unmet Conditions: " ++ show cond
-                liftIO $ putStrLn $ "    CPU State: "        ++ cpust
-                liftIO $ putStrLn $ "    Trace: "
-                --liftIO $ B8.putStr $ trace
+                liftIO $ do
+                    putStrLn   "Load / Store Test Failed:"
+                    putStrLn $ "    Unmet Conditions: " ++ show cond
+                    putStrLn $ "    CPU State: "        ++ cpust
+                    putStrLn $ "    Trace: Written to 'trace.log'"
+                    B.writeFile "./trace.log" trace
 
     return $ getAll w
 

@@ -19,7 +19,7 @@
 ; assemble, only labels can be targeted. As a workaround, all branch
 ; instructions target 'lbl' and were later manually fixed in the binary /
 ; disassembly to their correct targets. We also handle 'DCB' slightly
-different, see end of the file.
+; different, see end of the file.
 ;
 ; References / Sources / Originals:
 ;
