@@ -16,12 +16,11 @@ import Util
 
 import qualified Data.Vector.Unboxed.Mutable as VUM
 import Data.Word (Word8, Word16, Word64)
-import Data.Bits
 import Control.Monad.ST (ST, runST)
-import Data.STRef
+import Data.STRef (STRef, newSTRef, readSTRef, modifySTRef, modifySTRef')
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Trans (lift)
-import Control.Monad (liftM, liftM2, when)
+import Control.Monad (when)
 import Text.Printf
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8

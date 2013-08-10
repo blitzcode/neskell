@@ -59,8 +59,8 @@ ADC $03,X    ;Zero Page,X   $75  2   4
 ADC $0405    ;Absolute      $6D  3   4
 ADC $0607,X  ;Absolute,X    $7D  3   4+
 ADC $0809,Y  ;Absolute,Y    $79  3   4+
-ADC ($0A,X)  ;Indirect,X    $61  2   6
-ADC ($0B),Y  ;Indirect,Y    $71  2   5+
+ADC ($0A,X)  ;IdxInd        $61  2   6
+ADC ($0B),Y  ;IndIdx        $71  2   5+
 
 ; AND - Bitwise AND with Accumulator
 ;
@@ -81,8 +81,8 @@ AND $0E,X    ;Zero Page,X   $35  2   4
 AND $0F10    ;Absolute      $2D  3   4
 AND $1112,X  ;Absolute,X    $3D  3   4+
 AND $1314,Y  ;Absolute,Y    $39  3   4+
-AND ($15,X)  ;Indirect,X    $21  2   6
-AND ($16),Y  ;Indirect,Y    $31  2   5+
+AND ($15,X)  ;IdxInd        $21  2   6
+AND ($16),Y  ;IndIdx        $31  2   5+
 
 ; ASL - Arithmetic Shift Left
 ;
@@ -312,8 +312,8 @@ CMP $2A,X    ;Zero Page,X   $D5  2   4
 CMP $2B2C    ;Absolute      $CD  3   4
 CMP $2D2E,X  ;Absolute,X    $DD  3   4+
 CMP $2F30,Y  ;Absolute,Y    $D9  3   4+
-CMP ($31,X)  ;Indirect,X    $C1  2   6
-CMP ($32),Y  ;Indirect,Y    $D1  2   5+
+CMP ($31,X)  ;IdxInd        $C1  2   6
+CMP ($32),Y  ;IndIdx        $D1  2   5+
 
 ; CPX - Compare Memory and Index X
 ;
@@ -420,8 +420,8 @@ EOR $43,X    ;Zero Page,X   $55  2   4
 EOR $4445    ;Absolute      $4D  3   4
 EOR $4647,X  ;Absolute,X    $5D  3   4+
 EOR $4849,Y  ;Absolute,Y    $59  3   4+
-EOR ($4A,X)  ;Indirect,X    $41  2   6
-EOR ($4B),Y  ;Indirect,Y    $51  2   5+
+EOR ($4A,X)  ;IdxInd        $41  2   6
+EOR ($4B),Y  ;IndIdx        $51  2   5+
 
 ; INC - Increment Memory by One
 ;
@@ -522,8 +522,8 @@ LDA $5A,X    ;Zero Page,X   $B5  2   4
 LDA $5B5C    ;Absolute      $AD  3   4
 LDA $5D5E,X  ;Absolute,X    $BD  3   4+
 LDA $5F60,Y  ;Absolute,Y    $B9  3   4+
-LDA ($61,X)  ;Indirect,X    $A1  2   6
-LDA ($62),Y  ;Indirect,Y    $B1  2   5+
+LDA ($61,X)  ;IdxInd        $A1  2   6
+LDA ($62),Y  ;IndIdx        $B1  2   5+
 
 ; LDX - Load Index X with Memory
 ;
@@ -616,8 +616,8 @@ ORA $79,X    ;Zero Page,X   $15  2   4
 ORA $7A7B    ;Absolute      $0D  3   4
 ORA $7C7D,X  ;Absolute,X    $1D  3   4+
 ORA $7E7F,Y  ;Absolute,Y    $19  3   4+
-ORA ($80,X)  ;Indirect,X    $01  2   6
-ORA ($81),Y  ;Indirect,Y    $11  2   5+
+ORA ($80,X)  ;IdxInd        $01  2   6
+ORA ($81),Y  ;IndIdx        $11  2   5+
 
 ; PHA - Push Accumulator on Stack
 ;
@@ -777,8 +777,8 @@ SBC $90,X    ;Zero Page,X   $F5  2   4
 SBC $9192    ;Absolute      $ED  3   4
 SBC $9394,X  ;Absolute,X    $FD  3   4+
 SBC $9596,Y  ;Absolute,Y    $F9  3   4+
-SBC ($97,X)  ;Indirect,X    $E1  2   6
-SBC ($98),Y  ;Indirect,Y    $F1  2   5+
+SBC ($97,X)  ;IdxInd        $E1  2   6
+SBC ($98),Y  ;IndIdx        $F1  2   5+
 
 ; SEC - Set Carry Flag
 ;
@@ -833,8 +833,8 @@ STA $9A,X    ;Zero Page,X   $95  2   4
 STA $9B9C    ;Absolute      $8D  3   4
 STA $9D9E,X  ;Absolute,X    $9D  3   5
 STA $9FA0,Y  ;Absolute,Y    $99  3   5
-STA ($A1,X)  ;Indirect,X    $81  2   6
-STA ($A2),Y  ;Indirect,Y    $91  2   6
+STA ($A1,X)  ;IdxInd        $81  2   6
+STA ($A2),Y  ;IndIdx        $91  2   6
 
 ; STX - Store Index X in Memory
 ;
@@ -946,7 +946,9 @@ TXS          ;Implied       $9A  1   2
 ;--------------------------------------
 TYA          ;Implied       $98  1   2
 
-; +  = Add 1 to cycles if page boundary is crossed
+; +  = Add 1 to cycles if page boundary is crossed during address computation
+;      Store instructions have this extra cycle always build in as they can't
+;      do a false write when a carry on the address LSB occurs
 ; ++ = Add 1 to cycles if branch is taken, one more if branch occurs to different page
 
 ; DCB -  Define Constant Byte

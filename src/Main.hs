@@ -9,8 +9,7 @@ import MonadEmulator (LoadStore(..))
 
 import Data.Monoid (All(..), getAll)
 import Data.Word (Word64)
-import Control.Monad (when, unless, void)
-import Control.Monad.Trans (lift)
+import Control.Monad (when, unless)
 import Control.Monad.Writer (execWriterT, tell, WriterT)
 import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (liftIO)
@@ -20,7 +19,7 @@ import qualified Data.Vector.Unboxed as VU
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
 import Data.Time (getZonedTime)
-import System.IO (withFile, IOMode(..), hPutStr, hPutStrLn, Handle)
+import System.IO (withFile, IOMode(..), hPutStrLn, Handle)
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
 decodingTest bin ref = do
@@ -83,6 +82,7 @@ runTests = do
                                          , CondLS A (Left 0x55)
                                          , CondLS X (Left 0x2A)
                                          , CondLS Y (Left 0x73)
+                                         , CondCycleR 161 161
                                          ]
                                          True
                 checkEmuTestResult "Load / Store Test" tracefn h emures

@@ -14,13 +14,12 @@ module Instruction ( AddressMode(..)
 -- all official instructions of the 6502
 
 import Util
-import MonadEmulator
+import MonadEmulator (MonadEmulator(..), LoadStore(..))
 
-import Data.Word (Word8, Word16)
+import Data.Word (Word8)
 import Text.Printf
 import Data.Bits (shiftL, (.|.))
 import Control.Applicative ((<$>))
-import Control.Monad (liftM2)
 import qualified Data.Vector.Unboxed as VU
 
 data AddressMode =

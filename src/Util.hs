@@ -1,7 +1,7 @@
 
 module Util where
 
-import Data.Word (Word8, Word16, Word64)
+import Data.Word (Word8, Word16)
 import Data.Bits
 
 type L8R16 = Either Word8 Word16
@@ -24,9 +24,11 @@ setFlag f w = setBit w . fromEnum $ f
 clearFlag :: Flag -> Word8 -> Word8
 clearFlag f w = clearBit w . fromEnum $ f
 
+modifyFlag :: Flag -> Bool -> Word8 -> Word8
+modifyFlag f b w = if b then setFlag f w else clearFlag f w
+
 makeSRString :: Word8 -> String
 makeSRString w =
     map (\(f, s) -> if getFlag f w then s else '-') $ zip
         [FC .. FN] ['C', 'Z', 'I', 'D', 'B', '1', 'V', 'N']
-
 
