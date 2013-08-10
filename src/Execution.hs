@@ -100,6 +100,25 @@ updateNZC x carry = do
     sr <- load8 SR
     store8 SR . setNZ x . modifyFlag FC carry $ sr
 
+storeStackW16 :: MonadEmulator m => Word16 -> m ()
+storeStackW16 w16 = do
+    let (l, h) = splitW16 w16
+    sp <- load8 SP
+    let sp1 = sp - 1
+    let sp2 = sp - 2
+    store8 (Addr $ 0x0100 + fromIntegral sp1) h
+    store8 (Addr $ 0x0100 + fromIntegral sp2) l
+    store8 SP (sp - 2)
+
+loadStackW16 :: MonadEmulator m => m Word16
+loadStackW16 = do
+    sp <- load8 SP
+    let sp1 = sp + 1
+    l <- load8 (Addr $ 0x0100 + fromIntegral sp )
+    h <- load8 (Addr $ 0x0100 + fromIntegral sp1)
+    store8 SP (sp + 2)
+    return $ makeW16 l h
+
 getAMCycles :: AddressMode -> Word64
 getAMCycles am =
     case am of
@@ -113,6 +132,7 @@ getAMCycles am =
         Absolute    -> 4
         AbsoluteX   -> 4 -- +
         AbsoluteY   -> 4 -- +
+        Indirect    -> 0
         IdxInd      -> 6
         IndIdx      -> 5 -- +
     -- +  = Load instructions get an additional one cycle penalty for crossing page
@@ -121,18 +141,18 @@ getAMCycles am =
 
 -- Determine penalty for page crossing in load instructions
 getOperandPageCross :: MonadEmulator m => Instruction -> m Bool
-getOperandPageCross inst@(Instruction (OpCode _ am) oper) =
+getOperandPageCross (Instruction (OpCode _ am) oper) =
     case oper of 
-        [w8]         -> case am of IndIdx -> do l <- load8 . Addr . fromIntegral $ w8
-                                                y <- load8 Y
-                                                return    $ l + y < l
-                                   _      -> return False
-        (opl:oph:[]) -> case am of AbsoluteX -> do x <- load8 X
-                                                   return $ opl + x < opl
-                                   AbsoluteY -> do y <- load8 Y
-                                                   return $ opl + y < opl
-                                   _         -> return False
-        _            -> return False
+        [w8]      -> case am of IndIdx -> do l <- load8 . Addr . fromIntegral $ w8
+                                             y <- load8 Y
+                                             return    $ l + y < l
+                                _      -> return False
+        (opl:_:[]) -> case am of AbsoluteX -> do x <- load8 X
+                                                 return $ opl + x < opl
+                                 AbsoluteY -> do y <- load8 Y
+                                                 return $ opl + y < opl
+                                 _         -> return False
+        _          -> return False
 getOperandPageCrossPenalty :: MonadEmulator m => Instruction -> m Word64
 getOperandPageCrossPenalty inst = (\pagec -> return $ if pagec then 1 else 0) =<< getOperandPageCross inst
 
@@ -147,7 +167,7 @@ getStorePageCrossPenalty am = case am of IndIdx    -> 1
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (OpCode mn am) _) = do
-    let ilen = fromIntegral $ instructionLen inst
+    let ilen = fromIntegral $ instructionLen inst :: Word16
     case mn of
         LDA -> do
             penalty <- getOperandPageCrossPenalty inst
@@ -293,6 +313,26 @@ execute inst@(Instruction (OpCode mn am) _) = do
             let r = (x `shiftR` 1) .|. if carry then 128 else 0
             updateNZC r $ testBit x 0
             storeOperand8 inst r
+            advCycles baseC
+        JMP -> do
+            let baseC = case am of Absolute -> 3; Indirect -> 5; _ -> 0
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            npc <- loadOperand16 inst
+            store16 PC npc
+            advCycles baseC
+        JSR -> do
+            let baseC = 6
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            npc <- loadOperand16 inst
+            pc  <- load16 PC
+            storeStackW16 $ pc + ilen - 1
+            store16 PC npc
+            advCycles baseC
+        RTS -> do
+            let baseC = 6
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            pc <- loadStackW16
+            store16 PC $ pc + 1
             advCycles baseC
         _ -> update16 PC (1 +) >> advCycles 1
     cpustate <- showCPUState

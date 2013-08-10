@@ -18,7 +18,6 @@ import MonadEmulator (MonadEmulator(..), LoadStore(..))
 
 import Data.Word (Word8)
 import Text.Printf
-import Data.Bits (shiftL, (.|.))
 import Control.Applicative ((<$>))
 import qualified Data.Vector.Unboxed as VU
 

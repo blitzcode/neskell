@@ -95,6 +95,9 @@ runTests = do
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
                                          [ CondLS (Addr 0x00A9) (Left 0xAA)
+                                         , CondLS A (Left 0xAA)
+                                         , CondLS X (Left 0x10)
+                                         , CondLS Y (Left 0xF0)
                                          , CondCycleR 332 332
                                          ]
                                          True
@@ -108,6 +111,7 @@ runTests = do
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
                                          [ CondLS (Addr 0x0071) (Left 0xFF)
+                                         , CondLS SR (Left 0xA4)
                                          , CondCycleR 149 149
                                          ]
                                          True
@@ -121,10 +125,29 @@ runTests = do
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
                                          [ CondLS (Addr 0x01DD) (Left 0x6E)
+                                         , CondLS A (Left 0xDD)
+                                         , CondLS X (Left 0xDD)
                                          , CondCycleR 253 253
                                          ]
                                          True
                 checkEmuTestResult "Bitshift Test" tracefn h emures
+            -- JMP/JSR/RTS test
+            do
+                bin <- liftIO $ B.readFile "./tests/jump_ret_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0040) (Left 0x42)
+                                         , CondLS A (Left 0x42)
+                                         , CondLS X (Left 0x33)
+                                         , CondLS PC (Right 0x0626)
+                                         , CondLS SP (Left 0xFF)
+                                         , CondCycleR 50 50
+                                         ]
+                                         True
+                checkEmuTestResult "JMP/JSR/RTS Test" tracefn h emures
 
         return $ getAll w
 
