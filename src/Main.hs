@@ -161,7 +161,7 @@ runTests = do
                                          , CondLS X (Left 0x33)
                                          , CondLS Y (Left 0x33)
                                          , CondLS SP (Left 0x33)
-                                         , CondCycleR 50 50
+                                         , CondCycleR 37 37
                                          ]
                                          True
                 checkEmuTestResult "Register Transfer Test" tracefn h emures
