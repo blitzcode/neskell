@@ -13,7 +13,7 @@ import Util
 import Data.Word (Word8, Word16, Word64)
 import qualified Data.ByteString.Char8 as B8
 import Text.Printf
-import Data.Bits (testBit)
+import Data.Bits (testBit, (.&.), (.|.), xor)
 
 -- data AddressMode = Implied | Accumulator | Immediate | ZeroPage | ZeroPageX | ZeroPageY | Relative | Absolute | AbsoluteX | AbsoluteY | Indirect | IdxInd | IndIdx
 -- data OpCode = OpCode Mnemonic AddressMode
@@ -202,6 +202,42 @@ execute inst@(Instruction (OpCode mn am) _) = do
             y <- load8 Y
             storeOperand8 inst y
             advCycles baseC
+        AND -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = 2 + getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %iC%s): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            x <- loadOperand8 inst
+            a <- load8 A
+            let r = x .&. a
+            setNZ r
+            store8 A r
+            advCycles $ baseC + penalty
+        ORA -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = 2 + getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %iC%s): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            x <- loadOperand8 inst
+            a <- load8 A
+            let r = x .|. a
+            setNZ r
+            store8 A r
+            advCycles $ baseC + penalty
+        EOR -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = 2 + getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %iC%s): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            x <- loadOperand8 inst
+            a <- load8 A
+            let r = x `xor` a
+            setNZ r
+            store8 A r
+            advCycles $ baseC + penalty
         _ -> return ()
     cpustate <- showCPUState
     trace . B8.pack $ "\n" ++ cpustate ++ "\n"

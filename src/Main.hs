@@ -86,6 +86,19 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Load / Store Test" tracefn h emures
+            -- AND / OR / XOR test
+            do
+                bin <- liftIO $ B.readFile "./tests/and_or_xor_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x00A9) (Left 0xAA)
+                                         , CondCycleR 332 332
+                                         ]
+                                         True
+                checkEmuTestResult "AND / OR / XOR Test" tracefn h emures
 
         return $ getAll w
 
