@@ -99,6 +99,19 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "AND / OR / XOR Test" tracefn h emures
+            -- INC / DEC test
+            do
+                bin <- liftIO $ B.readFile "./tests/inc_dec_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0071) (Left 0xFF)
+                                         , CondCycleR 149 149
+                                         ]
+                                         True
+                checkEmuTestResult "INC / DEC Test" tracefn h emures
 
         return $ getAll w
 
