@@ -534,7 +534,7 @@ LDA ($62),Y  ;Indirect,Y    $B1  2   5+
 ;                                     + + - - - -
 ;
 ; Z Zero Flag         Set if X = 0
-; N Negative Flag     Set if bit 7 of A is set
+; N Negative Flag     Set if bit 7 of X is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -553,7 +553,7 @@ LDX $6869,Y  ;Absolute,Y    $BE  3   4+
 ;                                     + + - - - -
 ;
 ; Z Zero Flag         Set if Y = 0
-; N Negative Flag     Set if bit 7 of A is set
+; N Negative Flag     Set if bit 7 of Y is set
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------

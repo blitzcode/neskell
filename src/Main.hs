@@ -8,9 +8,9 @@ import Emulator
 import MonadEmulator (LoadStore(..))
 
 import Data.Monoid (All(..), getAll)
-import Control.Monad (when, unless)
+import Control.Monad (when, unless, void)
 import Control.Monad.Trans (lift)
-import Control.Monad.Writer (execWriterT, tell)
+import Control.Monad.Writer (execWriterT, tell, WriterT)
 import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString as B
@@ -18,6 +18,8 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Vector.Unboxed as VU
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
+import Data.Time (getZonedTime)
+import System.IO (withFile, IOMode(..), hPutStr, hPutStrLn, Handle)
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
 decodingTest bin ref = do
@@ -31,40 +33,59 @@ decodingTest bin ref = do
             unless (null r || null d) $ loop (tail r) (tail d)
      in loop refl dasm
 
+checkEmuTestResult ::
+    String ->
+    String ->
+    Handle ->
+    ([Cond], [Cond], [Cond], String, B.ByteString) ->
+    WriterT All IO ()
+checkEmuTestResult testName tracefn h emures@(condSuccess, condFailure, condStop, cpust, trace) = do
+    let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
+                    "    Stop Reason      "  ++ show condStop    ++ "\n" ++
+                    "    Unmet Conditions "  ++ show condFailure ++ "\n" ++
+                    "    Met Conditions   "  ++ show condSuccess ++ "\n"
+    liftIO $ do
+        hPutStrLn    h $ "--- " ++ testName ++ " ---\n"
+        B8.hPutStrLn h trace
+        hPutStrLn    h resultStr
+    unless (null condFailure) $ do
+        tell $ All False
+        liftIO $ do
+            putStrLn $ testName ++ " " ++ resultStr ++
+                "    CPU State        "             ++ cpust   ++ "\n" ++
+                "    Trace            Written to '" ++ tracefn ++ "'"
+
 runTests :: IO Bool
 runTests = do
-    -- We use a writer with an All monoid so we can return False if any test fails
-    w <- execWriterT $ do -- WriterT All IO ()
-        -- Decoding test
-        do
-            bin <- liftIO $ B.readFile "./tests/instr_test.bin"
-            ref <- liftIO $ B.readFile "./tests/instr_test_ref_disasm.asm"
-            case decodingTest bin ref of
-                Left err -> (tell $ All False) >> (liftIO . putStrLn $ "Decoding Test Failed: " ++ err)
-                Right _  -> return ()
-        -- Load / Store test
-        do
-            bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
-            let (cond, cpust, trace) = runEmulator [ (bin, 0x0600) ]
-                                                   [ (PC, Right 0x0600)
-                                                   ]
-                                                   [ CondOpC BRK ]
-                                                   [ CondLS (Addr 0x022A) (Left 0x55)
-                                                   , CondLS A (Left 0x55)
-                                                   , CondLS X (Left 0x2A)
-                                                   , CondLS Y (Left 0x73)
-                                                   ]
-                                                   True
-            unless (null cond) $ do
-                tell $ All False
-                liftIO $ do
-                    putStrLn   "Load / Store Test Failed:"
-                    putStrLn $ "    Unmet Conditions: " ++ show cond
-                    putStrLn $ "    CPU State: "        ++ cpust
-                    putStrLn $ "    Trace: Written to 'trace.log'"
-                    B.writeFile "./trace.log" trace
+    let tracefn = "./trace.log"
+    withFile tracefn WriteMode $ \h -> do
+        time <- getZonedTime
+        hPutStrLn h $ "Trace Log " ++ show time ++ "\n"
+        -- We use a writer with an All monoid so we can return False if any test fails
+        w <- execWriterT $ do -- WriterT All IO ()
+            -- Decoding test
+            do
+                bin <- liftIO $ B.readFile "./tests/instr_test.bin"
+                ref <- liftIO $ B.readFile "./tests/instr_test_ref_disasm.asm"
+                case decodingTest bin ref of
+                    Left err -> (tell $ All False) >> (liftIO . putStrLn $ "Decoding Test Failed: " ++ err)
+                    Right _  -> return ()
+            -- Load / Store test
+            do
+                bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600)
+                                         ]
+                                         [ CondOpC BRK ]
+                                         [ CondLS (Addr 0x022A) (Left 0x55)
+                                         , CondLS A (Left 0x55)
+                                         , CondLS X (Left 0x2A)
+                                         , CondLS Y (Left 0x73)
+                                         ]
+                                         True
+                checkEmuTestResult "Load / Store Test" tracefn h emures
 
-    return $ getAll w
+        return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
 disassemble bin = do
