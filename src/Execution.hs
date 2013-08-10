@@ -334,6 +334,191 @@ execute inst@(Instruction (OpCode mn am) _) = do
             pc <- loadStackW16
             store16 PC $ pc + 1
             advCycles baseC
+
+        {-
+        ; TAX - Transfer Accumulator to Index X
+        ;
+        ; Copies the current contents of the accumulator into the X register and sets
+        ; the zero and negative flags as appropriate.
+        ;
+        ;    A -> X                           N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if X = 0
+        ; N Negative Flag     Set if bit 7 of X is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        TAX          ;Implied       $AA  1   2
+        -}
+        TAX -> do
+            return ()
+
+        {-
+        ; TXA - Transfer Index X to Accumulator
+        ;
+        ; Copies the current contents of X register into the accumulator and sets the
+        ; zero and negative flags as appropriate.
+        ;
+        ;    X -> A                           N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if X = 0
+        ; N Negative Flag     Set if bit 7 of X is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        TXA          ;Implied       $8A  1   2
+        -}
+        TXA -> do
+            return ()
+
+        {-
+        ; TYA - Transfer Index Y to Accumulator
+        ;
+        ; Copies the current contents of Y register into the accumulator and sets the
+        ; zero and negative flags as appropriate.
+        ;
+        ;    Y -> A                           N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if A = 0
+        ; N Negative Flag     Set if bit 7 of A is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        TYA          ;Implied       $98  1   2
+        -}
+        TYA -> do
+            return ()
+
+        {-
+        ; TAY - Transfer Accumulator to Index Y
+        ;
+        ; Copies the current contents of the accumulator into the Y register and sets
+        ; the zero and negative flags as appropriate.
+        ;
+        ;    A -> Y                           N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if Y = 0
+        ; N Negative Flag     Set if bit 7 of Y is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        TAY          ;Implied       $A8  1   2
+        -}
+        TAY -> do
+            return ()
+
+        {-
+        ; DEX - Decrement Index X by One
+        ;
+        ; Subtracts one from the X register, setting the zero and negative flags as
+        ; appropriate.
+        ;
+        ;    X - 1 -> X                       N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if X is zero
+        ; N Negative Flag     Set if bit 7 of X is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        DEX          ;Implied       $CA  1   2
+        -}
+        DEX -> do
+            return ()
+
+        {-
+        ; INX - Increment Index X by One
+        ;
+        ; Adds one to the X register, setting the zero and negative flags as
+        ; appropriate.
+        ;
+        ;    X + 1 -> X                       N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if X is zero
+        ; N Negative Flag     Set if bit 7 of X is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        INX          ;Implied       $E8  1   2
+        -}
+        INX -> do
+            return ()
+
+        {-
+        ; DEY - Decrement Index Y by One
+        ;
+        ; Subtracts one from the Y register, setting the zero and negative flags as
+        ; appropriate.
+        ;
+        ;    Y - 1 -> Y                       N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if Y is zero
+        ; N Negative Flag     Set if bit 7 of Y is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        DEY          ;Implied       $88  1   2
+        -}
+        DEY -> do
+            return ()
+
+        {-
+        ; INY - Increment Index Y by One
+        ;
+        ; Adds one to the Y register, setting the zero and negative flags as
+        ; appropriate.
+        ;
+        ;    Y + 1 -> Y                       N Z C I D V
+        ;                                     + + - - - -
+        ;
+        ; Z Zero Flag         Set if Y is zero
+        ; N Negative Flag     Set if bit 7 of Y is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        INY          ;Implied       $C8  1   2
+        -}
+        INY -> do
+            return ()
+
+        {-
+        ; TXS - Transfer Index X to Stack Register
+        ;
+        ; Copies the current contents of the X register into the stack register.
+        ;
+        ;    X -> SP                          N Z C I D V
+        ;                                     - - - - - -
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        TXS          ;Implied       $9A  1   2
+        -}
+        TXS -> do
+            return ()
+
+        {-
+        ; TSX - Transfer Stack Pointer to Index X
+        ;
+        ; Copies the current contents of the stack pointer into the X register.
+        ;
+        ;    SP -> X                          N Z C I D V
+        ;                                     + + - - - -
+        ; Z Zero Flag         Set if X = 0
+        ; N Negative Flag     Set if bit 7 of X is set
+        ;
+        ;SYNTAX       MODE          HEX LEN TIM
+        ;--------------------------------------
+        TSX          ;Implied       $BA  1   2
+        -}
+        TSX -> do
+            return ()
+
         _ -> update16 PC (1 +) >> advCycles 1
     cpustate <- showCPUState
     trace . B8.pack $ "\n" ++ cpustate ++ "\n"

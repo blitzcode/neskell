@@ -148,7 +148,23 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "JMP/JSR/RTS Test" tracefn h emures
-
+            -- Register Transfer test
+            do
+                bin <- liftIO $ B.readFile "./tests/reg_transf_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0040) (Left 0x33)
+                                         , CondLS A (Left 0x33)
+                                         , CondLS X (Left 0x33)
+                                         , CondLS Y (Left 0x33)
+                                         , CondLS SP (Left 0x33)
+                                         , CondCycleR 50 50
+                                         ]
+                                         True
+                checkEmuTestResult "Register Transfer Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
