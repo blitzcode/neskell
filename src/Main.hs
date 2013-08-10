@@ -112,6 +112,19 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "INC / DEC Test" tracefn h emures
+            -- Bitshift test
+            do
+                bin <- liftIO $ B.readFile "./tests/bitshift_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x01DD) (Left 0x6E)
+                                         , CondCycleR 253 253
+                                         ]
+                                         True
+                checkEmuTestResult "Bitshift Test" tracefn h emures
 
         return $ getAll w
 
