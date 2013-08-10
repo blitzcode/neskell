@@ -8,6 +8,7 @@ import Emulator
 import MonadEmulator (LoadStore(..))
 
 import Data.Monoid (All(..), getAll)
+import Data.Word (Word64)
 import Control.Monad (when, unless, void)
 import Control.Monad.Trans (lift)
 import Control.Monad.Writer (execWriterT, tell, WriterT)
@@ -39,7 +40,7 @@ checkEmuTestResult ::
     Handle ->
     ([Cond], [Cond], [Cond], String, B.ByteString) ->
     WriterT All IO ()
-checkEmuTestResult testName tracefn h emures@(condSuccess, condFailure, condStop, cpust, trace) = do
+checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust, trace) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
                     "    Stop Reason      "  ++ show condStop    ++ "\n" ++
                     "    Unmet Conditions "  ++ show condFailure ++ "\n" ++
@@ -74,9 +75,10 @@ runTests = do
             do
                 bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
                 let emures = runEmulator [ (bin, 0x0600) ]
-                                         [ (PC, Right 0x0600)
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         [ CondOpC BRK ]
                                          [ CondLS (Addr 0x022A) (Left 0x55)
                                          , CondLS A (Left 0x55)
                                          , CondLS X (Left 0x2A)

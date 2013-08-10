@@ -5,7 +5,6 @@ module MonadEmulator (MonadEmulator(..)
                      , LoadStore(..)
                      , runSTEmulator
                      , getTrace
-                     , updatePC
                      , showCPUState
                      ) where
 
@@ -37,7 +36,7 @@ instance Show LoadStore where
 
 data CPUState s = CPUState
     { cpuState       :: VUM.MVector s Word8
-    , cpuCycle       :: STRef       s Word64
+    , cpuCycles      :: STRef       s Word64
     , cpuTrace       :: STRef       s B.ByteString -- TODO: Use a ByteString builder
     , cpuTraceEnable :: Bool
     }
@@ -47,37 +46,13 @@ data CPUState s = CPUState
 type RSTEmu s = ReaderT (CPUState s) (ST s)
 
 class (Functor m, Monad m) => MonadEmulator m where
-    load8   :: LoadStore -> m Word8
-    load16  :: LoadStore -> m Word16
-    store8  :: LoadStore -> Word8  -> m ()
-    store16 :: LoadStore -> Word16 -> m ()
-    trace   :: B.ByteString -> m ()
-
-
-
----
---- Utility stuff
----
-
-updatePC :: MonadEmulator m => (Word16 -> Word16) -> m ()
-updatePC f = load16 PC >>= return . f >>= store16 PC
-
-showCPUState :: MonadEmulator m => m String
-showCPUState = do
-    a  <- load8 A
-    x  <- load8 X
-    y  <- load8 Y
-    sr <- load8 SR
-    sp <- load8 SP
-    pc <- load16 PC
-    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X"
-        a x y sr (makeSRString sr) sp pc
-
----
----
----
-
-
+    load8     :: LoadStore -> m Word8
+    load16    :: LoadStore -> m Word16
+    store8    :: LoadStore -> Word8  -> m ()
+    store16   :: LoadStore -> Word16 -> m ()
+    trace     :: B.ByteString -> m ()
+    advCycles :: Word64 -> m ()
+    getCycles :: m Word64
 
 lsToStateIdx :: LoadStore -> Int
 lsToStateIdx ls =
@@ -127,6 +102,24 @@ instance MonadEmulator (RSTEmu s) where
          when (enable) $ do
             cputrace <- asks cpuTrace 
             lift $ modifySTRef cputrace (\logstr -> logstr `B.append` b)
+    advCycles n = do
+        cycles <- asks cpuCycles
+        lift $ modifySTRef' cycles (+ n)
+    getCycles = do
+        cycles <- asks cpuCycles
+        lift $ readSTRef cycles
+
+showCPUState :: MonadEmulator m => m String
+showCPUState = do
+    a  <- load8 A
+    x  <- load8 X
+    y  <- load8 Y
+    sr <- load8 SR
+    sp <- load8 SP
+    pc <- load16 PC
+    c  <- getCycles
+    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X Cycles:%09i"
+        a x y sr (makeSRString sr) sp pc c
 
 -- We don't want to export this through MonadEmulator, only needs to be called
 -- from code directly inside runSTEmulator's argument function
@@ -138,12 +131,12 @@ getTrace = do
 runSTEmulator :: Bool -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
 runSTEmulator traceEnable f = 
     runST $ do
-        initState <- VUM.replicate (65536 + 7) (0 :: Word8)
-        initCycle <- newSTRef 0
-        initTrace <- newSTRef B.empty
+        initState  <- VUM.replicate (65536 + 7) (0 :: Word8)
+        initCycles <- newSTRef 0
+        initTrace  <- newSTRef B.empty
         let cpu = CPUState
                   { cpuState       = initState
-                  , cpuCycle       = initCycle
+                  , cpuCycles      = initCycles
                   , cpuTrace       = initTrace
                   , cpuTraceEnable = traceEnable
                   }

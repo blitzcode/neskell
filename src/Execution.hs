@@ -90,10 +90,14 @@ loadOperand16 inst@(Instruction (OpCode _ am) oper) =
   where
     err = trace (B8.pack $ "loadOperand16: AM/OpLen Error: " ++ show inst) >> return 0
 
+updatePC :: MonadEmulator m => (Word16 -> Word16) -> m ()
+updatePC f = load16 PC >>= return . f >>= store16 PC
+
 execute :: MonadEmulator m => Instruction -> m ()
-execute inst@(Instruction (OpCode mn am) oper) = do
+execute inst@(Instruction (OpCode mn _) _) = do
     trace . B8.pack $ printf "\n%s (%ib): " (show inst) (instructionLen inst)
     updatePC ((fromIntegral $ instructionLen inst) +)
+    advCycles 3
     case mn of
         LDA -> do
             a <- loadOperand8 inst

@@ -29,7 +29,7 @@ instance Show Cond where
                                 Left  w8  -> printf "%s == 0x%02X" (show ls) w8
                                 Right w16 -> printf "%s == 0x%04X" (show ls) w16
     show (CondOpC mn    ) = "OpCode(PC) == " ++ show mn
-    show (CondCycleR l h) = unlines ["cycle E [", show l, ",", show h, "]"]
+    show (CondCycleR l h) = unwords ["cycle E [", show l, ",", show h, "]"]
 
 checkCond :: MonadEmulator m => Cond -> m Bool
 checkCond cond =
@@ -37,7 +37,8 @@ checkCond cond =
         CondLS     ls w -> case w of Left w8 -> (== w8) <$> load8 ls; Right w16 -> (== w16) <$> load16 ls
         CondOpC    mn   -> do (I.Instruction (I.OpCode decMn _) _) <- I.decodeInstructionM
                               return $ decMn == mn
-        CondCycleR l h  -> undefined -- TODO
+        CondCycleR l h  -> do c <- getCycles
+                              return $ (c >= l) && (c <= h)
 
 loadBinary :: MonadEmulator m => B.ByteString -> Word16 -> m ()
 loadBinary bin offs = do
