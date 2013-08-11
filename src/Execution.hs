@@ -16,6 +16,8 @@ import Text.Printf
 import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR)
 import Control.Applicative ((<$>))
 
+import qualified Debug.Trace as DT
+
 -- Functions for loading and storing 8 bit operands for any instruction.
 -- Illegal instructions (writing to an Immediate operand, reading using the
 -- Indirect mode, having no operand data for anything but
@@ -100,8 +102,14 @@ updateNZC x carry = do
     sr <- load8 SR
     store8 SR . setNZ x . modifyFlag FC carry $ sr
 
-storeStackW16 :: MonadEmulator m => Word16 -> m ()
-storeStackW16 w16 = do
+storeStack8 :: MonadEmulator m => Word8 -> m ()
+storeStack8 w8 = do
+    sp <- load8 SP
+    store8 (Addr $ 0x0100 + fromIntegral sp) w8
+    store8 SP (sp - 1)
+
+storeStack16 :: MonadEmulator m => Word16 -> m ()
+storeStack16 w16 = do
     let (l, h) = splitW16 w16
     sp <- load8 SP
     let sp1 = sp - 1
@@ -110,8 +118,8 @@ storeStackW16 w16 = do
     store8 (Addr $ 0x0100 + fromIntegral sp2) l
     store8 SP (sp - 2)
 
-loadStackW16 :: MonadEmulator m => m Word16
-loadStackW16 = do
+loadStack16 :: MonadEmulator m => m Word16
+loadStack16 = do
     sp <- load8 SP
     let sp1 = sp + 1
     l <- load8 (Addr $ 0x0100 + fromIntegral sp )
@@ -325,13 +333,13 @@ execute inst@(Instruction (OpCode mn am) _) = do
             trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             npc <- loadOperand16 inst
             pc  <- load16 PC
-            storeStackW16 $ pc + ilen - 1
+            storeStack16 $ pc + ilen - 1
             store16 PC npc
             advCycles baseC
         RTS -> do
             let baseC = 6
             trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            pc <- loadStackW16
+            pc <- loadStack16
             store16 PC $ pc + 1
             advCycles baseC
         TAX -> do
@@ -413,6 +421,61 @@ execute inst@(Instruction (OpCode mn am) _) = do
             updateNZ sp
             store8 X sp
             advCycles baseC
+        CLC -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            store8 SR . clearFlag FC $ sr
+            advCycles baseC
+        SEC -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            store8 SR . setFlag FC $ sr
+            advCycles baseC
+        PHP -> do
+            let baseC = 3
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            storeStack8 $ setFlag FB sr
+            advCycles baseC
+        ADC -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            sr <- load8 SR
+            x  <- loadOperand8 inst
+            a  <- load8 A
+            let ri       = (fromIntegral a) + (fromIntegral x) + carry :: Int
+                carry    = if getFlag FC sr then 1 else 0 :: Int
+                ncarry   = ri > 255
+                r        = fromIntegral ri :: Word8
+                overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 /= 0
+            store8 A r
+            store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            advCycles $ baseC + penalty
+        SBC -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            sr <- load8 SR
+            x  <- xor 0xFF <$> loadOperand8 inst
+            a  <- load8 A
+            let ri       = (fromIntegral a) + (fromIntegral x) + carry :: Int
+                carry    = if getFlag FC sr then 1 else 0 :: Int
+                ncarry   = ri > 255
+                r        = fromIntegral ri :: Word8
+                overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 /= 0
+            store8 A r
+            store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            advCycles $ baseC + penalty
         _ -> update16 PC (1 +) >> advCycles 1
     cpustate <- showCPUState
     trace . B8.pack $ "\n" ++ cpustate ++ "\n"

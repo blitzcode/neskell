@@ -165,6 +165,47 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Register Transfer Test" tracefn h emures
+            -- Add / Sub test
+            do
+                bin <- liftIO $ B.readFile "./tests/add_sub_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0030) (Left 0x9D)
+                                         , CondLS A (Left 0x9D)
+                                         , CondLS X (Left 0x31)
+                                         , CondLS Y (Left 0x16)
+                                         , CondCycleR 203 203
+                                         ]
+                                         True
+                checkEmuTestResult "Add / Sub Test" tracefn h emures
+            -- Add / Sub CVZN flag test
+            do
+                bin <- liftIO $ B.readFile "./tests/add_sub_cvzn_flag_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x01FF) (Left 0x34) -- SR = --I-B1--
+                                         , CondLS (Addr 0x01FE) (Left 0x37) -- SR = CZI-B1--
+                                         , CondLS (Addr 0x01FD) (Left 0xF4) -- SR = --I-B1VN
+                                         , CondLS (Addr 0x01FC) (Left 0x75) -- SR = C-I-B1V-
+                                         , CondLS (Addr 0x01FB) (Left 0x34) -- SR = --I-B1--
+                                         , CondLS (Addr 0x01FA) (Left 0x37) -- SR = CZI-B1--
+                                         , CondLS (Addr 0x01F9) (Left 0xF4) -- SR = --I-B1VN
+                                         , CondLS (Addr 0x01F8) (Left 0x75) -- SR = C-I-B1V-
+                                         , CondLS (Addr 0x01F7) (Left 0xB4) -- SR = --I-B1-N
+                                         , CondLS (Addr 0x01F6) (Left 0x75) -- SR = C-I-B1V-
+                                         , CondLS (Addr 0x01F5) (Left 0xF4) -- SR = --I-B1VN
+                                         , CondLS A (Left 0x80)
+                                         , CondLS SP (Left 0xF4)
+                                         , CondCycleR 99 99
+                                         ]
+                                         True
+                checkEmuTestResult "Add / Sub CVZN Flag Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
