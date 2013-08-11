@@ -2,6 +2,9 @@
 # Tests from http://www.6502.org/tutorials/decimal_mode.html
 #
 # After the test, 0x87 0x91 0x29 0x27 0x34 0x73 0x41 0x46 0x05 should be on the stack
+#
+# Some CLC/SEC instructions are commented out to test that the carry is
+# correctly set by the predecessor, comment back in to make all tests standalone
 
 SED
 
@@ -18,25 +21,25 @@ ADC #$34 ; After this instruction, C = 0, A = $46
 PHA
 
 ; BCD addition: 15 + 26 = 41
-CLC
+;CLC
 LDA #$15
 ADC #$26 ; After this instruction, C = 0, A = $41
 PHA
 
 ; BCD addition: 81 + 92 = 173
-CLC
+;CLC
 LDA #$81
 ADC #$92 ; After this instruction, C = 1, A = $73
 PHA
 
 ; BCD subtraction: 46 - 12 = 34
-SEC
+;SEC
 LDA #$46
 SBC #$12 ; After this instruction, C = 1, A = $34
 PHA
 
 ; BCD subtraction: 40 - 13 = 27
-SEC
+;SEC
 LDA #$40
 SBC #$13 ; After this instruction, C = 1, A = $27
 PHA
@@ -48,7 +51,7 @@ SBC #$02 ; After this instruction, C = 1, A = $29
 PHA
 
 ; BCD subtraction: 12 - 21
-SEC
+;SEC
 LDA #$12
 SBC #$21 ; After this instruction, C = 0, A = $91
 PHA

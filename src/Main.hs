@@ -200,7 +200,7 @@ runTests = do
                                          , CondLS (Addr 0x01F8) (Left 0x91)
                                          , CondLS (Addr 0x01F7) (Left 0x87)
                                          , CondLS SP (Left 0xF6)
-                                         , CondCycleR 83 83
+                                         , CondCycleR 73 73
                                          ]
                                          True
                 checkEmuTestResult "BCD Add / Sub Test" tracefn h emures
