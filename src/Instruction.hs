@@ -13,7 +13,7 @@ module Instruction ( AddressMode(..)
 -- This module contains types and function for representing and decoding
 -- all official instructions of the 6502
 
-import Util
+import Util (makeW16)
 import MonadEmulator (MonadEmulator(..), LoadStore(..))
 
 import Data.Word (Word8)

@@ -1,5 +1,14 @@
 
-module Util where
+module Util ( L8R16(..)
+            , makeW16
+            , splitW16
+            , Flag(..)
+            , getFlag
+            , setFlag
+            , clearFlag
+            , modifyFlag
+            , makeSRString
+            , b2W8) where
 
 import Data.Word (Word8, Word16)
 import Data.Bits
@@ -31,4 +40,7 @@ makeSRString :: Word8 -> String
 makeSRString w =
     map (\(f, s) -> if getFlag f w then s else '-') $ zip
         [FC .. FN] ['C', 'Z', 'I', 'D', 'B', '1', 'V', 'N']
+
+b2W8 :: Bool -> Word8
+b2W8 b = if b then 1 else 0
 

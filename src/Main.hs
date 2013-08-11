@@ -3,9 +3,10 @@
 
 module Main (main) where
 
-import Instruction
-import Emulator
+import Instruction (Mnemonic(..), decodeInstruction, instructionLen)
+import Emulator (runEmulator, Cond(..))
 import MonadEmulator (LoadStore(..))
+import Util (setFlag, Flag(..))
 
 import Data.Monoid (All(..), getAll)
 import Data.Word (Word64)
@@ -181,6 +182,28 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Add / Sub Test" tracefn h emures
+            -- BCD Add / Sub test
+            do
+                bin <- liftIO $ B.readFile "./tests/bcd_add_sub_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x01FF) (Left 0x05)
+                                         , CondLS (Addr 0x01FE) (Left 0x46)
+                                         , CondLS (Addr 0x01FD) (Left 0x41)
+                                         , CondLS (Addr 0x01FC) (Left 0x73)
+                                         , CondLS (Addr 0x01FB) (Left 0x34)
+                                         , CondLS (Addr 0x01FA) (Left 0x27)
+                                         , CondLS (Addr 0x01F9) (Left 0x29)
+                                         , CondLS (Addr 0x01F8) (Left 0x91)
+                                         , CondLS (Addr 0x01F7) (Left 0x87)
+                                         , CondLS SP (Left 0xF6)
+                                         , CondCycleR 83 83
+                                         ]
+                                         True
+                checkEmuTestResult "BCD Add / Sub Test" tracefn h emures
             -- Add / Sub CVZN flag test
             do
                 bin <- liftIO $ B.readFile "./tests/add_sub_cvzn_flag_test.bin"

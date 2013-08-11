@@ -10,7 +10,7 @@ module Emulator ( runEmulator
 
 import Util
 import MonadEmulator
-import Execution
+import Execution (execute)
 import qualified Instruction as I
 
 import qualified Data.ByteString as B
