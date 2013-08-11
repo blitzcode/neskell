@@ -463,10 +463,12 @@ execute inst@(Instruction (OpCode mn am) _) = do
             sr <- load8 SR
             store8 SR . clearFlag FD $ sr
             advCycles baseC
-        -- SBC is ADC with all argument bits flipped (xor 0xFF), except for the
-        -- BCD case. The BCD implementation should be correct for all documented
+        -- SBC is ADC with all argument bits flipped (xor 0xFF, see
+        -- http://forums.nesdev.com/viewtopic.php?t=8703), except for the BCD
+        -- case. The BCD implementation should be correct for all documented
         -- cases, but does not necessarily match the NMOS 6502 for illegal BCD
-        -- values and the 'undefined' NZV flags
+        -- values and the 'undefined' NZV flags. The BCD implementation of Py65
+        -- is correct in all these cases, should a future reference be needed
         ADC -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
@@ -521,7 +523,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             let overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 == 0
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
             advCycles $ baseC + penalty
-        _ -> update16 PC (1 +) >> advCycles 1
+        _ -> error "Instruction Not Implemented" -- update16 PC (1 +) >> advCycles 1
     cpustate <- showCPUState
     trace . B8.pack $ "\n" ++ cpustate ++ "\n"
 
