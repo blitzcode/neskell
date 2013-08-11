@@ -442,6 +442,20 @@ execute inst@(Instruction (OpCode mn am) _) = do
             sr <- load8 SR
             storeStack8 $ setFlag FB sr
             advCycles baseC
+        SED -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            store8 SR . setFlag FD $ sr
+            advCycles baseC
+        CLD -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            store8 SR . clearFlag FD $ sr
+            advCycles baseC
         ADC -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
@@ -455,6 +469,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 carry    = if getFlag FC sr then 1 else 0 :: Int
                 ncarry   = ri > 255
                 r        = fromIntegral ri :: Word8
+                -- http://forums.nesdev.com/viewtopic.php?p=60520&sid=00f4dd79a8ecec8481e57484f8e1656e#p60520
                 overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 /= 0
             store8 A r
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
@@ -466,12 +481,13 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             sr <- load8 SR
-            x  <- xor 0xFF <$> loadOperand8 inst
+            x  <- xor 0xFF <$> loadOperand8 inst -- SBC is ADC with all argument bits flipped
             a  <- load8 A
             let ri       = (fromIntegral a) + (fromIntegral x) + carry :: Int
                 carry    = if getFlag FC sr then 1 else 0 :: Int
                 ncarry   = ri > 255
                 r        = fromIntegral ri :: Word8
+                -- http://forums.nesdev.com/viewtopic.php?p=60520&sid=00f4dd79a8ecec8481e57484f8e1656e#p60520
                 overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 /= 0
             store8 A r
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
