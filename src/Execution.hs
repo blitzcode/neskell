@@ -173,7 +173,7 @@ getStorePageCrossPenalty am = case am of IndIdx    -> 1
                                          _         -> 0
 
 makeSigned :: Word8 -> Int
-makeSigned a = 128 - (fromIntegral $ 128 - a) :: Int
+makeSigned a = 128 - (fromIntegral $ 128 - a)
 
 samePage :: Word16 -> Word16 -> Bool
 samePage a b = (a .&. 128) `xor` (b .&. 128) == 0
@@ -546,7 +546,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
                 dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
-                pagecr  = not $ samePage dest pc
+                pagecr  = (not $ samePage dest pc) && z
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 z + b2W8 pagecr :: Word64
             trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
@@ -559,7 +559,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
                 dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
-                pagecr  = not $ samePage dest pc
+                pagecr  = (not $ samePage dest pc) && z
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 z + b2W8 pagecr :: Word64
             trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
