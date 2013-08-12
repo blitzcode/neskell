@@ -481,23 +481,23 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             sr <- load8 SR
-            x  <- loadOperand8 inst
+            op <- loadOperand8 inst
             a  <- load8 A
             let carry = b2W8 $ getFlag FC sr
             let (r, ncarry) = case getFlag FD sr of
-                                  False -> let sum = a + x + carry
+                                  False -> let sum = a + op + carry
                                             in (sum, if carry == 1 then sum <= a else sum < a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
-                                  True -> let n0     = carry + (a .&. 0x0F) + (x .&. 0x0F)
+                                  True -> let n0     = carry + (a .&. 0x0F) + (op .&. 0x0F)
                                               hcarry = n0 >= 10
-                                              n1     = b2W8 hcarry + (a `shiftR` 4) + (x `shiftR` 4)
+                                              n1     = b2W8 hcarry + (a `shiftR` 4) + (op `shiftR` 4)
                                               n0'    = if hcarry then n0 - 10 else n0
                                               ncarry = n1 >= 10
                                               n1'    = if ncarry then n1 - 10 else n1
                                            in ((n1' `shiftL` 4) + n0', ncarry)
             store8 A r
             -- http://forums.nesdev.com/viewtopic.php?p=60520
-            let overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 /= 0
+            let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 /= 0
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
             advCycles $ baseC + penalty
         SBC -> do
@@ -507,14 +507,14 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             sr <- load8 SR
-            x  <- loadOperand8 inst
+            op <- loadOperand8 inst
             a  <- load8 A
             let carry = b2W8 . not $ getFlag FC sr
             let (r, ncarry) = case getFlag FD sr of
-                                  False -> let sum = a - (x + carry)
+                                  False -> let sum = a - (op + carry)
                                             in (sum, not $ if carry == 1 then sum >= a else sum > a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
-                                  True -> let ix = fromIntegral x :: Int
+                                  True -> let ix = fromIntegral op :: Int
                                               xdec  = ((ix `shiftR` 4) * 10) + (ix .&. 0x0F)
                                                       + fromIntegral carry
                                               ia = fromIntegral a :: Int
@@ -525,7 +525,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                                            in (fromIntegral r :: Word8, not ncarry)
             store8 A r
             -- http://forums.nesdev.com/viewtopic.php?p=60520
-            let overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 == 0
+            let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 == 0
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
             advCycles $ baseC + penalty
         CMP -> do
@@ -534,11 +534,11 @@ execute inst@(Instruction (OpCode mn am) _) = do
             trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
-            x  <- loadOperand8 inst
+            op <- loadOperand8 inst
             a  <- load8 A
             sr <- load8 SR
             let isN = testBit a 7
-            store8 SR . modifyFlag FN isN . modifyFlag FZ (a == x) . modifyFlag FC (a >= x) $ sr
+            store8 SR . modifyFlag FN isN . modifyFlag FZ (a == op) . modifyFlag FC (a >= op) $ sr
             advCycles $ baseC + penalty
         BEQ -> do
             z    <- getFlag FZ <$> load8 SR
@@ -566,6 +566,48 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if z then dest else pc
             advCycles $ baseC + penalty
+        CPX -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            op <- loadOperand8 inst
+            x  <- load8 X
+            sr <- load8 SR
+            let isN = testBit x 7
+            store8 SR . modifyFlag FN isN . modifyFlag FZ (x == op) . modifyFlag FC (x >= op) $ sr
+            advCycles $ baseC + penalty
+        CPY -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            op <- loadOperand8 inst
+            y  <- load8 Y
+            sr <- load8 SR
+            let isN = testBit y 7
+            store8 SR . modifyFlag FN isN . modifyFlag FZ (y == op) . modifyFlag FC (y >= op) $ sr
+            advCycles $ baseC + penalty
+        BIT -> do
+            let baseC = getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            a  <- load8 A
+            x  <- loadOperand8 inst
+            sr <- load8 SR
+            let r = a .&. x
+            store8 SR
+                . modifyFlag FZ (r == 0)
+                . modifyFlag FV (testBit x 6)
+                . modifyFlag FN (testBit x 7)
+                $ sr
+            advCycles baseC
+        DCB _ -> do
+            trace . B8.pack $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
+            update16 PC (1 +)
+            advCycles 1
         _ -> error "Instruction Not Implemented" -- update16 PC (1 +) >> advCycles 1
     cpustate <- showCPUState
     trace . B8.pack $ "\n" ++ cpustate ++ "\n"

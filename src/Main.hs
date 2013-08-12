@@ -241,9 +241,25 @@ runTests = do
                                          , CondLS A (Left 0x7F)
                                          , CondLS Y (Left 0x7F)
                                          , CondCycleR 152 152
+                                         -- TODO: Test does not cover branch page crossing
                                          ]
                                          True
                 checkEmuTestResult "CMP/BEQ/BNE Test" tracefn h emures
+            -- CPX/CPY/BIT test
+            do
+                bin <- liftIO $ B.readFile "./tests/cpx_cpy_bit_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0042) (Left 0xA5)
+                                         , CondLS A (Left 0xA5)
+                                         , CondLS SR (Left 0x67) -- CZI--1V-
+                                         , CondCycleR 85 85
+                                         ]
+                                         True
+                checkEmuTestResult "CPX/CPY/BIT Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
