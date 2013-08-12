@@ -6,7 +6,7 @@ module Main (main) where
 import Instruction (Mnemonic(..), decodeInstruction, instructionLen)
 import Emulator (runEmulator, Cond(..))
 import MonadEmulator (LoadStore(..))
-import Util (setFlag, Flag(..))
+import Util (setFlag, Flag(..), srFromString)
 
 import Data.Monoid (All(..), getAll)
 import Data.Word (Word64)
@@ -112,7 +112,7 @@ runTests = do
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
                                          [ CondLS (Addr 0x0071) (Left 0xFF)
-                                         , CondLS SR (Left 0xA4)
+                                         , CondLS SR (Left $ srFromString "N-1--I--")
                                          , CondCycleR 149 149
                                          ]
                                          True
@@ -212,17 +212,17 @@ runTests = do
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         [ CondLS (Addr 0x01FF) (Left 0x34) -- SR = --I-B1--
-                                         , CondLS (Addr 0x01FE) (Left 0x37) -- SR = CZI-B1--
-                                         , CondLS (Addr 0x01FD) (Left 0xF4) -- SR = --I-B1VN
-                                         , CondLS (Addr 0x01FC) (Left 0x75) -- SR = C-I-B1V-
-                                         , CondLS (Addr 0x01FB) (Left 0x34) -- SR = --I-B1--
-                                         , CondLS (Addr 0x01FA) (Left 0x37) -- SR = CZI-B1--
-                                         , CondLS (Addr 0x01F9) (Left 0xF4) -- SR = --I-B1VN
-                                         , CondLS (Addr 0x01F8) (Left 0x75) -- SR = C-I-B1V-
-                                         , CondLS (Addr 0x01F7) (Left 0xB4) -- SR = --I-B1-N
-                                         , CondLS (Addr 0x01F6) (Left 0x75) -- SR = C-I-B1V-
-                                         , CondLS (Addr 0x01F5) (Left 0xF4) -- SR = --I-B1VN
+                                         [ CondLS (Addr 0x01FF) (Left $ srFromString "--1B-I--")
+                                         , CondLS (Addr 0x01FE) (Left $ srFromString "--1B-IZC")
+                                         , CondLS (Addr 0x01FD) (Left $ srFromString "NV1B-I--")
+                                         , CondLS (Addr 0x01FC) (Left $ srFromString "-V1B-I-C")
+                                         , CondLS (Addr 0x01FB) (Left $ srFromString "--1B-I--")
+                                         , CondLS (Addr 0x01FA) (Left $ srFromString "--1B-IZC")
+                                         , CondLS (Addr 0x01F9) (Left $ srFromString "NV1B-I--")
+                                         , CondLS (Addr 0x01F8) (Left $ srFromString "-V1B-I-C")
+                                         , CondLS (Addr 0x01F7) (Left $ srFromString "N-1B-I--")
+                                         , CondLS (Addr 0x01F6) (Left $ srFromString "-V1B-I-C")
+                                         , CondLS (Addr 0x01F5) (Left $ srFromString "NV1B-I--")
                                          , CondLS A (Left 0x80)
                                          , CondLS SP (Left 0xF4)
                                          , CondCycleR 99 99
@@ -255,7 +255,7 @@ runTests = do
                                          ]
                                          [ CondLS (Addr 0x0042) (Left 0xA5)
                                          , CondLS A (Left 0xA5)
-                                         , CondLS SR (Left 0x67) -- CZI--1V-
+                                         , CondLS SR (Left $ srFromString "-V1--IZC")
                                          , CondCycleR 85 85
                                          ]
                                          True
@@ -272,7 +272,7 @@ runTests = do
                                          , CondLS A (Left 0x1F)
                                          , CondLS X (Left 0x0D)
                                          , CondLS Y (Left 0x54)
-                                         , CondLS SR (Left 0x65) -- C-I--1V-
+                                         , CondLS SR (Left $ srFromString "-V1--I-C-")
                                          , CondCycleR 108 108
                                          ]
                                          True
@@ -286,7 +286,7 @@ runTests = do
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
                                          [ CondLS (Addr 0x0030) (Left 0xCE)
-                                         , CondLS SR (Left 0xA4) -- --I--1-N
+                                         , CondLS SR (Left $ srFromString "N-1--I--")
                                          , CondCycleR 29 29
                                          ]
                                          True

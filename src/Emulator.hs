@@ -25,6 +25,9 @@ data Cond =
     | CondCycleR Word64 Word64   -- Cycle count in the specified closed interval
 
 instance Show Cond where
+    show (CondLS SR w   ) = case w of
+                                Left  w8  -> printf "SR == 0x%02X:%s" w8 (makeSRString w8)
+                                _         -> error "Can't compare SR to 16 bit value"
     show (CondLS ls w   ) = case w of
                                 Left  w8  -> printf "%s == 0x%02X" (show ls) w8
                                 Right w16 -> printf "%s == 0x%04X" (show ls) w16
