@@ -260,6 +260,23 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "CPX/CPY/BIT Test" tracefn h emures
+            -- Misc. branch test
+            do
+                bin <- liftIO $ B.readFile "./tests/misc_branch_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0080) (Left 0x1F)
+                                         , CondLS A (Left 0x1F)
+                                         , CondLS X (Left 0x0D)
+                                         , CondLS Y (Left 0x54)
+                                         , CondLS SR (Left 0x65) -- C-I--1V-
+                                         , CondCycleR 108 108
+                                         ]
+                                         True
+                checkEmuTestResult "Misc. Branch Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]

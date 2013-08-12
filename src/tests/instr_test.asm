@@ -192,6 +192,7 @@ BNE lbl      ;Relative      $D0  2   2++
 ; program counter to cause a branch to a new location.
 ;
 ;    branch on N = 0                  N Z C I D V
+;                                     - - - - - -
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
