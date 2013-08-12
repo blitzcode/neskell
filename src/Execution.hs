@@ -694,6 +694,18 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
+        CLV -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            store8 SR . clearFlag FV $ sr
+            advCycles baseC
+        NOP -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            advCycles baseC
         DCB _ -> do
             trace . B8.pack $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
             update16 PC (1 +)

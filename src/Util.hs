@@ -41,6 +41,9 @@ makeSRString w =
     map (\(f, s) -> if getFlag f w then s else '-') $ zip
         [FC .. FN] ['C', 'Z', 'I', 'D', 'B', '1', 'V', 'N']
 
+--srFromString :: String -> Word8
+--srFromString s = 
+
 b2W8 :: Bool -> Word8
 b2W8 b = if b then 1 else 0
 

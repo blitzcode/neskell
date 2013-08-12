@@ -277,6 +277,20 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Misc. Branch Test" tracefn h emures
+            -- Flag test
+            do
+                bin <- liftIO $ B.readFile "./tests/flag_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0030) (Left 0xCE)
+                                         , CondLS SR (Left 0xA4) -- --I--1-N
+                                         , CondCycleR 29 29
+                                         ]
+                                         True
+                checkEmuTestResult "Flag Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
