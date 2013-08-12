@@ -11,6 +11,9 @@ The a=0600&d=a9... pair is the hex dump of the binary generated above
 
 http://www.visual6502.org/JSSim/expert.html?r=0600&graphics=false&r=0600&a=0000&d=00000000000000000000000000000000000000000000000000000000000000000000&a=0600&d=a955a22aa0738581a9018561a97ea5818d1009a97ead10099556a97eb55684609160a97eb1609dff07a97ebdff0799ff07a97eb9ff078136a97ea1368650a660a4508e1309a222ae13098c1409a099ac1409942d9677a099b42da222b677a099bca008a222bea1089d0002
 
+The 'runv6502' script automates this process completely and opens the URL in the
+browser.
+
 Now trace with the 'Step' button and watch the zero page / stack writes and
 register changes. Be sure to click 'Log Up/Down' so that the trace doesn't
 immediately go off screen

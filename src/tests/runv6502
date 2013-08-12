@@ -1,0 +1,20 @@
+#!/usr/bin/env runhaskell
+
+import Text.Printf
+import qualified Data.ByteString as B
+import System.Environment (getArgs)
+import Control.Applicative ((<$>))
+import System.Cmd (rawSystem)
+import Control.Monad (void)
+
+main :: IO ()
+main = do
+    [binfn] <- getArgs
+    bin <- B.unpack <$> B.readFile binfn
+    let url = "http://www.visual6502.org/JSSim/expert.html?" ++
+              "graphics=false&r=0600&" ++
+              "a=0000&" ++
+              "d=00000000000000000000000000000000000000000000000000000000000000000000&" ++
+              "a=0600&d=" ++ 
+              concatMap (printf "%02x") bin
+    void $ rawSystem "open" [url]
