@@ -229,6 +229,21 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Add / Sub CVZN Flag Test" tracefn h emures
+            -- CMP/BEQ/BNE test
+            do
+                bin <- liftIO $ B.readFile "./tests/cmp_beq_bne_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0015) (Left 0x7F)
+                                         , CondLS A (Left 0x7F)
+                                         , CondLS Y (Left 0x7F)
+                                         , CondCycleR 152 152
+                                         ]
+                                         True
+                checkEmuTestResult "CMP/BEQ/BNE Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]

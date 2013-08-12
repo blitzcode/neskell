@@ -16,8 +16,6 @@ import Text.Printf
 import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR)
 import Control.Applicative ((<$>))
 
-import qualified Debug.Trace as DT
-
 -- Functions for loading and storing 8 bit operands for any instruction.
 -- Illegal instructions (writing to an Immediate operand, reading using the
 -- Indirect mode, having no operand data for anything but
@@ -58,6 +56,7 @@ loadOperand8 :: MonadEmulator m => Instruction -> m Word8
 loadOperand8 inst@(Instruction (OpCode _ am) oper) =
     case oper of 
         [w8] -> case am of Immediate -> return w8
+                           Relative  -> return w8
                            _         -> load8 =<< getOperandAddr8 inst
         _    ->                         load8 =<< getOperandAddr8 inst
 
@@ -172,6 +171,12 @@ getStorePageCrossPenalty am = case am of IndIdx    -> 1
                                          AbsoluteX -> 1
                                          AbsoluteY -> 1
                                          _         -> 0
+
+makeSigned :: Word8 -> Int
+makeSigned a = 128 - (fromIntegral $ 128 - a) :: Int
+
+samePage :: Word16 -> Word16 -> Bool
+samePage a b = (a .&. 128) `xor` (b .&. 128) == 0
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (OpCode mn am) _) = do
@@ -522,6 +527,44 @@ execute inst@(Instruction (OpCode mn am) _) = do
             -- http://forums.nesdev.com/viewtopic.php?p=60520
             let overflow = (a `xor` r) .&. (x `xor` r) .&. 0x80 == 0
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            advCycles $ baseC + penalty
+        CMP -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "" :: String)
+            update16 PC (ilen +)
+            x  <- loadOperand8 inst
+            a  <- load8 A
+            sr <- load8 SR
+            let isN = testBit a 7
+            store8 SR . modifyFlag FN isN . modifyFlag FZ (a == x) . modifyFlag FC (a >= x) $ sr
+            advCycles $ baseC + penalty
+        BEQ -> do
+            z    <- getFlag FZ <$> load8 SR
+            oper <- loadOperand8 inst
+            pc   <- (+) ilen <$> load16 PC
+            let offs    = makeSigned oper
+                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                pagecr  = not $ samePage dest pc
+                baseC   = getAMCycles Relative
+                penalty = fromIntegral $ b2W8 z + b2W8 pagecr :: Word64
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+            store16 PC $ if z then dest else pc
+            advCycles $ baseC + penalty
+        BNE -> do
+            z    <- not . getFlag FZ <$> load8 SR
+            oper <- loadOperand8 inst
+            pc   <- (+) ilen <$> load16 PC
+            let offs    = makeSigned oper
+                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                pagecr  = not $ samePage dest pc
+                baseC   = getAMCycles Relative
+                penalty = fromIntegral $ b2W8 z + b2W8 pagecr :: Word64
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+            store16 PC $ if z then dest else pc
             advCycles $ baseC + penalty
         _ -> error "Instruction Not Implemented" -- update16 PC (1 +) >> advCycles 1
     cpustate <- showCPUState
