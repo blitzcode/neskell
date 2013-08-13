@@ -150,6 +150,20 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "JMP/JSR/RTS Test" tracefn h emures
+            -- JMP bug test
+            do
+                bin <- liftIO $ B.readFile "./tests/jump_bug_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0000) (Left 0x65)
+                                         , CondLS PC (Right 0x061a)
+                                         , CondCycleR 33 33
+                                         ]
+                                         True
+                checkEmuTestResult "Jump Bug Test" tracefn h emures
             -- Register Transfer test
             do
                 bin <- liftIO $ B.readFile "./tests/reg_transf_test.bin"
