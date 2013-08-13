@@ -111,8 +111,8 @@ storeStack16 :: MonadEmulator m => Word16 -> m ()
 storeStack16 w16 = do
     let (l, h) = splitW16 w16
     sp <- load8 SP
-    let sp1 = sp - 1
-    let sp2 = sp - 2
+    let sp1 = sp
+    let sp2 = sp - 1
     store8 (Addr $ 0x0100 + fromIntegral sp1) h
     store8 (Addr $ 0x0100 + fromIntegral sp2) l
     store8 SP (sp - 2)
@@ -128,8 +128,9 @@ loadStack16 :: MonadEmulator m => m Word16
 loadStack16 = do
     sp <- load8 SP
     let sp1 = sp + 1
-    l <- load8 (Addr $ 0x0100 + fromIntegral sp )
-    h <- load8 (Addr $ 0x0100 + fromIntegral sp1)
+    let sp2 = sp + 2
+    l <- load8 (Addr $ 0x0100 + fromIntegral sp1)
+    h <- load8 (Addr $ 0x0100 + fromIntegral sp2)
     store8 SP (sp + 2)
     return $ makeW16 l h
 
@@ -466,7 +467,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- loadStack8
-            store8 SR . clearFlag FB $ sr
+            store8 SR . clearFlag FB . setFlag F1 $ sr
             advCycles baseC
         PLA -> do
             let baseC = 4
@@ -727,6 +728,14 @@ execute inst@(Instruction (OpCode mn am) _) = do
             let baseC = 2
             trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
+            advCycles baseC
+        RTI -> do
+            let baseC = 6
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            sr <- loadStack8
+            store8 SR . clearFlag FB . setFlag F1 $ sr
+            pc <- loadStack16
+            store16 PC pc
             advCycles baseC
         DCB _ -> do
             trace . B8.pack $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
