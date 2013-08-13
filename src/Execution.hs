@@ -491,6 +491,20 @@ execute inst@(Instruction (OpCode mn am) _) = do
             sr <- load8 SR
             store8 SR . clearFlag FD $ sr
             advCycles baseC
+        SEI -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            store8 SR . setFlag FI $ sr
+            advCycles baseC
+        CLI -> do
+            let baseC = 2
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- load8 SR
+            store8 SR . clearFlag FI $ sr
+            advCycles baseC
         -- SBC is ADC with all argument bits flipped (xor 0xFF, see
         -- http://forums.nesdev.com/viewtopic.php?t=8703), except for the BCD
         -- case. The BCD implementation should be correct for all documented
