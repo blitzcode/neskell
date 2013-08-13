@@ -294,6 +294,19 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Misc. Branch Test" tracefn h emures
+            -- Branch backwards test
+            do
+                bin <- liftIO $ B.readFile "./tests/branch_backwards_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS X (Left 0xFF)
+                                         , CondCycleR 31 31
+                                         ]
+                                         True
+                checkEmuTestResult "Branch Backwards Test" tracefn h emures
             -- Flag test
             do
                 bin <- liftIO $ B.readFile "./tests/flag_test.bin"

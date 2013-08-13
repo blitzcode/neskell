@@ -155,6 +155,7 @@ decodeInstruction mem pc = do
     opMem <- mem VU.!? pc
     let opc@(OpCode _ am) = decodeOpCode opMem
     case operandLen am of
+        -- TODO: We should probably just return a DCB in case the operands are missing
         1 -> do
             op1 <- mem VU.!? (pc + 1)
             return $ Instruction opc [op1]
