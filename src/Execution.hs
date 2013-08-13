@@ -117,6 +117,13 @@ storeStack16 w16 = do
     store8 (Addr $ 0x0100 + fromIntegral sp2) l
     store8 SP (sp - 2)
 
+loadStack8 :: MonadEmulator m => m Word8
+loadStack8 = do
+    sp <- (+) 1 <$> load8 SP
+    w8 <- load8 (Addr $ 0x0100 + fromIntegral sp )
+    store8 SP sp
+    return w8
+
 loadStack16 :: MonadEmulator m => m Word16
 loadStack16 = do
     sp <- load8 SP
@@ -453,6 +460,21 @@ execute inst@(Instruction (OpCode mn am) _) = do
             update16 PC (ilen +)
             a <- load8 A
             storeStack8 a
+            advCycles baseC
+        PLP -> do
+            let baseC = 4
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            sr <- loadStack8
+            store8 SR . clearFlag FB $ sr
+            advCycles baseC
+        PLA -> do
+            let baseC = 4
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            update16 PC (ilen +)
+            a <- loadStack8
+            updateNZ a
+            store8 A a
             advCycles baseC
         SED -> do
             let baseC = 2

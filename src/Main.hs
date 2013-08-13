@@ -291,6 +291,21 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Flag Test" tracefn h emures
+            -- Stack test
+            do
+                bin <- liftIO $ B.readFile "./tests/stack_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0030) (Left 0x29)
+                                         , CondLS SR (Left $ srFromString "--1--I--")
+                                         , CondLS SP (Left $ 0xFF)
+                                         , CondCycleR 29 29
+                                         ]
+                                         True
+                checkEmuTestResult "Stack Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
