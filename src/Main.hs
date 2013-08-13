@@ -369,6 +369,17 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "BRK Test" tracefn h emures
+            -- Functional 6502 test
+            do
+                bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
+                let emures = runEmulator [ (bin, 0x0400) ]
+                                         [ (PC, Right 0x0400) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 10000 (maxBound :: Word64)
+                                         ]
+                                         [ ]
+                                         True
+                checkEmuTestResult "Functional 6502 Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
