@@ -96,6 +96,7 @@ runTests = do
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
                                          [ CondLS (Addr 0x00A9) (Left 0xAA)
+                                         , CondLS SR (Left $ srFromString "N-1--I--")
                                          , CondLS A (Left 0xAA)
                                          , CondLS X (Left 0x10)
                                          , CondLS Y (Left 0xF0)
@@ -175,6 +176,7 @@ runTests = do
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
                                          [ CondLS (Addr 0x0030) (Left 0x9D)
+                                         , CondLS SR (Left $ srFromString "NV1--I-C")
                                          , CondLS A (Left 0x9D)
                                          , CondLS X (Left 0x31)
                                          , CondLS Y (Left 0x16)
@@ -200,6 +202,7 @@ runTests = do
                                          , CondLS (Addr 0x01F8) (Left 0x91)
                                          , CondLS (Addr 0x01F7) (Left 0x87)
                                          , CondLS SP (Left 0xF6)
+                                         , CondLS SR (Left $ srFromString "N-1-DI--")
                                          , CondCycleR 73 73
                                          ]
                                          True
@@ -291,6 +294,22 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "Flag Test" tracefn h emures
+            -- Special flag test
+            do
+                bin <- liftIO $ B.readFile "./tests/special_flag_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0020) (Left 0x3C)
+                                         , CondLS (Addr 0x0021) (Left 0x6C)
+                                         , CondLS SR (Left $ srFromString "--1-----")
+                                         , CondLS SP (Left $ 0xFF)
+                                         , CondCycleR 31 31
+                                         ]
+                                         True
+                checkEmuTestResult "Special Flag Test" tracefn h emures
             -- Stack test
             do
                 bin <- liftIO $ B.readFile "./tests/stack_test.bin"
@@ -336,22 +355,6 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "BRK Test" tracefn h emures
-            -- Special flag test
-            do
-                bin <- liftIO $ B.readFile "./tests/special_flag_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
-                                         [ (PC, Right 0x0600) ]
-                                         [ CondOpC BRK
-                                         , CondCycleR 1000 (maxBound :: Word64)
-                                         ]
-                                         [ CondLS (Addr 0x0020) (Left 0x3C)
-                                         , CondLS (Addr 0x0021) (Left 0x6C)
-                                         , CondLS SR (Left $ srFromString "--1-----")
-                                         , CondLS SP (Left $ 0xFF)
-                                         , CondCycleR 31 31
-                                         ]
-                                         True
-                checkEmuTestResult "Special Flag Test" tracefn h emures
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
