@@ -581,32 +581,6 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 . modifyFlag FC (a >= op)
                 $ sr
             advCycles $ baseC + penalty
-        BEQ -> do
-            f    <- getFlag FZ <$> load8 SR
-            oper <- loadOperand8 inst
-            pc   <- (+) ilen <$> load16 PC
-            let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
-                pagecr  = (not $ samePage dest pc) && f
-                baseC   = getAMCycles Relative
-                penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
-            store16 PC $ if f then dest else pc
-            advCycles $ baseC + penalty
-        BNE -> do
-            f    <- not . getFlag FZ <$> load8 SR
-            oper <- loadOperand8 inst
-            pc   <- (+) ilen <$> load16 PC
-            let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
-                pagecr  = (not $ samePage dest pc) && f
-                baseC   = getAMCycles Relative
-                penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
-            store16 PC $ if f then dest else pc
-            advCycles $ baseC + penalty
         CPX -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
@@ -653,12 +627,38 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 . modifyFlag FN (testBit x 7)
                 $ sr
             advCycles baseC
+        BEQ -> do
+            f    <- getFlag FZ <$> load8 SR
+            oper <- loadOperand8 inst
+            pc   <- (+) ilen <$> load16 PC
+            let offs    = makeSigned oper
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                pagecr  = (not $ samePage dest pc) && f
+                baseC   = getAMCycles Relative
+                penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+            store16 PC $ if f then dest else pc
+            advCycles $ baseC + penalty
+        BNE -> do
+            f    <- not . getFlag FZ <$> load8 SR
+            oper <- loadOperand8 inst
+            pc   <- (+) ilen <$> load16 PC
+            let offs    = makeSigned oper
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                pagecr  = (not $ samePage dest pc) && f
+                baseC   = getAMCycles Relative
+                penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
+            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+            store16 PC $ if f then dest else pc
+            advCycles $ baseC + penalty
         BPL -> do
             f    <- not . getFlag FN <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -671,7 +671,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -684,7 +684,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -697,7 +697,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -710,7 +710,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -723,7 +723,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc - fromIntegral offs
+                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
