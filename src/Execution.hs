@@ -522,16 +522,16 @@ execute inst@(Instruction (OpCode mn am) _) = do
             a  <- load8 A
             let carry = b2W8 $ getFlag FC sr
             let (r, ncarry) = case getFlag FD sr of
-                                  False -> let sum = a + op + carry
-                                            in (sum, if carry == 1 then sum <= a else sum < a)
+                                  False -> let res = a + op + carry
+                                            in (res, if carry == 1 then res <= a else res < a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
                                   True -> let n0     = carry + (a .&. 0x0F) + (op .&. 0x0F)
                                               hcarry = n0 >= 10
                                               n1     = b2W8 hcarry + (a `shiftR` 4) + (op `shiftR` 4)
                                               n0'    = if hcarry then n0 - 10 else n0
-                                              ncarry = n1 >= 10
+                                              carry' = n1 >= 10
                                               n1'    = if ncarry then n1 - 10 else n1
-                                           in ((n1' `shiftL` 4) + n0', ncarry)
+                                           in ((n1' `shiftL` 4) + n0', carry')
             store8 A r
             -- http://forums.nesdev.com/viewtopic.php?p=60520
             let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 /= 0
@@ -548,18 +548,18 @@ execute inst@(Instruction (OpCode mn am) _) = do
             a  <- load8 A
             let carry = b2W8 . not $ getFlag FC sr
             let (r, ncarry) = case getFlag FD sr of
-                                  False -> let sum = a - (op + carry)
-                                            in (sum, not $ if carry == 1 then sum >= a else sum > a)
+                                  False -> let res = a - (op + carry)
+                                            in (res, not $ if carry == 1 then res >= a else res > a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
-                                  True -> let ix = fromIntegral op :: Int
-                                              xdec  = ((ix `shiftR` 4) * 10) + (ix .&. 0x0F)
-                                                      + fromIntegral carry
-                                              ia = fromIntegral a :: Int
-                                              adec  = ((ia `shiftR` 4) * 10) + (ia .&. 0x0F) - xdec
-                                              ncarry = adec < 0
-                                              adec' = if ncarry then adec + 100 else adec
-                                              r = ((adec' `div` 10) `shiftL` 4) + (adec' `mod` 10)
-                                           in (fromIntegral r :: Word8, not ncarry)
+                                  True -> let ix     = fromIntegral op :: Int
+                                              xdec   = ((ix `shiftR` 4) * 10) + (ix .&. 0x0F)
+                                                       + fromIntegral carry
+                                              ia     = fromIntegral a :: Int
+                                              adec   = ((ia `shiftR` 4) * 10) + (ia .&. 0x0F) - xdec
+                                              carry' = adec < 0
+                                              adec'  = if carry' then adec + 100 else adec
+                                              res    = ((adec' `div` 10) `shiftL` 4) + (adec' `mod` 10)
+                                           in (fromIntegral res :: Word8, not carry')
             store8 A r
             -- http://forums.nesdev.com/viewtopic.php?p=60520
             let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 == 0
@@ -751,11 +751,21 @@ execute inst@(Instruction (OpCode mn am) _) = do
             pc <- loadStack16
             store16 PC pc
             advCycles baseC
+        BRK -> do
+            let baseC = 7 
+            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            pc <- load16 PC
+            storeStack16 $ pc + ilen + 1 -- Don't forget the padding byte
+            sr <- load8 SR
+            storeStack8 $ setFlag FB sr
+            store8 SR . setFlag FI $ sr
+            ivec <- load16 $ Addr 0xFFFE
+            store16 PC ivec
+            advCycles baseC
         DCB _ -> do
             trace . B8.pack $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
             update16 PC (1 +)
             advCycles 1
-        _ -> error "Instruction Not Implemented" -- update16 PC (1 +) >> advCycles 1
     cpustate <- showCPUState
     trace . B8.pack $ "\n" ++ cpustate ++ "\n"
 

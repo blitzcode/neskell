@@ -6,7 +6,7 @@ module Main (main) where
 import Instruction (Mnemonic(..), decodeInstruction, instructionLen)
 import Emulator (runEmulator, Cond(..))
 import MonadEmulator (LoadStore(..))
-import Util (setFlag, Flag(..), srFromString)
+import Util (srFromString)
 
 import Data.Monoid (All(..), getAll)
 import Data.Word (Word64)

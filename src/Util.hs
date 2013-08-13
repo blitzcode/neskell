@@ -1,5 +1,5 @@
 
-module Util ( L8R16(..)
+module Util ( L8R16
             , makeW16
             , splitW16
             , Flag(..)
