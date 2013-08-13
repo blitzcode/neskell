@@ -321,6 +321,21 @@ runTests = do
                                          ]
                                          True
                 checkEmuTestResult "RTI Test" tracefn h emures
+            -- BRK test
+            do
+                bin <- liftIO $ B.readFile "./tests/brk_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC NOP
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x00FF) (Left 0x44)
+                                         , CondLS SR (Left $ srFromString "--1--I--")
+                                         , CondLS SP (Left $ 0xFF)
+                                         , CondCycleR 89 89
+                                         ]
+                                         True
+                checkEmuTestResult "BRK Test" tracefn h emures
             -- Special flag test
             do
                 bin <- liftIO $ B.readFile "./tests/special_flag_test.bin"
