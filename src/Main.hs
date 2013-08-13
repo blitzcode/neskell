@@ -374,13 +374,14 @@ runTests = do
 disassemble :: B.ByteString -> [B.ByteString]
 disassemble bin = do
     let vec = VU.fromList $ B.unpack bin
-        disassemble' pc = do
-            let instr   = decodeInstruction vec pc
-                newPC   = pc + instructionLen instr
-                showI   = B8.pack . show $ instr
-                validPC = newPC < VU.length vec
-            -- Build result using : instead of ++, no stack overflow etc.
-            if validPC then showI : disassemble' newPC else [showI]
+        disassemble' pc =
+            case decodeInstruction vec pc of
+                Just instr -> let newPC   = pc + instructionLen instr
+                                  showI   = B8.pack . show $ instr
+                                  validPC = newPC < VU.length vec
+                                  -- Build result using : instead of ++, no stack overflow etc.
+                               in if validPC then showI : disassemble' newPC else [showI]
+                Nothing -> []
      in disassemble' 0
 
 main :: IO ()

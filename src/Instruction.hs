@@ -17,6 +17,7 @@ import Util (makeW16)
 import MonadEmulator (MonadEmulator(..), LoadStore(..))
 
 import Data.Word (Word8)
+import Data.Maybe (fromMaybe)
 import Text.Printf
 import Control.Applicative ((<$>))
 import qualified Data.Vector.Unboxed as VU
@@ -149,13 +150,19 @@ instance Show Instruction where
 instructionLen :: Instruction -> Int
 instructionLen (Instruction (OpCode _ a) _) = 1 + operandLen a
 
-decodeInstruction :: VU.Vector Word8 -> Int -> Instruction
-decodeInstruction mem pc =
-    let opc@(OpCode _ am) = decodeOpCode $ mem VU.! pc
-     in case operandLen am of
-            1 -> Instruction opc [ mem VU.! (pc + 1)                    ]
-            2 -> Instruction opc [ mem VU.! (pc + 1), mem VU.! (pc + 2) ]
-            _ -> Instruction opc [                                      ]
+decodeInstruction :: VU.Vector Word8 -> Int -> Maybe Instruction
+decodeInstruction mem pc = do
+    opMem <- mem VU.!? pc
+    let opc@(OpCode _ am) = decodeOpCode opMem
+    case operandLen am of
+        1 -> do
+            op1 <- mem VU.!? (pc + 1)
+            return $ Instruction opc [op1]
+        2 -> do
+            op1 <- mem VU.!? (pc + 1)
+            op2 <- mem VU.!? (pc + 2)
+            return $ Instruction opc [op1, op2]
+        _ -> return $ Instruction opc []
 
 decodeInstructionM :: MonadEmulator m => m Instruction
 decodeInstructionM = do

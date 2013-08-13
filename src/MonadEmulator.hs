@@ -77,7 +77,7 @@ instance MonadEmulator (RSTEmu s) where
         let e8 = error "16 bit load from 8 bit register"
         state <- asks cpuState
         case ls of
-            A -> e8; X -> e8; Y -> e8; SR -> e8; SP -> e8; PCL -> e8; PCH -> e8
+            Addr 65535 -> e8; A -> e8; X -> e8; Y -> e8; SR -> e8; SP -> e8; PCL -> e8; PCH -> e8
             _ -> lift $ do let i = lsToStateIdx ls
                            l <- VUM.read state i
                            h <- VUM.read state (i + 1)
@@ -91,7 +91,7 @@ instance MonadEmulator (RSTEmu s) where
         let e8 = error "16 bit store to 8 bit register"
         state <- asks cpuState
         case ls of
-            A -> e8; X -> e8; Y -> e8; SR -> e8; SP -> e8; PCL -> e8; PCH -> e8
+            Addr 65535 -> e8; A -> e8; X -> e8; Y -> e8; SR -> e8; SP -> e8; PCL -> e8; PCH -> e8
             _ -> lift $ do let (l, h) = splitW16 val
                            let i = lsToStateIdx ls
                            VUM.write state i l
