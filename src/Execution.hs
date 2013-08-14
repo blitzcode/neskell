@@ -573,7 +573,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             op <- loadOperand8 inst
             a  <- load8 A
             sr <- load8 SR
-            let isN = testBit a 7
+            let isN = testBit (a - op) 7
             store8 SR
                 . modifyFlag FN isN
                 . modifyFlag FZ (a == op)
@@ -589,7 +589,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             op <- loadOperand8 inst
             x  <- load8 X
             sr <- load8 SR
-            let isN = testBit x 7
+            let isN = testBit (x - op) 7
             store8 SR
                 . modifyFlag FN isN
                 . modifyFlag FZ (x == op)
@@ -605,7 +605,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             op <- loadOperand8 inst
             y  <- load8 Y
             sr <- load8 SR
-            let isN = testBit y 7
+            let isN = testBit (y - op) 7
             store8 SR
                 . modifyFlag FN isN
                 . modifyFlag FZ (y == op)
