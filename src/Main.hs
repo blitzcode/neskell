@@ -14,8 +14,8 @@ import Control.Monad (when, unless)
 import Control.Monad.Writer (execWriterT, tell, WriterT)
 import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (liftIO)
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.Char8 as B8
 import qualified Data.Vector.Unboxed as VU
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
@@ -389,7 +389,7 @@ runTests = do
                 let emures = runEmulator [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
                                          [ CondOpC BRK
-                                         , CondCycleR 10000 (maxBound :: Word64)
+                                         , CondCycleR 50375 (maxBound :: Word64)
                                          ]
                                          [ ]
                                          True

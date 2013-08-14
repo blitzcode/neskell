@@ -11,7 +11,6 @@ import Instruction
 import Util
 
 import Data.Word (Word8, Word16, Word64)
-import qualified Data.ByteString.Char8 as B8
 import Text.Printf
 import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR, complement)
 import Control.Applicative ((<$>))
@@ -50,7 +49,7 @@ getOperandAddr8 inst@(Instruction (OpCode _ am) oper) =
                                    _         -> err
         _            -> err
   where
-    err = trace (B8.pack $ "getOperandAddr8: AM/OpLen Error: " ++ show inst) >> return A
+    err = trace ("getOperandAddr8: AM/OpLen Error: " ++ show inst) >> return A
 
 loadOperand8 :: MonadEmulator m => Instruction -> m Word8
 loadOperand8 inst@(Instruction (OpCode _ am) oper) =
@@ -80,7 +79,7 @@ loadOperand16 inst@(Instruction (OpCode _ am) oper) =
             _         -> err
         _            -> err
   where
-    err = trace (B8.pack $ "loadOperand16: AM/OpLen Error: " ++ show inst) >> return 0
+    err = trace ("loadOperand16: AM/OpLen Error: " ++ show inst) >> return 0
 
 update16 :: MonadEmulator m => LoadStore -> (Word16 -> Word16) -> m ()
 update16 ls f = load16 ls >>= return . f >>= store16 ls
@@ -193,7 +192,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         LDA -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             a <- loadOperand8 inst
@@ -203,7 +202,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         LDX -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             x <- loadOperand8 inst
@@ -213,7 +212,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         LDY -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             y <- loadOperand8 inst
@@ -222,21 +221,21 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles $ baseC + penalty
         STA -> do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             a <- load8 A
             storeOperand8 inst a
             advCycles baseC
         STX -> do
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- load8 X
             storeOperand8 inst x
             advCycles baseC
         STY -> do
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             y <- load8 Y
             storeOperand8 inst y
@@ -244,7 +243,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         AND -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             x <- loadOperand8 inst
@@ -256,7 +255,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         ORA -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             x <- loadOperand8 inst
@@ -268,7 +267,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         EOR -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             x <- loadOperand8 inst
@@ -279,7 +278,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles $ baseC + penalty
         INC -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- loadOperand8 inst
             let r = x + 1
@@ -288,7 +287,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         DEC -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- loadOperand8 inst
             let r = x - 1
@@ -297,7 +296,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         ASL -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- loadOperand8 inst
             let carry = testBit x 7
@@ -307,7 +306,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         LSR -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- loadOperand8 inst
             let carry = testBit x 0
@@ -317,7 +316,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         ROL -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- loadOperand8 inst
             carry <- getFlag FC <$> load8 SR
@@ -327,7 +326,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         ROR -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- loadOperand8 inst
             carry <- getFlag FC <$> load8 SR
@@ -337,13 +336,13 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         JMP -> do
             let baseC = case am of Absolute -> 3; Indirect -> 5; _ -> 0
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             npc <- loadOperand16 inst
             store16 PC npc
             advCycles baseC
         JSR -> do
             let baseC = 6
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             npc <- loadOperand16 inst
             pc  <- load16 PC
             storeStack16 $ pc + ilen - 1
@@ -351,13 +350,13 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         RTS -> do
             let baseC = 6
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             pc <- loadStack16
             store16 PC $ pc + 1
             advCycles baseC
         TAX -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             a <- load8 A
             updateNZ a
@@ -365,7 +364,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         TXA -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- load8 X
             updateNZ x
@@ -373,7 +372,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         TYA -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             y <- load8 Y
             updateNZ y
@@ -381,7 +380,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         TAY -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             a <- load8 A
             updateNZ a
@@ -389,7 +388,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         DEX -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- flip (-) 1 <$> load8 X
             updateNZ x
@@ -397,7 +396,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         INX -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- (+ 1) <$> load8 X
             updateNZ x
@@ -405,7 +404,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         DEY -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             y <- flip (-) 1 <$> load8 Y
             updateNZ y
@@ -413,7 +412,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         INY -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             y <- (+ 1) <$> load8 Y
             updateNZ y
@@ -421,14 +420,14 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         TXS -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             x <- load8 X
             store8 SP x
             advCycles baseC
         TSX -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sp <- load8 SP
             updateNZ sp
@@ -436,42 +435,42 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         CLC -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FC $ sr
             advCycles baseC
         SEC -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . setFlag FC $ sr
             advCycles baseC
         PHP -> do
             let baseC = 3
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             storeStack8 $ setFlag FB sr
             advCycles baseC
         PHA -> do
             let baseC = 3
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             a <- load8 A
             storeStack8 a
             advCycles baseC
         PLP -> do
             let baseC = 4
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- loadStack8
             store8 SR . clearFlag FB . setFlag F1 $ sr
             advCycles baseC
         PLA -> do
             let baseC = 4
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             a <- loadStack8
             updateNZ a
@@ -479,28 +478,28 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         SED -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . setFlag FD $ sr
             advCycles baseC
         CLD -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FD $ sr
             advCycles baseC
         SEI -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . setFlag FI $ sr
             advCycles baseC
         CLI -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FI $ sr
@@ -514,7 +513,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         ADC -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             sr <- load8 SR
@@ -540,7 +539,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         SBC -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             sr <- load8 SR
@@ -568,7 +567,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         CMP -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             op <- loadOperand8 inst
@@ -584,7 +583,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         CPX -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             op <- loadOperand8 inst
@@ -600,7 +599,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
         CPY -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
             update16 PC (ilen +)
             op <- loadOperand8 inst
@@ -615,7 +614,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles $ baseC + penalty
         BIT -> do
             let baseC = getAMCycles am
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             a  <- load8 A
             x  <- loadOperand8 inst
@@ -636,7 +635,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
@@ -649,7 +648,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
@@ -662,7 +661,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
@@ -675,7 +674,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
@@ -688,7 +687,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
@@ -701,7 +700,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
@@ -714,7 +713,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
@@ -727,25 +726,25 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
-            trace . B8.pack $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         CLV -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FV $ sr
             advCycles baseC
         NOP -> do
             let baseC = 2
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             update16 PC (ilen +)
             advCycles baseC
         RTI -> do
             let baseC = 6
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             sr <- loadStack8
             store8 SR . clearFlag FB . setFlag F1 $ sr
             pc <- loadStack16
@@ -753,7 +752,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             advCycles baseC
         BRK -> do
             let baseC = 7 
-            trace . B8.pack $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             pc <- load16 PC
             storeStack16 $ pc + ilen + 1 -- Don't forget the padding byte
             sr <- load8 SR
@@ -763,9 +762,9 @@ execute inst@(Instruction (OpCode mn am) _) = do
             store16 PC ivec
             advCycles baseC
         DCB _ -> do
-            trace . B8.pack $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
+            trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
             update16 PC (1 +)
             advCycles 1
     cpustate <- showCPUState
-    trace . B8.pack $ "\n" ++ cpustate ++ "\n"
+    trace $ "\n" ++ cpustate ++ "\n"
 

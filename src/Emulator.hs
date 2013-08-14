@@ -13,7 +13,7 @@ import MonadEmulator
 import Execution (execute)
 import qualified Instruction as I
 
-import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as B
 import Data.Word (Word8, Word16, Word64)
 import Control.Monad (unless, filterM)
 import Control.Applicative ((<$>))

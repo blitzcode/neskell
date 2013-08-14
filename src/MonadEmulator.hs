@@ -16,14 +16,15 @@ import Util
 
 import qualified Data.Vector.Unboxed.Mutable as VUM
 import Data.Word (Word8, Word16, Word64)
+import Data.Monoid (mempty, (<>))
 import Control.Monad.ST (ST, runST)
 import Data.STRef (STRef, newSTRef, readSTRef, modifySTRef, modifySTRef')
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad (when)
 import Text.Printf
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.Char8 as B8
 import qualified Data.ByteString.Lazy.Builder as BB
 
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
@@ -36,7 +37,7 @@ instance Show LoadStore where
 data CPUState s = CPUState
     { cpuState       :: VUM.MVector s Word8
     , cpuCycles      :: STRef       s Word64
-    , cpuTrace       :: STRef       s B.ByteString -- TODO: Use a ByteString builder
+    , cpuTrace       :: STRef       s BB.Builder
     , cpuTraceEnable :: Bool
     }
 
@@ -49,7 +50,7 @@ class (Functor m, Monad m) => MonadEmulator m where
     load16    :: LoadStore -> m Word16
     store8    :: LoadStore -> Word8  -> m ()
     store16   :: LoadStore -> Word16 -> m ()
-    trace     :: B.ByteString -> m ()
+    trace     :: String -> m ()
     advCycles :: Word64 -> m ()
     getCycles :: m Word64
 
@@ -83,11 +84,11 @@ instance MonadEmulator (RSTEmu s) where
                            h <- VUM.read state (i + 1)
                            return $ makeW16 l h
     store8 ls val = do
-        trace . B8.pack $ printf "0x%02X -> %s, " val (show ls)
+        trace $ printf "0x%02X -> %s, " val (show ls)
         state <- asks cpuState
         lift $ VUM.write state (lsToStateIdx ls) val
     store16 ls val = do
-        trace . B8.pack $ printf "0x%04X -> %s, " val (show ls)
+        trace $ printf "0x%04X -> %s, " val (show ls)
         let e8 = error "16 bit store to 8 bit register"
         state <- asks cpuState
         case ls of
@@ -100,7 +101,7 @@ instance MonadEmulator (RSTEmu s) where
          enable <- asks cpuTraceEnable
          when (enable) $ do
             cputrace <- asks cpuTrace 
-            lift $ modifySTRef cputrace (\logstr -> logstr `B.append` b)
+            lift $ modifySTRef cputrace (\logstr -> logstr <> BB.stringUtf8 b)
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)
@@ -125,14 +126,15 @@ showCPUState = do
 getTrace :: RSTEmu s B.ByteString
 getTrace = do
     cputrace <- asks cpuTrace
-    lift $ readSTRef cputrace
+    builder <- lift $ readSTRef cputrace
+    return $ BB.toLazyByteString builder
 
 runSTEmulator :: Bool -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
 runSTEmulator traceEnable f = 
     runST $ do
         initState  <- VUM.replicate (65536 + 7) (0 :: Word8)
         initCycles <- newSTRef 0
-        initTrace  <- newSTRef B.empty
+        initTrace  <- newSTRef mempty
         let cpu = CPUState
                   { cpuState       = initState
                   , cpuCycles      = initCycles
