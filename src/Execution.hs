@@ -632,7 +632,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -645,7 +645,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -658,7 +658,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -671,7 +671,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -684,7 +684,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -697,7 +697,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -710,7 +710,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
@@ -723,7 +723,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
-                dest    = if offs > 0 then pc + fromIntegral offs else pc + fromIntegral offs
+                dest    = pc + fromIntegral offs
                 pagecr  = (not $ samePage dest pc) && f
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
