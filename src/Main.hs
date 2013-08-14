@@ -20,7 +20,7 @@ import qualified Data.Vector.Unboxed as VU
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
 import Data.Time (getZonedTime)
-import System.IO (withFile, IOMode(..), hPutStrLn, Handle)
+import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout)
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
 decodingTest bin ref = do
@@ -55,6 +55,7 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
             putStrLn $ testName ++ " " ++ resultStr ++
                 "    CPU State        "             ++ cpust   ++ "\n" ++
                 "    Trace            Written to '" ++ tracefn ++ "'"
+            hFlush stdout -- Show results immediately, don't wait for other tests
 
 runTests :: IO Bool
 runTests = do

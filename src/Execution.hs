@@ -13,7 +13,7 @@ import Util
 import Data.Word (Word8, Word16, Word64)
 import qualified Data.ByteString.Char8 as B8
 import Text.Printf
-import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR)
+import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR, complement)
 import Control.Applicative ((<$>))
 
 -- Functions for loading and storing 8 bit operands for any instruction.
@@ -181,10 +181,10 @@ getStorePageCrossPenalty am = case am of IndIdx    -> 1
                                          _         -> 0
 
 makeSigned :: Word8 -> Int
-makeSigned a = 128 - (fromIntegral $ 128 - a)
+makeSigned a = if (a .&. 128 /= 0) then -(fromIntegral $ complement a + 1) else fromIntegral a
 
 samePage :: Word16 -> Word16 -> Bool
-samePage a b = (a .&. 128) `xor` (b .&. 128) == 0
+samePage a b = (a .&. 0xFF00) == (b .&. 0xFF00)
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (OpCode mn am) _) = do
