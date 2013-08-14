@@ -291,7 +291,7 @@ runTests = do
                                          , CondLS X (Left 0x0D)
                                          , CondLS Y (Left 0x54)
                                          , CondLS SR (Left $ srFromString "-V1--I-C-")
-                                         , CondCycleR 108 108
+                                         , CondCycleR 109 109
                                          ]
                                          True
                 checkEmuTestResult "Misc. Branch Test" tracefn h emures
@@ -389,7 +389,7 @@ runTests = do
                 let emures = runEmulator [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
                                          [ CondOpC BRK
-                                         , CondCycleR 50375 (maxBound :: Word64)
+                                         , CondCycleR 100000 (maxBound :: Word64)
                                          ]
                                          [ ]
                                          True

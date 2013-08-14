@@ -666,7 +666,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BMI -> do
-            f    <- not . getFlag FN <$> load8 SR
+            f    <- getFlag FN <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
             let offs    = makeSigned oper
