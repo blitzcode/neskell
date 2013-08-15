@@ -56,8 +56,17 @@ loadOperand8 inst@(Instruction (OpCode _ am) oper) =
     case oper of 
         [w8] -> case am of Immediate -> return w8
                            Relative  -> return w8
-                           _         -> load8 =<< getOperandAddr8 inst
-        _    ->                         load8 =<< getOperandAddr8 inst
+                           _         -> loadAndTrace
+        _    ->                         loadAndTrace
+  where
+    loadAndTrace =  do ls <- getOperandAddr8 inst
+                       w8 <- load8 ls
+                       case ls of
+                           -- Trace operands where value / address might not be
+                           -- immediately obvious from the instruction
+                           Addr addr -> trace $ printf "Op(0x%04X):0x%02X, " addr w8
+                           _         -> return ()
+                       return w8
 
 storeOperand8 :: MonadEmulator m => Instruction -> Word8 -> m ()
 storeOperand8 inst val = (\ls -> store8 ls val) =<< getOperandAddr8 inst
@@ -75,7 +84,9 @@ loadOperand16 inst@(Instruction (OpCode _ am) oper) =
             Indirect  -> do l <- load8 . Addr $ makeW16  opl      oph
                             -- The NMOS 6502 actually does it like this
                             h <- load8 . Addr $ makeW16 (opl + 1) oph
-                            return $ makeW16 l h
+                            let w16 = makeW16 l h
+                            trace $ printf "Op(0x%04X):0x%04X, " (makeW16 opl oph) w16
+                            return w16
             _         -> err
         _            -> err
   where
@@ -179,6 +190,7 @@ getStorePageCrossPenalty am = case am of IndIdx    -> 1
                                          AbsoluteY -> 1
                                          _         -> 0
 
+-- Two's complement to signed integer conversion
 makeSigned :: Word8 -> Int
 makeSigned a = if (a .&. 128 /= 0) then -(fromIntegral $ complement a + 1) else fromIntegral a
 
@@ -194,145 +206,145 @@ execute inst@(Instruction (OpCode mn am) _) = do
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             a <- loadOperand8 inst
             updateNZ a
             store8 A a
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         LDX -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             updateNZ x
             store8 X x
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         LDY -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             y <- loadOperand8 inst
             updateNZ y
             store8 Y y
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         STA -> do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             a <- load8 A
             storeOperand8 inst a
+            update16 PC (ilen +)
             advCycles baseC
         STX -> do
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- load8 X
             storeOperand8 inst x
+            update16 PC (ilen +)
             advCycles baseC
         STY -> do
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             y <- load8 Y
             storeOperand8 inst y
+            update16 PC (ilen +)
             advCycles baseC
         AND -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             a <- load8 A
             let r = x .&. a
             updateNZ r
             store8 A r
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         ORA -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             a <- load8 A
             let r = x .|. a
             updateNZ r
             store8 A r
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         EOR -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             a <- load8 A
             let r = x `xor` a
             updateNZ r
             store8 A r
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         INC -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             let r = x + 1
             updateNZ r
             storeOperand8 inst r
+            update16 PC (ilen +)
             advCycles baseC
         DEC -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             let r = x - 1
             updateNZ r
             storeOperand8 inst r
+            update16 PC (ilen +)
             advCycles baseC
         ASL -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             let carry = testBit x 7
             let r = x `shiftL` 1
             updateNZC r carry
             storeOperand8 inst r
+            update16 PC (ilen +)
             advCycles baseC
         LSR -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             let carry = testBit x 0
             let r = x `shiftR` 1
             updateNZC r carry
             storeOperand8 inst r
+            update16 PC (ilen +)
             advCycles baseC
         ROL -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             carry <- getFlag FC <$> load8 SR
             let r = (x `shiftL` 1) .|. b2W8 carry
             updateNZC r $ testBit x 7
             storeOperand8 inst r
+            update16 PC (ilen +)
             advCycles baseC
         ROR -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- loadOperand8 inst
             carry <- getFlag FC <$> load8 SR
             let r = (x `shiftR` 1) .|. if carry then 128 else 0
             updateNZC r $ testBit x 0
             storeOperand8 inst r
+            update16 PC (ilen +)
             advCycles baseC
         JMP -> do
             let baseC = case am of Absolute -> 3; Indirect -> 5; _ -> 0
@@ -357,152 +369,152 @@ execute inst@(Instruction (OpCode mn am) _) = do
         TAX -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             a <- load8 A
             updateNZ a
             store8 X a
+            update16 PC (ilen +)
             advCycles baseC
         TXA -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- load8 X
             updateNZ x
             store8 A x
+            update16 PC (ilen +)
             advCycles baseC
         TYA -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             y <- load8 Y
             updateNZ y
             store8 A y
+            update16 PC (ilen +)
             advCycles baseC
         TAY -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             a <- load8 A
             updateNZ a
             store8 Y a
+            update16 PC (ilen +)
             advCycles baseC
         DEX -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- flip (-) 1 <$> load8 X
             updateNZ x
             store8 X x
+            update16 PC (ilen +)
             advCycles baseC
         INX -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- (+ 1) <$> load8 X
             updateNZ x
             store8 X x
+            update16 PC (ilen +)
             advCycles baseC
         DEY -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             y <- flip (-) 1 <$> load8 Y
             updateNZ y
             store8 Y y
+            update16 PC (ilen +)
             advCycles baseC
         INY -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             y <- (+ 1) <$> load8 Y
             updateNZ y
             store8 Y y
+            update16 PC (ilen +)
             advCycles baseC
         TXS -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             x <- load8 X
             store8 SP x
+            update16 PC (ilen +)
             advCycles baseC
         TSX -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sp <- load8 SP
             updateNZ sp
             store8 X sp
+            update16 PC (ilen +)
             advCycles baseC
         CLC -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FC $ sr
+            update16 PC (ilen +)
             advCycles baseC
         SEC -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . setFlag FC $ sr
+            update16 PC (ilen +)
             advCycles baseC
         PHP -> do
             let baseC = 3
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
             storeStack8 $ setFlag FB sr
+            update16 PC (ilen +)
             advCycles baseC
         PHA -> do
             let baseC = 3
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             a <- load8 A
             storeStack8 a
+            update16 PC (ilen +)
             advCycles baseC
         PLP -> do
             let baseC = 4
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- loadStack8
             store8 SR . clearFlag FB . setFlag F1 $ sr
+            update16 PC (ilen +)
             advCycles baseC
         PLA -> do
             let baseC = 4
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             a <- loadStack8
             updateNZ a
             store8 A a
+            update16 PC (ilen +)
             advCycles baseC
         SED -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
+            update16 PC (ilen +)
             store8 SR . setFlag FD $ sr
             advCycles baseC
         CLD -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FD $ sr
+            update16 PC (ilen +)
             advCycles baseC
         SEI -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . setFlag FI $ sr
+            update16 PC (ilen +)
             advCycles baseC
         CLI -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FI $ sr
+            update16 PC (ilen +)
             advCycles baseC
         -- SBC is ADC with all argument bits flipped (xor 0xFF, see
         -- http://forums.nesdev.com/viewtopic.php?t=8703), except for the BCD
@@ -515,7 +527,6 @@ execute inst@(Instruction (OpCode mn am) _) = do
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             sr <- load8 SR
             op <- loadOperand8 inst
             a  <- load8 A
@@ -535,19 +546,19 @@ execute inst@(Instruction (OpCode mn am) _) = do
             -- http://forums.nesdev.com/viewtopic.php?p=60520
             let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 /= 0
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         SBC -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             sr <- load8 SR
             op <- loadOperand8 inst
             a  <- load8 A
             let carry = b2W8 . not $ getFlag FC sr
             let (r, ncarry) = case getFlag FD sr of
-                                  False -> let res = a - (op + carry)
+                                  False -> let res = a - (op + carry) :: Word8
                                             in (res, not $ if carry == 1 then res >= a else res > a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
                                   True -> let ix     = fromIntegral op :: Int
@@ -563,13 +574,13 @@ execute inst@(Instruction (OpCode mn am) _) = do
             -- http://forums.nesdev.com/viewtopic.php?p=60520
             let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 /= 0
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         CMP -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             op <- loadOperand8 inst
             a  <- load8 A
             sr <- load8 SR
@@ -579,13 +590,13 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 . modifyFlag FZ (a == op)
                 . modifyFlag FC (a >= op)
                 $ sr
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         CPX -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             op <- loadOperand8 inst
             x  <- load8 X
             sr <- load8 SR
@@ -595,13 +606,13 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 . modifyFlag FZ (x == op)
                 . modifyFlag FC (x >= op)
                 $ sr
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         CPY -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "" :: String)
-            update16 PC (ilen +)
             op <- loadOperand8 inst
             y  <- load8 Y
             sr <- load8 SR
@@ -611,11 +622,11 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 . modifyFlag FZ (y == op)
                 . modifyFlag FC (y >= op)
                 $ sr
+            update16 PC (ilen +)
             advCycles $ baseC + penalty
         BIT -> do
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             a  <- load8 A
             x  <- loadOperand8 inst
             sr <- load8 SR
@@ -625,6 +636,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 . modifyFlag FV (testBit x 6)
                 . modifyFlag FN (testBit x 7)
                 $ sr
+            update16 PC (ilen +)
             advCycles baseC
         BEQ -> do
             f    <- getFlag FZ <$> load8 SR
@@ -733,9 +745,9 @@ execute inst@(Instruction (OpCode mn am) _) = do
         CLV -> do
             let baseC = 2
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
-            update16 PC (ilen +)
             sr <- load8 SR
             store8 SR . clearFlag FV $ sr
+            update16 PC (ilen +)
             advCycles baseC
         NOP -> do
             let baseC = 2
