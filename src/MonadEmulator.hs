@@ -23,8 +23,8 @@ import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.Trans (lift)
 import Control.Monad (when)
 import Text.Printf
-import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.Char8 as B8
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Builder as BB
 
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
@@ -100,8 +100,9 @@ instance MonadEmulator (RSTEmu s) where
     trace s = do
          enable <- asks cpuTraceEnable
          when (enable) $ do
-            cputrace <- asks cpuTrace 
-            lift $ modifySTRef' cputrace (<> BB.stringUtf8 s)
+            cputrace <- asks cpuTrace
+            let b = B8.pack s
+            lift $ b `seq` modifySTRef' cputrace (<> BB.byteString b)
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)
