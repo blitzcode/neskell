@@ -572,7 +572,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                                            in (fromIntegral res :: Word8, not carry')
             store8 A r
             -- http://forums.nesdev.com/viewtopic.php?p=60520
-            let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 /= 0
+            let overflow = (a `xor` r) .&. ((complement op + 1) `xor` r) .&. 0x80 /= 0
             store8 SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty

@@ -217,10 +217,7 @@ runTests = do
                                          , CondLS (Addr 0x01F8) (Left 0x91)
                                          , CondLS (Addr 0x01F7) (Left 0x87)
                                          , CondLS SP (Left 0xF6)
-                                           -- TODO: Note that the V flag here is wrong. It is officially
-                                           --       undefined for BCD, but the emulator does not match
-                                           --       actual NMOS 6502 hardware here
-                                         , CondLS SR (Left $ srFromString "NV1-DI--")
+                                         , CondLS SR (Left $ srFromString "N-1-DI--")
                                          , CondCycleR 73 73
                                          ]
                                          True
@@ -233,10 +230,7 @@ runTests = do
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         [ -- TODO: Note that the V flag here is wrong. It is officially
-                                           --       undefined for BCD, but the emulator does not match
-                                           --       actual NMOS 6502 hardware here
-                                           CondLS (Addr 0x01FF) (Left $ srFromString "--1B-I--")
+                                         [ CondLS (Addr 0x01FF) (Left $ srFromString "--1B-I--")
                                          , CondLS (Addr 0x01FE) (Left $ srFromString "--1B-IZC")
                                          , CondLS (Addr 0x01FD) (Left $ srFromString "NV1B-I--")
                                          , CondLS (Addr 0x01FC) (Left $ srFromString "-V1B-I-C")
@@ -244,9 +238,9 @@ runTests = do
                                          , CondLS (Addr 0x01FA) (Left $ srFromString "--1B-IZC")
                                          , CondLS (Addr 0x01F9) (Left $ srFromString "NV1B-I--")
                                          , CondLS (Addr 0x01F8) (Left $ srFromString "-V1B-I-C")
-                                         , CondLS (Addr 0x01F7) (Left $ srFromString "NV1B-I--")
-                                         , CondLS (Addr 0x01F6) (Left $ srFromString "--1B-I-C")
-                                         , CondLS (Addr 0x01F5) (Left $ srFromString "N-1B-I--")
+                                         , CondLS (Addr 0x01F7) (Left $ srFromString "N-1B-I--")
+                                         , CondLS (Addr 0x01F6) (Left $ srFromString "-V1B-I-C")
+                                         , CondLS (Addr 0x01F5) (Left $ srFromString "NV1B-I--")
                                          , CondLS A (Left 0x80)
                                          , CondLS SP (Left 0xF4)
                                          , CondCycleR 99 99
@@ -394,7 +388,7 @@ runTests = do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
                 let emures = runEmulator [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
-                                         [ CondCycleR 300000 (maxBound :: Word64)
+                                         [ CondCycleR 7000000 (maxBound :: Word64)
                                          ]
                                          [ ]
                                          True
