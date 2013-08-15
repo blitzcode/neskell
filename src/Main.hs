@@ -16,11 +16,12 @@ import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B8
+import qualified Data.ByteString.Lazy.Builder as BB
 import qualified Data.Vector.Unboxed as VU
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
 import Data.Time (getZonedTime)
-import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout)
+import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout, hSetBuffering, BufferMode(..), hSetBinaryMode)
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
 decodingTest bin ref = do
@@ -38,7 +39,7 @@ checkEmuTestResult ::
     String ->
     String ->
     Handle ->
-    ([Cond], [Cond], [Cond], String, B.ByteString) ->
+    ([Cond], [Cond], [Cond], String, BB.Builder) ->
     WriterT All IO ()
 checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust, trace) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
@@ -46,9 +47,20 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
                     "    Unmet Conditions "  ++ show condFailure ++ "\n" ++
                     "    Met Conditions   "  ++ show condSuccess ++ "\n"
     liftIO $ do
-        hPutStrLn    h $ "--- " ++ testName ++ " ---\n"
-        B8.hPutStrLn h trace
-        hPutStrLn    h resultStr
+        putStrLn "EMU DONE"
+        hFlush stdout
+
+        hPutStrLn      h $ "--- " ++ testName ++ " ---\n"
+        hSetBinaryMode h True
+        hSetBuffering  h $ BlockBuffering (Just 65536)
+        BB.hPutBuilder h trace
+        --let lb = BB.toLazyByteString trace
+        --B.hPut h lb
+        hPutStrLn      h ""
+        hPutStrLn      h resultStr
+
+        putStrLn "TRACE WRITE DONE"
+        hFlush stdout
     unless (null condFailure) $ do
         tell $ All False
         liftIO $ do
@@ -388,7 +400,7 @@ runTests = do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
                 let emures = runEmulator [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
-                                         [ CondCycleR 7000000 (maxBound :: Word64)
+                                         [ CondCycleR 1000000 (maxBound :: Word64)
                                          ]
                                          [ ]
                                          True

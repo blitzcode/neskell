@@ -97,11 +97,11 @@ instance MonadEmulator (RSTEmu s) where
                            let i = lsToStateIdx ls
                            VUM.write state i l
                            VUM.write state (i + 1) h
-    trace b = do
+    trace s = do
          enable <- asks cpuTraceEnable
          when (enable) $ do
             cputrace <- asks cpuTrace 
-            lift $ modifySTRef cputrace (\logstr -> logstr <> BB.stringUtf8 b)
+            lift $ modifySTRef' cputrace (<> BB.stringUtf8 s)
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)
@@ -123,11 +123,10 @@ showCPUState = do
 
 -- We don't want to export this through MonadEmulator, only needs to be called
 -- from code directly inside runSTEmulator's argument function
-getTrace :: RSTEmu s B.ByteString
+getTrace :: RSTEmu s BB.Builder
 getTrace = do
     cputrace <- asks cpuTrace
-    builder <- lift $ readSTRef cputrace
-    return $ BB.toLazyByteString builder
+    lift $ readSTRef cputrace
 
 runSTEmulator :: Bool -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
 runSTEmulator traceEnable f = 

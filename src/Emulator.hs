@@ -14,6 +14,7 @@ import Execution (execute)
 import qualified Instruction as I
 
 import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.Builder as BB
 import Data.Word (Word8, Word16, Word64)
 import Control.Monad (unless, filterM)
 import Control.Applicative ((<$>))
@@ -59,7 +60,7 @@ runEmulator ::
     , [Cond]                    -- ...not met
     , [Cond]                    -- Stopping conditions met
     , String                    -- Debug string of last CPU state
-    , B.ByteString              -- Execution trace
+    , BB.Builder                -- Execution trace (Keep in mind this might be rather large...)
     )
 runEmulator bins setup stopc verc traceEnable =
     runSTEmulator traceEnable $ do

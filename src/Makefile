@@ -2,7 +2,7 @@
 #WARN_FLAGS = -Wall
 # LLVM_FLAGS = -fllvm -optlo-O3
 # Run with '+RTS -p -s'
-# PROF_FLAGS = -prof -fprof-auto -DNO_TH
+# PROF_FLAGS = -prof -fprof-auto
 GHC_FLAGS = $(PROF_FLAGS) $(WARN_FLAGS) $(LLVM_FLAGS) -rtsopts -O2 -threaded -H512m
 
 # Rule for producing the main program

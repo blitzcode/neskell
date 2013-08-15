@@ -28,3 +28,5 @@ generate a reference trace log:
 
 https://github.com/blitzcode/visual6502
 
+The file v6502_first_235k_cycles.zip contains a trace of the first ~235K cycles
+from Visual 6502.
