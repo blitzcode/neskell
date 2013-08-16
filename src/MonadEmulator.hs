@@ -98,8 +98,8 @@ instance MonadEmulator (RSTEmu s) where
                            VUM.write state i l
                            VUM.write state (i + 1) h
     trace s = do
-         enable <- asks cpuTraceEnable
-         when (enable) $ do
+        enable <- asks cpuTraceEnable
+        when (enable) $ do
             cputrace <- asks cpuTrace
             let b = B8.pack s
             lift $ b `seq` modifySTRef' cputrace (<> BB.byteString b)

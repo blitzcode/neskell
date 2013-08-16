@@ -21,7 +21,8 @@ import qualified Data.Vector.Unboxed as VU
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
 import Data.Time (getZonedTime)
-import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout, hSetBuffering, BufferMode(..), hSetBinaryMode)
+import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout, hSetBuffering, BufferMode(..),
+                  hSetBinaryMode)
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
 decodingTest bin ref = do
@@ -47,8 +48,8 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
                     "    Unmet Conditions "  ++ show condFailure ++ "\n" ++
                     "    Met Conditions   "  ++ show condSuccess ++ "\n"
     liftIO $ do
-        putStrLn "EMU DONE"
-        hFlush stdout
+        --putStrLn "EMU DONE"
+        --hFlush stdout
 
         hPutStrLn      h $ "--- " ++ testName ++ " ---\n"
         hSetBinaryMode h True
@@ -59,8 +60,8 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
         hPutStrLn      h ""
         hPutStrLn      h resultStr
 
-        putStrLn "TRACE WRITE DONE"
-        hFlush stdout
+        --putStrLn "TRACE WRITE DONE"
+        --hFlush stdout
     unless (null condFailure) $ do
         tell $ All False
         liftIO $ do

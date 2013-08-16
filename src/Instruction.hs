@@ -38,6 +38,7 @@ data AddressMode =
     | IndIdx
       deriving (Show, Eq)
 
+{-# INLINE operandLen #-}
 operandLen :: AddressMode -> Int
 operandLen Implied     = 0
 operandLen Accumulator = 0
@@ -147,6 +148,7 @@ instance Show Instruction where
             IdxInd      -> case op of [opl]        -> printf " ($%02X,X)"           opl     ; _ -> "OpLnErr"
             IndIdx      -> case op of [opl]        -> printf " ($%02X),Y"           opl     ; _ -> "OpLnErr"
 
+{-# INLINE instructionLen #-}
 instructionLen :: Instruction -> Int
 instructionLen (Instruction (OpCode _ a) _) = 1 + operandLen a
 
@@ -165,6 +167,7 @@ decodeInstruction mem pc = do
             return $ Instruction opc [op1, op2]
         _ -> return $ Instruction opc []
 
+{-# INLINE decodeInstructionM #-}
 decodeInstructionM :: MonadEmulator m => m Instruction
 decodeInstructionM = do
     pc <- load16 PC

@@ -1,5 +1,5 @@
 
-#WARN_FLAGS = -Wall
+WARN_FLAGS = -Wall -fno-warn-unused-imports
 # LLVM_FLAGS = -fllvm -optlo-O3
 # Run with '+RTS -p -s'
 # PROF_FLAGS = -prof -fprof-auto
