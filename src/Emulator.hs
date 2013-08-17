@@ -14,8 +14,7 @@ import Execution (execute)
 import qualified Instruction as I
 
 import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.Builder as BB
-import Data.Word (Word8, Word16, Word64)
+import Data.Word (Word16, Word64)
 import Control.Monad (unless, filterM)
 import Control.Applicative ((<$>))
 import Text.Printf
@@ -56,14 +55,15 @@ runEmulator ::
     [Cond]                   -> -- The simulator will stop when any of these conditions are met
     [Cond]                   -> -- Success conditions to verify once stopped
     Bool                     -> -- Enable execution tracing
+    Int                      -> -- MB of trace log ring buffer space
     ( [Cond]                    -- Success conditions which were met
     , [Cond]                    -- ...not met
     , [Cond]                    -- Stopping conditions met
     , String                    -- Debug string of last CPU state
-    , BB.Builder                -- Execution trace (Keep in mind this might be rather large...)
+    , B.ByteString              -- Last traceMB MB of the execution trace
     )
-runEmulator bins setup stopc verc traceEnable =
-    runSTEmulator traceEnable $ do
+runEmulator bins setup stopc verc traceEnable traceMB =
+    runSTEmulator traceEnable traceMB $ do
         trace "Load Binary: "
         mapM_ (\(bin, offs) -> loadBinary bin offs) bins
         trace "\n\nSetup: "

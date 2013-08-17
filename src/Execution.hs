@@ -1,6 +1,4 @@
 
-{-# LANGUAGE OverloadedStrings #-}
-
 module Execution ( execute
                  ) where
 
@@ -205,7 +203,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             a <- loadOperand8 inst
             updateNZ a
             store8 A a
@@ -215,7 +213,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             x <- loadOperand8 inst
             updateNZ x
             store8 X x
@@ -225,7 +223,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             y <- loadOperand8 inst
             updateNZ y
             store8 Y y
@@ -256,7 +254,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             x <- loadOperand8 inst
             a <- load8 A
             let r = x .&. a
@@ -268,7 +266,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             x <- loadOperand8 inst
             a <- load8 A
             let r = x .|. a
@@ -280,7 +278,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             x <- loadOperand8 inst
             a <- load8 A
             let r = x `xor` a
@@ -526,7 +524,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             sr <- load8 SR
             op <- loadOperand8 inst
             a  <- load8 A
@@ -552,7 +550,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             sr <- load8 SR
             op <- loadOperand8 inst
             a  <- load8 A
@@ -580,7 +578,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             op <- loadOperand8 inst
             a  <- load8 A
             sr <- load8 SR
@@ -596,7 +594,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             op <- loadOperand8 inst
             x  <- load8 X
             sr <- load8 SR
@@ -612,7 +610,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (if penalty /= 0 then "+1"  else "" :: String)
+                (if penalty /= 0 then "+1"  else "")
             op <- loadOperand8 inst
             y  <- load8 Y
             sr <- load8 SR
@@ -648,7 +646,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BNE -> do
@@ -661,7 +659,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BPL -> do
@@ -674,7 +672,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BMI -> do
@@ -687,7 +685,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BVC -> do
@@ -700,7 +698,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BVS -> do
@@ -713,7 +711,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BCC -> do
@@ -726,7 +724,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         BCS -> do
@@ -739,7 +737,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 baseC   = getAMCycles Relative
                 penalty = fromIntegral $ b2W8 f + b2W8 pagecr :: Word64
             trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
-                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "" :: String)
+                (case penalty of 1 -> "+1"; 2 -> "+1+1"; _ -> "")
             store16 PC $ if f then dest else pc
             advCycles $ baseC + penalty
         CLV -> do

@@ -15,17 +15,14 @@ module MonadEmulator (MonadEmulator(..)
 import Util
 
 import qualified Data.Vector.Unboxed.Mutable as VUM
-import Data.Word (Word8, Word16, Word64)
-import Data.Monoid (mempty, (<>))
+import qualified Data.Vector.Unboxed as VU
+import Data.Word (Word8, Word16, Word32, Word64)
 import Control.Monad.ST (ST, runST)
-import Data.STRef (STRef, newSTRef, readSTRef, modifySTRef, modifySTRef')
-import Control.Monad.Reader (ReaderT, asks, runReaderT)
-import Control.Monad.Trans (lift)
-import Control.Monad (when)
+import Data.STRef (STRef, newSTRef, readSTRef, modifySTRef')
+import Control.Monad.Reader
 import Text.Printf
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy.Builder as BB
+import qualified Data.ByteString.Lazy as B
+import Data.ByteString.Internal (c2w)
 
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
 
@@ -35,11 +32,24 @@ instance Show LoadStore where
     show PC  = "PC" ; show PCL = "PCL"; show PCH = "PCH"
 
 data CPUState s = CPUState
-    { cpuState       :: VUM.MVector s Word8
-    , cpuCycles      :: STRef       s Word64
-    , cpuTrace       :: STRef       s BB.Builder
-    , cpuTraceEnable :: Bool
+    { cpuState        :: VUM.MVector s Word8
+    , cpuCycles       :: STRef       s Word64
+    , cpuTraceRing    :: VUM.MVector s Word8
+    , cpuTraceRingPtr :: STRef       s Word32 -- Should be Word64, but there's quite a slowdown
+    , cpuTraceEnable  :: Bool
     }
+
+showCPUState :: MonadEmulator m => m String
+showCPUState = do
+    a  <- load8 A
+    x  <- load8 X
+    y  <- load8 Y
+    sr <- load8 SR
+    sp <- load8 SP
+    pc <- load16 PC
+    c  <- getCycles
+    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X Cycles:%09i"
+        a x y sr (makeSRString sr) sp pc c
 
 -- The 'standard' way of doing this would probably be using a newtype wrapper,
 -- but with FlexibleInstances on this works and just seems simpler
@@ -99,10 +109,7 @@ instance MonadEmulator (RSTEmu s) where
                            VUM.write state (i + 1) h
     trace s = do
         enable <- asks cpuTraceEnable
-        when (enable) $ do
-            cputrace <- asks cpuTrace
-            let b = B8.pack s
-            lift $ b `seq` modifySTRef' cputrace (<> BB.byteString b)
+        when (enable) $ ringBufferWrite s
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)
@@ -110,36 +117,57 @@ instance MonadEmulator (RSTEmu s) where
         cycles <- asks cpuCycles
         lift $ readSTRef cycles
 
-showCPUState :: MonadEmulator m => m String
-showCPUState = do
-    a  <- load8 A
-    x  <- load8 X
-    y  <- load8 Y
-    sr <- load8 SR
-    sp <- load8 SP
-    pc <- load16 PC
-    c  <- getCycles
-    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X Cycles:%09i"
-        a x y sr (makeSRString sr) sp pc c
+ringBufferWrite :: String -> RSTEmu s ()
+ringBufferWrite s = do
+    ring <- asks cpuTraceRing
+    ptrR <- asks cpuTraceRingPtr
+    lift $ do
+        ptr <- readSTRef ptrR
+        let lenr = fromIntegral $ VUM.length ring
+        mapM_ (\(i, c) -> VUM.write ring (fromIntegral $ (ptr + i) `mod` lenr) (c2w c)) $ zip [0..] s
+        modifySTRef' ptrR $ (+) (fromIntegral $ length s)
+
+-- Convert a ring buffer vector and a write marker into a lazy list of its contents
+ringBufferToList :: Word32 -> VU.Vector Word8 -> [Word8]
+ringBufferToList ptr' vec =
+    let len = fromIntegral $ VU.length vec
+        loop ptr left foundcr =
+            let e    = vec VU.! (fromIntegral $ ptr `mod` len)
+                next = loop (ptr + 1) (left - 1)
+                r | left == 0   = []
+                  -- Don't start on an incomplete line, skip till the first CR
+                  | not foundcr = next $ e == c2w '\n'
+                  | otherwise   = e : next True
+             in r
+     in   if ptr' < len       -- Already wrapped around?
+        then loop 0 ptr' True -- No, start at the beginning of the vector
+        -- Yes, the beginning is right after the write marker
+        else map c2w "(Trace Truncated)\n\n" ++ loop (ptr' + 1) (len - 1) False
 
 -- We don't want to export this through MonadEmulator, only needs to be called
--- from code directly inside runSTEmulator's argument function
-getTrace :: RSTEmu s BB.Builder
+-- from code directly inside runSTEmulator's argument function. Preferably once,
+-- at the end (note that 'unsafe' part...)
+getTrace :: RSTEmu s B.ByteString
 getTrace = do
-    cputrace <- asks cpuTrace
-    lift $ readSTRef cputrace
+    ring   <- asks cpuTraceRing
+    ptrref <- asks cpuTraceRingPtr
+    ptr    <- lift $ readSTRef ptrref
+    frozen <- lift $ VU.unsafeFreeze ring
+    return . B.pack . ringBufferToList ptr $ frozen
 
-runSTEmulator :: Bool -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
-runSTEmulator traceEnable f = 
+runSTEmulator :: Bool -> Int -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
+runSTEmulator traceEnable traceMB f = 
     runST $ do
         initState  <- VUM.replicate (65536 + 7) (0 :: Word8)
         initCycles <- newSTRef 0
-        initTrace  <- newSTRef mempty
+        initTraceRing <- VUM.new (traceMB * 1024 * 1024)
+        initTraceRingPtr <- newSTRef 0
         let cpu = CPUState
-                  { cpuState       = initState
-                  , cpuCycles      = initCycles
-                  , cpuTrace       = initTrace
-                  , cpuTraceEnable = traceEnable
+                  { cpuState        = initState
+                  , cpuCycles       = initCycles
+                  , cpuTraceEnable  = traceEnable
+                  , cpuTraceRing    = initTraceRing
+                  , cpuTraceRingPtr = initTraceRingPtr
                   }
         runReaderT f cpu
 

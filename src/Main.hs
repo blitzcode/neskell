@@ -16,13 +16,12 @@ import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B8
-import qualified Data.ByteString.Lazy.Builder as BB
 import qualified Data.Vector.Unboxed as VU
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitSuccess, exitFailure)
 import Data.Time (getZonedTime)
-import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout, hSetBuffering, BufferMode(..),
-                  hSetBinaryMode)
+import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout)
+import System.Mem (performGC)
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
 decodingTest bin ref = do
@@ -40,7 +39,7 @@ checkEmuTestResult ::
     String ->
     String ->
     Handle ->
-    ([Cond], [Cond], [Cond], String, BB.Builder) ->
+    ([Cond], [Cond], [Cond], String, B.ByteString) ->
     WriterT All IO ()
 checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust, trace) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
@@ -48,20 +47,10 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
                     "    Unmet Conditions "  ++ show condFailure ++ "\n" ++
                     "    Met Conditions   "  ++ show condSuccess ++ "\n"
     liftIO $ do
-        --putStrLn "EMU DONE"
-        --hFlush stdout
-
-        hPutStrLn      h $ "--- " ++ testName ++ " ---\n"
-        hSetBinaryMode h True
-        hSetBuffering  h $ BlockBuffering (Just 65536)
-        BB.hPutBuilder h trace
-        --let lb = BB.toLazyByteString trace
-        --B.hPut h lb
-        hPutStrLn      h ""
-        hPutStrLn      h resultStr
-
-        --putStrLn "TRACE WRITE DONE"
-        --hFlush stdout
+        hPutStrLn h $ "--- " ++ testName ++ " ---\n"
+        B.hPut    h trace
+        hPutStrLn h ""
+        hPutStrLn h resultStr
     unless (null condFailure) $ do
         tell $ All False
         liftIO $ do
@@ -70,9 +59,24 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
                 "    Trace            Written to '" ++ tracefn ++ "'"
             hFlush stdout -- Show results immediately, don't wait for other tests
 
+    -- After days of debugging an out-of-memory error, it became clear that the
+    -- GC just isn't collecting. If I allocate some memory with an unboxed
+    -- mutable vector inside the ST monad in the emulator, the memory seemed to
+    -- be retained sometimes. There's no reference to the vector outside of ST.
+    -- Even if I never do anything but create the vector and put it inside the
+    -- Reader record, and then only return a single Int from ST, which I
+    -- immediately evaluate, the memory was retained (sometimes...). All memory
+    -- profiles always showed I never allocate more than one vector at a time,
+    -- yet multiple runs would cause OS memory for multiple vectors to be used
+    -- and would eventually cause an out-of-memory error. Even then the RTS
+    -- would not collect. Forcing collection after leaving ST and evaluating all
+    -- return values seems to solve the problem entirely.
+    liftIO performGC
+
 runTests :: IO Bool
 runTests = do
     let tracefn = "./trace.log"
+    let traceMB = 16
     withFile tracefn WriteMode $ \h -> do
         time <- getZonedTime
         hPutStrLn h $ "Trace Log " ++ show time ++ "\n"
@@ -100,6 +104,7 @@ runTests = do
                                          , CondCycleR 161 161
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Load / Store Test" tracefn h emures
             -- AND / OR / XOR test
             do
@@ -117,6 +122,7 @@ runTests = do
                                          , CondCycleR 332 332
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "AND / OR / XOR Test" tracefn h emures
             -- INC / DEC test
             do
@@ -131,6 +137,7 @@ runTests = do
                                          , CondCycleR 149 149
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "INC / DEC Test" tracefn h emures
             -- Bitshift test
             do
@@ -146,6 +153,7 @@ runTests = do
                                          , CondCycleR 253 253
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Bitshift Test" tracefn h emures
             -- JMP/JSR/RTS test
             do
@@ -163,6 +171,7 @@ runTests = do
                                          , CondCycleR 50 50
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "JMP/JSR/RTS Test" tracefn h emures
             -- JMP bug test
             do
@@ -177,6 +186,7 @@ runTests = do
                                          , CondCycleR 33 33
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Jump Bug Test" tracefn h emures
             -- Register Transfer test
             do
@@ -194,6 +204,7 @@ runTests = do
                                          , CondCycleR 37 37
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Register Transfer Test" tracefn h emures
             -- Add / Sub test
             do
@@ -211,6 +222,7 @@ runTests = do
                                          , CondCycleR 203 203
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Add / Sub Test" tracefn h emures
             -- BCD Add / Sub test
             do
@@ -234,6 +246,7 @@ runTests = do
                                          , CondCycleR 73 73
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "BCD Add / Sub Test" tracefn h emures
             -- Add / Sub CVZN flag test
             do
@@ -259,6 +272,7 @@ runTests = do
                                          , CondCycleR 99 99
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Add / Sub CVZN Flag Test" tracefn h emures
             -- CMP/BEQ/BNE test
             do
@@ -275,6 +289,7 @@ runTests = do
                                          -- TODO: Test does not cover branch page crossing
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "CMP/BEQ/BNE Test" tracefn h emures
             -- CPX/CPY/BIT test
             do
@@ -290,6 +305,7 @@ runTests = do
                                          , CondCycleR 85 85
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "CPX/CPY/BIT Test" tracefn h emures
             -- Misc. branch test
             do
@@ -307,6 +323,7 @@ runTests = do
                                          , CondCycleR 109 109
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Misc. Branch Test" tracefn h emures
             -- Branch backwards test
             do
@@ -320,6 +337,7 @@ runTests = do
                                          , CondCycleR 31 31
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Branch Backwards Test" tracefn h emures
             -- Flag test
             do
@@ -334,6 +352,7 @@ runTests = do
                                          , CondCycleR 29 29
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Flag Test" tracefn h emures
             -- Special flag test
             do
@@ -350,6 +369,7 @@ runTests = do
                                          , CondCycleR 31 31
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Special Flag Test" tracefn h emures
             -- Stack test
             do
@@ -365,6 +385,7 @@ runTests = do
                                          , CondCycleR 29 29
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Stack Test" tracefn h emures
             -- RTI test
             do
@@ -380,6 +401,7 @@ runTests = do
                                          , CondCycleR 40 40
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "RTI Test" tracefn h emures
             -- BRK test
             do
@@ -395,6 +417,7 @@ runTests = do
                                          , CondCycleR 89 89
                                          ]
                                          True
+                                         traceMB
                 checkEmuTestResult "BRK Test" tracefn h emures
             -- Functional 6502 test
             do
@@ -405,6 +428,7 @@ runTests = do
                                          ]
                                          [ ]
                                          True
+                                         traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
         return $ getAll w
 

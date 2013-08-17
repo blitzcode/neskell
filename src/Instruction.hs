@@ -17,7 +17,6 @@ import Util (makeW16)
 import MonadEmulator (MonadEmulator(..), LoadStore(..))
 
 import Data.Word (Word8)
-import Data.Maybe (fromMaybe)
 import Text.Printf
 import Control.Applicative ((<$>))
 import qualified Data.Vector.Unboxed as VU
