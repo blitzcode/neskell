@@ -24,6 +24,9 @@ import Text.Printf
 import qualified Data.ByteString.Lazy as B
 import Data.ByteString.Internal (c2w)
 
+import Data.Bits
+import Data.Char (ord)
+
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
 
 instance Show LoadStore where
@@ -94,11 +97,9 @@ instance MonadEmulator (RSTEmu s) where
                            h <- VUM.read state (i + 1)
                            return $ makeW16 l h
     store8 ls val = do
-        trace $ printf "0x%02X -> %s, " val (show ls)
         state <- asks cpuState
         lift $ VUM.write state (lsToStateIdx ls) val
     store16 ls val = do
-        trace $ printf "0x%04X -> %s, " val (show ls)
         let e8 = error "16 bit store to 8 bit register"
         state <- asks cpuState
         case ls of
@@ -158,9 +159,9 @@ getTrace = do
 runSTEmulator :: Bool -> Int -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
 runSTEmulator traceEnable traceMB f = 
     runST $ do
-        initState  <- VUM.replicate (65536 + 7) (0 :: Word8)
-        initCycles <- newSTRef 0
-        initTraceRing <- VUM.new (traceMB * 1024 * 1024)
+        initState        <- VUM.replicate (65536 + 7) (0 :: Word8)
+        initCycles       <- newSTRef 0
+        initTraceRing    <- VUM.new (traceMB * 1024 * 1024)
         initTraceRingPtr <- newSTRef 0
         let cpu = CPUState
                   { cpuState        = initState
