@@ -27,7 +27,7 @@ import Control.Applicative (Applicative)
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
 
 instance Show LoadStore where
-    show (Addr w) = printf "Addr 0x%04X" w
+    show (Addr w) = printf "0x%04X" w
     show A   = "A"  ; show X   = "X"  ; show Y   = "Y"  ; show SR  = "SR" ; show SP  = "SP"
     show PC  = "PC" ; show PCL = "PCL"; show PCH = "PCH"
 
@@ -47,7 +47,7 @@ showCPUState = do
     sp <- load8 SP
     pc <- load16 PC
     c  <- getCycles
-    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X Cycles:%09i"
+    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X C:%09i"
         a x y sr (makeSRString sr) sp pc c
 
 -- The 'standard' way of doing this would probably be using a newtype wrapper,
