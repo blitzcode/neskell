@@ -43,9 +43,14 @@ checkEmuTestResult ::
     WriterT All IO ()
 checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust, trace) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
-                    "    Stop Reason      "  ++ show condStop    ++ "\n" ++
-                    "    Unmet Conditions "  ++ show condFailure ++ "\n" ++
-                    "    Met Conditions   "  ++ show condSuccess ++ "\n"
+                    "    Stop Reason      " ++ showCond condStop    ++ "\n" ++
+                    "    Unmet Conditions " ++ showCond condFailure ++ "\n" ++
+                    "    Met Conditions   " ++ showCond condSuccess ++ "\n"
+        showCond []     = "[ ]"
+        showCond (x:[]) = "[ " ++ show x ++ " ]"
+        showCond (x:xs) = "[ " ++ show x ++ "\n"
+                          ++ concatMap (\c -> "                     , " ++ show c ++ "\n") xs
+                          ++                  "                     ]"
     liftIO $ do
         hPutStrLn h $ "--- " ++ testName ++ " ---\n"
         B.hPut    h trace
