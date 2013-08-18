@@ -60,6 +60,7 @@ class (Functor m, Monad m, Applicative m) => MonadEmulator m where
     store8    :: LoadStore -> Word8  -> m ()
     store16   :: LoadStore -> Word16 -> m ()
     trace     :: String -> m ()
+    traceM    :: m String -> m ()
     advCycles :: Word64 -> m ()
     getCycles :: m Word64
 
@@ -105,10 +106,16 @@ instance MonadEmulator (RSTEmu s) where
                            VUM.write state i l
                            VUM.write state (i + 1) h
     trace s = do
-        enable <- asks cpuTraceEnable
-        when (enable) $ do
-            rb <- asks cpuTraceRB
-            lift $ writeRingBuffer rb s
+        cpu <- ask
+        when (cpuTraceEnable cpu) $ do
+            lift $ writeRingBuffer (cpuTraceRB cpu) s
+    -- The monadic version can be useful if we do a lot of MonadEmulator calls
+    -- (load8 etc.) to produce the trace and would like to avoid those in case
+    -- tracing is disabled
+    traceM s = do
+        cpu <- ask
+        when (cpuTraceEnable cpu) $
+            lift . writeRingBuffer (cpuTraceRB cpu) =<< s
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)

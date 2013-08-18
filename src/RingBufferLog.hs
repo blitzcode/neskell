@@ -65,16 +65,16 @@ ringBufferToList ptr' vec =
 encode :: String -> [Word8]
 encode = concatMap (map fromIntegral . go . ord)
     where go oc | oc <= 0x7F   = [oc]
-                | oc <= 0x7FF  = [ 0xC0 + (oc `shiftR` 6)
-                                 , 0x80 + oc .&. 0x3F
+                | oc <= 0x7FF  = [ 0xC0 +  (oc `shiftR` 6)
+                                 , 0x80 +   oc              .&. 0x3F
                                  ]
-                | oc <= 0xFFFF = [ 0xE0 + (oc `shiftR` 12)
-                                 , 0x80 + ((oc `shiftR` 6) .&. 0x3F)
-                                 , 0x80 + oc .&. 0x3f
+                | oc <= 0xFFFF = [ 0xE0 +  (oc `shiftR` 12)
+                                 , 0x80 + ((oc `shiftR` 6 ) .&. 0x3F)
+                                 , 0x80 +   oc              .&. 0x3f
                                  ]
-                | otherwise    = [ 0xF0 + (oc `shiftR` 18)
+                | otherwise    = [ 0xF0 +  (oc `shiftR` 18)
                                  , 0x80 + ((oc `shiftR` 12) .&. 0x3F)
-                                 , 0x80 + ((oc `shiftR` 6) .&. 0x3F)
-                                 , 0x80 + oc .&. 0x3F
+                                 , 0x80 + ((oc `shiftR` 6 ) .&. 0x3F)
+                                 , 0x80 +   oc              .&. 0x3F
                                  ]
    

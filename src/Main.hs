@@ -430,9 +430,9 @@ runTests = do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
                 let emures = runEmulator [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
-                                         [ CondCycleR 1000000 (maxBound :: Word64)
+                                         [ {-CondLoopPC -- -} CondCycleR 1000000 (maxBound :: Word64)
                                          ]
-                                         [ ]
+                                         [ CondLS PC (Right 0x0000) ]
                                          True
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures

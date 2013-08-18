@@ -802,6 +802,7 @@ execute inst@(Instruction (OpCode mn am) _) = do
             trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
             update16 PC (1 +)
             advCycles 1
-    cpustate <- showCPUState
-    trace $ "\n" ++ cpustate ++ "\n"
+    traceM $ do
+        cpustate <- showCPUState
+        return $ "\n" ++ cpustate ++ "\n"
 
