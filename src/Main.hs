@@ -273,9 +273,10 @@ runTests = do
                                          , CondLS (Addr 0x01F7) (Left $ srFromString "N-1B-I--")
                                          , CondLS (Addr 0x01F6) (Left $ srFromString "-V1B-I-C")
                                          , CondLS (Addr 0x01F5) (Left $ srFromString "NV1B-I--")
+                                         , CondLS (Addr 0x01F4) (Left $ srFromString "NV1B-I--")
                                          , CondLS A (Left 0x80)
-                                         , CondLS SP (Left 0xF4)
-                                         , CondCycleR 99 99
+                                         , CondLS SP (Left 0xF3)
+                                         , CondCycleR 108 108
                                          ]
                                          True
                                          traceMB
@@ -430,9 +431,10 @@ runTests = do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
                 let emures = runEmulator [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
-                                         [ {-CondLoopPC -- -} CondCycleR 1000000 (maxBound :: Word64)
+                                         [ CondLoopPC ]
+                                         [ CondLS PC (Right 0x32E9) 
+                                         , CondCycleR 92608051 92608051
                                          ]
-                                         [ CondLS PC (Right 0x0000) ]
                                          False
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures

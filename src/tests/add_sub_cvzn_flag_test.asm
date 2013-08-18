@@ -59,3 +59,8 @@ LDA #$7F
 SBC #$FF
 PHP ; 0xF4 = --I-B1VN
 
+SEC      ; 0 - 128 = 128, returns V = 1
+LDA #$00
+SBC #$80
+PHP ; 0xF4 = --I-B1VN
+
