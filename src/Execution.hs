@@ -211,7 +211,8 @@ samePage a b = (a .&. 0xFF00) == (b .&. 0xFF00)
 detectLoopOnPC :: MonadEmulator m => Instruction -> m Bool
 detectLoopOnPC inst = do
     case inst of
-        Instruction (OpCode JMP _) _      -> (==) <$> (load16 PC) <*> (loadOperand16 inst)
+                                             -- We don't want to have an operand trace here
+        Instruction (OpCode JMP _) _      -> runNoTrace $ (==) <$> load16 PC <*> loadOperand16 inst
         Instruction (OpCode BCS _) [0xFE] -> return .       getFlag FC =<< load8 SR
         Instruction (OpCode BCC _) [0xFE] -> return . not . getFlag FC =<< load8 SR
         Instruction (OpCode BEQ _) [0xFE] -> return .       getFlag FZ =<< load8 SR

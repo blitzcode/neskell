@@ -55,14 +55,15 @@ showCPUState = do
 type RSTEmu s = ReaderT (CPUState s) (ST s)
 
 class (Functor m, Monad m, Applicative m) => MonadEmulator m where
-    load8     :: LoadStore -> m Word8
-    load16    :: LoadStore -> m Word16
-    store8    :: LoadStore -> Word8  -> m ()
-    store16   :: LoadStore -> Word16 -> m ()
-    trace     :: String -> m ()
-    traceM    :: m String -> m ()
-    advCycles :: Word64 -> m ()
-    getCycles :: m Word64
+    load8      :: LoadStore -> m Word8
+    load16     :: LoadStore -> m Word16
+    store8     :: LoadStore -> Word8  -> m ()
+    store16    :: LoadStore -> Word16 -> m ()
+    trace      :: String -> m ()
+    traceM     :: m String -> m ()
+    runNoTrace :: m a -> m a
+    advCycles  :: Word64 -> m ()
+    getCycles  :: m Word64
 
 lsToStateIdx :: LoadStore -> Int
 lsToStateIdx ls =
@@ -116,6 +117,8 @@ instance MonadEmulator (RSTEmu s) where
         cpu <- ask
         when (cpuTraceEnable cpu) $
             lift . writeRingBuffer (cpuTraceRB cpu) =<< s
+    -- Disable tracing and run the argument function
+    runNoTrace f = local (\cpu -> cpu { cpuTraceEnable = False }) f 
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)
