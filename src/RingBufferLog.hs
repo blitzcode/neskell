@@ -13,6 +13,8 @@ import Control.Monad.ST (ST)
 import Data.STRef (STRef, newSTRef, readSTRef, modifySTRef')
 import Data.ByteString.Internal (c2w)
 import Data.Word (Word8, Word32)
+import Data.Bits (shiftR, (.&.))
+import Data.Char (ord)
 
 data RingBuffer s = RingBuffer
     { rbRing :: VUM.MVector s Word8
@@ -27,13 +29,35 @@ makeRingBuffer sizeMB = do
                       , rbPtr  = initPtr
                       }
 
+-- From Codec.Binary.UTF8.String
+encode :: String -> [Word8]
+encode = concatMap (map fromIntegral . go . ord)
+ where
+  go oc
+   | oc <= 0x7f       = [oc]
+
+   | oc <= 0x7ff      = [ 0xc0 + (oc `shiftR` 6)
+                        , 0x80 + oc .&. 0x3f
+                        ]
+
+   | oc <= 0xffff     = [ 0xe0 + (oc `shiftR` 12)
+                        , 0x80 + ((oc `shiftR` 6) .&. 0x3f)
+                        , 0x80 + oc .&. 0x3f
+                        ]
+   | otherwise        = [ 0xf0 + (oc `shiftR` 18)
+                        , 0x80 + ((oc `shiftR` 12) .&. 0x3f)
+                        , 0x80 + ((oc `shiftR` 6) .&. 0x3f)
+                        , 0x80 + oc .&. 0x3f
+                        ]
+
 writeRingBuffer :: RingBuffer s -> String -> ST s ()
 writeRingBuffer rb s = do
-        ptr <- readSTRef $ rbPtr rb
-        let ring = rbRing $ rb
-            lenr = fromIntegral $ VUM.length ring
-        mapM_ (\(i, c) -> VUM.write ring (fromIntegral $ (ptr + i) `mod` lenr) (c2w c)) $ zip [0..] s
-        modifySTRef' (rbPtr rb) $ (+) (fromIntegral $ length s)
+    ptr <- readSTRef $ rbPtr rb
+    let ring  = rbRing $ rb
+        lenr  = fromIntegral $ VUM.length ring
+        sUTF8 = encode s
+    mapM_ (\(i, c) -> VUM.write ring (fromIntegral $ (ptr + i) `mod` lenr) c) $ zip [0..] sUTF8
+    modifySTRef' (rbPtr rb) $ (+) (fromIntegral $ length sUTF8)
 
 -- It is no longer safe to write to the ring buffer after calling this
 unsafeFreezeRingBuffer :: RingBuffer s -> ST s [Word8]

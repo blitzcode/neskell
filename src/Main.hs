@@ -61,16 +61,17 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
 
     -- After days of debugging an out-of-memory error, it became clear that the
     -- GC just isn't collecting. If I allocate some memory with an unboxed
-    -- mutable vector inside the ST monad in the emulator, the memory seemed to
-    -- be retained sometimes. There's no reference to the vector outside of ST.
-    -- Even if I never do anything but create the vector and put it inside the
-    -- Reader record, and then only return a single Int from ST, which I
-    -- immediately evaluate, the memory was retained (sometimes...). All memory
-    -- profiles always showed I never allocate more than one vector at a time,
-    -- yet multiple runs would cause OS memory for multiple vectors to be used
-    -- and would eventually cause an out-of-memory error. Even then the RTS
-    -- would not collect. Forcing collection after leaving ST and evaluating all
-    -- return values seems to solve the problem entirely.
+    -- mutable vector inside the ST monad in the emulator (ring buffer trace
+    -- log), the memory seemed to be retained sometimes. There's no reference to
+    -- the vector outside of ST. Even if I never do anything but create the
+    -- vector and put it inside the Reader record, and then only return a single
+    -- Int from ST, which I immediately evaluate, the memory was retained
+    -- (sometimes...). All memory profiles always showed I never allocate more
+    -- than one vector at a time, yet multiple runs would cause OS memory for
+    -- multiple vectors to be used and would eventually cause an out-of-memory
+    -- error. Even then the RTS would not collect. Forcing collection after
+    -- leaving ST and evaluating all return values seems to solve the problem
+    -- entirely.
     liftIO performGC
 
 runTests :: IO Bool

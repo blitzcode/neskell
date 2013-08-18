@@ -15,11 +15,11 @@ import Control.Applicative ((<$>))
 
 store8Trace :: MonadEmulator m => LoadStore -> Word8  -> m ()
 store8Trace ls val = do
-    trace $ printf "0x%02X -> %s, " val (show ls)
+    trace $ printf "0x%02X→%s, " val (show ls)
     store8 ls val 
 store16Trace :: MonadEmulator m => LoadStore -> Word16 -> m ()
 store16Trace ls val = do
-    trace $ printf "0x%04X -> %s, " val (show ls)
+    trace $ printf "0x%04X→%s, " val (show ls)
     store16 ls val
 
 -- Functions for loading and storing 8 bit operands for any instruction.

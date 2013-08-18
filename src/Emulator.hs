@@ -33,7 +33,7 @@ instance Show Cond where
                                 Left  w8  -> printf "%s == 0x%02X" (show ls) w8
                                 Right w16 -> printf "%s == 0x%04X" (show ls) w16
     show (CondOpC mn    ) = "OpCode(PC) == " ++ show mn
-    show (CondCycleR l h) = unwords ["cycle E [", show l, ",", show h, "]"]
+    show (CondCycleR l h) = unwords ["cycle ∈ [", show l, ",", show h, "]"]
     show CondLoopPC       = "CondLoopPC"
 
 checkCond :: MonadEmulator m => Cond -> m Bool
