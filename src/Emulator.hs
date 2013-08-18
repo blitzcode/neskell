@@ -70,13 +70,13 @@ runEmulator bins setup stopc verc traceEnable traceMB =
         trace "Load Binary: "
         mapM_ (\(bin, offs) -> loadBinary bin offs) bins
         trace "\n\nSetup: "
-        store8 SP 0xFF
-        store8 SR . setFlag FI . setFlag F1 $ 0
         mapM_ (\(ls, w) ->
             case w of
-                Left w8   -> store8  ls w8;
-                Right w16 -> store16 ls w16)
-            setup
+                Left  w8  -> store8Trace  ls w8
+                Right w16 -> store16Trace ls w16)
+            $ (SP, Left 0xFF)
+            : (SR, Left . setFlag FI . setFlag F1 $ 0)
+            : setup
         trace "\n"
         let loop = do
                 stop <- or <$> mapM (checkCond) stopc

@@ -1,6 +1,8 @@
 
-module Execution ( execute,
-                   detectLoopOnPC
+module Execution ( execute
+                 , detectLoopOnPC
+                 , store8Trace
+                 , store16Trace
                  ) where
 
 -- The actual emulation of all 6502 instructions running inside of MonadEmulator
@@ -209,7 +211,7 @@ samePage a b = (a .&. 0xFF00) == (b .&. 0xFF00)
 detectLoopOnPC :: MonadEmulator m => Instruction -> m Bool
 detectLoopOnPC inst = do
     case inst of
-        Instruction (OpCode JMP _) _ -> (==) <$> (load16 PC) <*> (loadOperand16 inst)
+        Instruction (OpCode JMP _) _      -> (==) <$> (load16 PC) <*> (loadOperand16 inst)
         Instruction (OpCode BCS _) [0xFE] -> return .       getFlag FC =<< load8 SR
         Instruction (OpCode BCC _) [0xFE] -> return . not . getFlag FC =<< load8 SR
         Instruction (OpCode BEQ _) [0xFE] -> return .       getFlag FZ =<< load8 SR
@@ -218,7 +220,7 @@ detectLoopOnPC inst = do
         Instruction (OpCode BPL _) [0xFE] -> return . not . getFlag FN =<< load8 SR
         Instruction (OpCode BVS _) [0xFE] -> return .       getFlag FV =<< load8 SR
         Instruction (OpCode BVC _) [0xFE] -> return . not . getFlag FV =<< load8 SR
-        _ -> return False
+        _                                 -> return False
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (OpCode mn am) _) = do
