@@ -222,6 +222,7 @@ detectLoopOnPC inst = do
         Instruction (OpCode BVC _) [0xFE] -> return . not . getFlag FV =<< load8 SR
         _                                 -> return False
 
+{-# INLINE execute #-}
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (OpCode mn am) _) = do
     let ilen = fromIntegral $ instructionLen inst :: Word16

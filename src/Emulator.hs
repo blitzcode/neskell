@@ -36,6 +36,7 @@ instance Show Cond where
     show (CondCycleR l h) = unwords ["Cycle ∈ [", show l, ",", show h, "]"]
     show CondLoopPC       = "CondLoopPC"
 
+{-# INLINE checkCond #-}
 checkCond :: MonadEmulator m => Cond -> m Bool
 checkCond cond =
     case cond of
@@ -83,6 +84,7 @@ runEmulator bins setup stopc verc traceEnable traceMB =
             : (SR, Left . setFlag FI . setFlag F1 $ 0)
             : setup
         trace "\n"
+        -- Inlining everything (check, decode, execute...) in this main loop makes a huge difference 
         let loop = do
                 stop <- or <$> mapM (checkCond) stopc
                 unless stop $ do

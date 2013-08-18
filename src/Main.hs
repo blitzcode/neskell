@@ -433,7 +433,7 @@ runTests = do
                                          [ {-CondLoopPC -- -} CondCycleR 1000000 (maxBound :: Word64)
                                          ]
                                          [ CondLS PC (Right 0x0000) ]
-                                         True
+                                         False
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
         return $ getAll w
