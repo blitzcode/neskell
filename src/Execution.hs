@@ -1,5 +1,6 @@
 
-module Execution ( execute
+module Execution ( execute,
+                   detectLoopOnPC
                  ) where
 
 -- The actual emulation of all 6502 instructions running inside of MonadEmulator
@@ -11,7 +12,7 @@ import Util
 import Data.Word (Word8, Word16, Word64)
 import Text.Printf
 import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR, complement)
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
 
 store8Trace :: MonadEmulator m => LoadStore -> Word8  -> m ()
 store8Trace ls val = do
@@ -203,6 +204,21 @@ makeSigned a = if (a .&. 128 /= 0) then -(fromIntegral $ complement a + 1) else 
 
 samePage :: Word16 -> Word16 -> Bool
 samePage a b = (a .&. 0xFF00) == (b .&. 0xFF00)
+
+-- Detect if the current instruction jumps to itself (infinite loop)
+detectLoopOnPC :: MonadEmulator m => Instruction -> m Bool
+detectLoopOnPC inst = do
+    case inst of
+        Instruction (OpCode JMP _) _ -> (==) <$> (load16 PC) <*> (loadOperand16 inst)
+        Instruction (OpCode BCS _) [0xFE] -> return .       getFlag FC =<< load8 SR
+        Instruction (OpCode BCC _) [0xFE] -> return . not . getFlag FC =<< load8 SR
+        Instruction (OpCode BEQ _) [0xFE] -> return .       getFlag FZ =<< load8 SR
+        Instruction (OpCode BNE _) [0xFE] -> return . not . getFlag FZ =<< load8 SR
+        Instruction (OpCode BMI _) [0xFE] -> return .       getFlag FN =<< load8 SR
+        Instruction (OpCode BPL _) [0xFE] -> return . not . getFlag FN =<< load8 SR
+        Instruction (OpCode BVS _) [0xFE] -> return .       getFlag FV =<< load8 SR
+        Instruction (OpCode BVC _) [0xFE] -> return . not . getFlag FV =<< load8 SR
+        _ -> return False
 
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (OpCode mn am) _) = do

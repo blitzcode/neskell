@@ -10,7 +10,7 @@ module Emulator ( runEmulator
 
 import Util
 import MonadEmulator
-import Execution (execute)
+import Execution
 import Instruction
 
 import qualified Data.ByteString.Lazy as B
@@ -44,11 +44,7 @@ checkCond cond =
                               return $ decMn == mn
         CondCycleR l h  -> do c <- getCycles
                               return $ (c >= l) && (c <= h)
-        -- TODO
-        CondLoopPC      -> return False -- do inst@(Instruction (OpCode mn _) _) <- decodeInstructionM
---                              case mn of
-  --                                s -> 
---BCC BCS BEQ BIT BMI BNE BPL JMP
+        CondLoopPC      -> detectLoopOnPC =<< decodeInstructionM
 
 loadBinary :: MonadEmulator m => B.ByteString -> Word16 -> m ()
 loadBinary bin offs = do

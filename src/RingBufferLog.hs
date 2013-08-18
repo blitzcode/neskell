@@ -28,28 +28,6 @@ makeRingBuffer sizeMB = do
     return RingBuffer { rbRing = initRing
                       , rbPtr  = initPtr
                       }
-
--- From Codec.Binary.UTF8.String
-encode :: String -> [Word8]
-encode = concatMap (map fromIntegral . go . ord)
- where
-  go oc
-   | oc <= 0x7f       = [oc]
-
-   | oc <= 0x7ff      = [ 0xc0 + (oc `shiftR` 6)
-                        , 0x80 + oc .&. 0x3f
-                        ]
-
-   | oc <= 0xffff     = [ 0xe0 + (oc `shiftR` 12)
-                        , 0x80 + ((oc `shiftR` 6) .&. 0x3f)
-                        , 0x80 + oc .&. 0x3f
-                        ]
-   | otherwise        = [ 0xf0 + (oc `shiftR` 18)
-                        , 0x80 + ((oc `shiftR` 12) .&. 0x3f)
-                        , 0x80 + ((oc `shiftR` 6) .&. 0x3f)
-                        , 0x80 + oc .&. 0x3f
-                        ]
-
 writeRingBuffer :: RingBuffer s -> String -> ST s ()
 writeRingBuffer rb s = do
     ptr <- readSTRef $ rbPtr rb
@@ -83,3 +61,20 @@ ringBufferToList ptr' vec =
         -- Yes, the beginning is right after the write marker
         else map c2w "(Trace Truncated)\n\n" ++ loop (ptr' + 1) (len - 1) False
 
+-- From Codec.Binary.UTF8.String
+encode :: String -> [Word8]
+encode = concatMap (map fromIntegral . go . ord)
+    where go oc | oc <= 0x7F   = [oc]
+                | oc <= 0x7FF  = [ 0xC0 + (oc `shiftR` 6)
+                                 , 0x80 + oc .&. 0x3F
+                                 ]
+                | oc <= 0xFFFF = [ 0xE0 + (oc `shiftR` 12)
+                                 , 0x80 + ((oc `shiftR` 6) .&. 0x3F)
+                                 , 0x80 + oc .&. 0x3f
+                                 ]
+                | otherwise    = [ 0xF0 + (oc `shiftR` 18)
+                                 , 0x80 + ((oc `shiftR` 12) .&. 0x3F)
+                                 , 0x80 + ((oc `shiftR` 6) .&. 0x3F)
+                                 , 0x80 + oc .&. 0x3F
+                                 ]
+   
