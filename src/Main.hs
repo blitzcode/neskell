@@ -76,7 +76,7 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
 runTests :: IO Bool
 runTests = do
     let tracefn = "./trace.log"
-    let traceMB = 16
+    let traceMB = 64
     withFile tracefn WriteMode $ \h -> do
         time <- getZonedTime
         hPutStrLn h $ "Trace Log " ++ show time ++ "\n"

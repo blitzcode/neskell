@@ -11,7 +11,7 @@ module Emulator ( runEmulator
 import Util
 import MonadEmulator
 import Execution (execute)
-import qualified Instruction as I
+import Instruction
 
 import qualified Data.ByteString.Lazy as B
 import Data.Word (Word16, Word64)
@@ -21,8 +21,9 @@ import Text.Printf
 
 data Cond =
       CondLS     LoadStore L8R16 -- Compare any memory address / CPU state to
-    | CondOpC    I.Mnemonic      -- PC pointing to a specific instruction type
+    | CondOpC    Mnemonic        -- PC pointing to a specific instruction type
     | CondCycleR Word64 Word64   -- Cycle count in the specified closed interval
+    | CondLoopPC                 -- PC at an instruction jumping to its own address
 
 instance Show Cond where
     show (CondLS SR w   ) = case w of
@@ -33,15 +34,21 @@ instance Show Cond where
                                 Right w16 -> printf "%s == 0x%04X" (show ls) w16
     show (CondOpC mn    ) = "OpCode(PC) == " ++ show mn
     show (CondCycleR l h) = unwords ["cycle E [", show l, ",", show h, "]"]
+    show CondLoopPC       = "CondLoopPC"
 
 checkCond :: MonadEmulator m => Cond -> m Bool
 checkCond cond =
     case cond of
         CondLS     ls w -> case w of Left w8 -> (== w8) <$> load8 ls; Right w16 -> (== w16) <$> load16 ls
-        CondOpC    mn   -> do (I.Instruction (I.OpCode decMn _) _) <- I.decodeInstructionM
+        CondOpC    mn   -> do (Instruction (OpCode decMn _) _) <- decodeInstructionM
                               return $ decMn == mn
         CondCycleR l h  -> do c <- getCycles
                               return $ (c >= l) && (c <= h)
+        -- TODO
+        CondLoopPC      -> return False -- do inst@(Instruction (OpCode mn _) _) <- decodeInstructionM
+--                              case mn of
+  --                                s -> 
+--BCC BCS BEQ BIT BMI BNE BPL JMP
 
 loadBinary :: MonadEmulator m => B.ByteString -> Word16 -> m ()
 loadBinary bin offs = do
@@ -78,7 +85,7 @@ runEmulator bins setup stopc verc traceEnable traceMB =
         let loop = do
                 stop <- or <$> mapM (checkCond) stopc
                 unless stop $ do
-                    execute =<< I.decodeInstructionM
+                    execute =<< decodeInstructionM
                     loop
          in do
                 loop

@@ -13,19 +13,15 @@ module MonadEmulator (MonadEmulator(..)
 -- internal representation and monad transformer stack
 
 import Util
+import RingBufferLog
 
 import qualified Data.Vector.Unboxed.Mutable as VUM
-import qualified Data.Vector.Unboxed as VU
-import Data.Word (Word8, Word16, Word32, Word64)
+import Data.Word (Word8, Word16, Word64)
 import Control.Monad.ST (ST, runST)
 import Data.STRef (STRef, newSTRef, readSTRef, modifySTRef')
 import Control.Monad.Reader
 import Text.Printf
 import qualified Data.ByteString.Lazy as B
-import Data.ByteString.Internal (c2w)
-
-import Data.Bits
-import Data.Char (ord)
 
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
 
@@ -35,11 +31,10 @@ instance Show LoadStore where
     show PC  = "PC" ; show PCL = "PCL"; show PCH = "PCH"
 
 data CPUState s = CPUState
-    { cpuState        :: VUM.MVector s Word8
-    , cpuCycles       :: STRef       s Word64
-    , cpuTraceRing    :: VUM.MVector s Word8
-    , cpuTraceRingPtr :: STRef       s Word32 -- Should be Word64, but there's quite a slowdown
-    , cpuTraceEnable  :: Bool
+    { cpuState       :: VUM.MVector s Word8
+    , cpuCycles      :: STRef       s Word64
+    , cpuTraceRB     :: RingBuffer  s
+    , cpuTraceEnable :: Bool
     }
 
 showCPUState :: MonadEmulator m => m String
@@ -110,7 +105,9 @@ instance MonadEmulator (RSTEmu s) where
                            VUM.write state (i + 1) h
     trace s = do
         enable <- asks cpuTraceEnable
-        when (enable) $ ringBufferWrite s
+        when (enable) $ do
+            rb <- asks cpuTraceRB
+            lift $ writeRingBuffer rb s
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)
@@ -118,57 +115,26 @@ instance MonadEmulator (RSTEmu s) where
         cycles <- asks cpuCycles
         lift $ readSTRef cycles
 
-ringBufferWrite :: String -> RSTEmu s ()
-ringBufferWrite s = do
-    ring <- asks cpuTraceRing
-    ptrR <- asks cpuTraceRingPtr
-    lift $ do
-        ptr <- readSTRef ptrR
-        let lenr = fromIntegral $ VUM.length ring
-        mapM_ (\(i, c) -> VUM.write ring (fromIntegral $ (ptr + i) `mod` lenr) (c2w c)) $ zip [0..] s
-        modifySTRef' ptrR $ (+) (fromIntegral $ length s)
-
--- Convert a ring buffer vector and a write marker into a lazy list of its contents
-ringBufferToList :: Word32 -> VU.Vector Word8 -> [Word8]
-ringBufferToList ptr' vec =
-    let len = fromIntegral $ VU.length vec
-        loop ptr left foundcr =
-            let e    = vec VU.! (fromIntegral $ ptr `mod` len)
-                next = loop (ptr + 1) (left - 1)
-                r | left == 0   = []
-                  -- Don't start on an incomplete line, skip till the first CR
-                  | not foundcr = next $ e == c2w '\n'
-                  | otherwise   = e : next True
-             in r
-     in   if ptr' < len       -- Already wrapped around?
-        then loop 0 ptr' True -- No, start at the beginning of the vector
-        -- Yes, the beginning is right after the write marker
-        else map c2w "(Trace Truncated)\n\n" ++ loop (ptr' + 1) (len - 1) False
-
 -- We don't want to export this through MonadEmulator, only needs to be called
 -- from code directly inside runSTEmulator's argument function. Preferably once,
 -- at the end (note that 'unsafe' part...)
 getTrace :: RSTEmu s B.ByteString
 getTrace = do
-    ring   <- asks cpuTraceRing
-    ptrref <- asks cpuTraceRingPtr
-    ptr    <- lift $ readSTRef ptrref
-    frozen <- lift $ VU.unsafeFreeze ring
-    return . B.pack . ringBufferToList ptr $ frozen
+    rb <- asks cpuTraceRB
+    list <- lift $ unsafeFreezeRingBuffer rb
+    return $ B.pack list
 
 runSTEmulator :: Bool -> Int -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
 runSTEmulator traceEnable traceMB f = 
     runST $ do
-        initState        <- VUM.replicate (65536 + 7) (0 :: Word8)
-        initCycles       <- newSTRef 0
-        initTraceRing    <- VUM.new (traceMB * 1024 * 1024)
-        initTraceRingPtr <- newSTRef 0
+        initState   <- VUM.replicate (65536 + 7) (0 :: Word8)
+        initCycles  <- newSTRef 0
+        initTraceRB <- makeRingBuffer traceMB
         let cpu = CPUState
                   { cpuState        = initState
                   , cpuCycles       = initCycles
                   , cpuTraceEnable  = traceEnable
-                  , cpuTraceRing    = initTraceRing
-                  , cpuTraceRingPtr = initTraceRingPtr
+                  , cpuTraceRB      = initTraceRB
                   }
         runReaderT f cpu
 
