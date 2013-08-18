@@ -15,7 +15,7 @@ import Instruction
 
 import qualified Data.ByteString.Lazy as B
 import Data.Word (Word16, Word64)
-import Control.Monad (unless, filterM)
+import Control.Monad (when, unless, filterM)
 import Control.Applicative ((<$>))
 import Text.Printf
 
@@ -48,8 +48,13 @@ checkCond cond =
 
 loadBinary :: MonadEmulator m => B.ByteString -> Word16 -> m ()
 loadBinary bin offs = do
-    mapM_ (\i -> store8 (Addr $ offs + fromIntegral i) $
-                 B.index bin i)
+    mapM_ (\i -> do let w8   = B.index bin i
+                        addr = offs + fromIntegral i 
+                    store8 (Addr addr) w8
+                    -- TODO: This doesn't work if we start at an address not
+                    --       divisible by 16
+                    when (addr `mod` 16 == 0) . trace . printf "\n%04X" $ addr
+                    trace $ printf " %02X" w8)
           [0..B.length bin - 1]
 
 runEmulator ::
@@ -67,7 +72,7 @@ runEmulator ::
     )
 runEmulator bins setup stopc verc traceEnable traceMB =
     runSTEmulator traceEnable traceMB $ do
-        trace "Load Binary: "
+        trace "Load Binary:\n"
         mapM_ (\(bin, offs) -> loadBinary bin offs) bins
         trace "\n\nSetup: "
         mapM_ (\(ls, w) ->
