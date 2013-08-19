@@ -433,6 +433,16 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "BRK Test" tracefn h emures
+            -- KIL test
+            do
+                bin <- liftIO $ B.readFile "./tests/kil_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondLoopPC ]
+                                         [ CondLS PC (Right $ 0x0600) ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "KIL Test" tracefn h emures
             -- Functional 6502 test
             do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
