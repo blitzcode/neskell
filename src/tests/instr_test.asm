@@ -1117,6 +1117,29 @@ DCB #$00
 DCB #$B3
 DCB #$00
 
+; SAX - Stores the Bitwise AND of A and X
+;
+; Unlike AND, flags are unaffected.
+;
+;    A AND X -> M                     N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;SAX $00      Zero Page     $87  2   3
+DCB #$87
+DCB #$00
+;SAX $00,Y    Zero Page,Y   $97  2   4
+DCB #$97
+DCB #$00
+;SAX $0000    Absolute      $8F  3   4
+DCB #$8F
+DCB #$00
+DCB #$00
+;SAX ($00,X)  IdxInd        $83  2   6
+DCB #$83
+DCB #$00
+
 ; +  = Add 1 to cycles if page boundary is crossed during address computation
 ;      Store instructions have this extra cycle always build in as they can't
 ;      do a false write when a carry on the address LSB occurs

@@ -483,6 +483,24 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "LAX Test" tracefn h emures
+            -- SAX test
+            do
+                bin <- liftIO $ B.readFile "./tests/sax_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x0000) $ Left 0x80
+                                         , CondLS (Addr 0x0001) $ Left 0x80
+                                         , CondLS (Addr 0x0002) $ Left 0x80
+                                         , CondLS (Addr 0x0003) $ Left 0x80
+                                         , CondLS SR (Left $ srFromString "--1--I--")
+                                         , CondCycleR 33 33
+                                         ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "SAX Test" tracefn h emures
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"

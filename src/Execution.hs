@@ -833,6 +833,14 @@ execute inst@(Instruction (OpCode mn am) _) = do
             store8Trace X op
             update16 PC (ilen +)
             advCycles $ baseC + penalty
+        SAX -> do
+            let baseC = getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen baseC
+            a <- load8 A
+            x <- load8 X
+            storeOperand8 inst $ a .&. x
+            update16 PC (ilen +)
+            advCycles baseC
     traceM $ do
         cpustate <- showCPUState
         return $ "\n" ++ cpustate ++ "\n"
