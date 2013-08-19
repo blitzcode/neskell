@@ -157,7 +157,7 @@ loadStack16 = do
 getAMCycles :: AddressMode -> Word64
 getAMCycles am =
     case am of
-        Implied     -> 0
+        Implied     -> 2
         Accumulator -> 0
         Immediate   -> 2
         ZeroPage    -> 3
@@ -808,6 +808,14 @@ execute inst@(Instruction (OpCode mn am) _) = do
         KIL _ -> do
             trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
             advCycles 1
+        -- Handles the various illegal / unofficial NOP variants
+        NOI _ -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace $ printf "\n%s (Illegal OpCode, %ib, %i%sC): " (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "")
+            update16 PC (ilen +)
+            advCycles $ baseC + penalty
     traceM $ do
         cpustate <- showCPUState
         return $ "\n" ++ cpustate ++ "\n"

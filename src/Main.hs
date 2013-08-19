@@ -443,6 +443,37 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "KIL Test" tracefn h emures
+            -- NOI test
+            do
+                bin <- liftIO $ B.readFile "./tests/noi_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS PC (Right $ 0x0639)
+                                         , CondCycleR 86 86
+                                         ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "NOI Test" tracefn h emures
+            -- NESTest ROM test
+            do
+                bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
+                let emures = runEmulator [ (bin, 0x8000)
+                                         , (bin, 0xC000)
+                                         ]
+                                         [ (PC, Right 0xC000)
+                                         , (SP, Left 0xFD)
+                                         ]
+                                         [ CondLoopPC
+                                         , CondCycleR 16384 (maxBound :: Word64) ]
+                                         [ CondLS PC (Right 0x0000) 
+                                         ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "NESTest ROM Test" tracefn h emures
+            {-
             -- Functional 6502 test
             do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
@@ -455,6 +486,7 @@ runTests = do
                                          False
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
+            -}
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
