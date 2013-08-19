@@ -457,6 +457,32 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "NOI Test" tracefn h emures
+            -- LAX test
+            do
+                bin <- liftIO $ B.readFile "./tests/lax_test.bin"
+                let emures = runEmulator [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS (Addr 0x01FF) $ Left 0x21
+                                         , CondLS (Addr 0x01FE) $ Left 0x21
+                                         , CondLS (Addr 0x01FD) $ Left 0xC3
+                                         , CondLS (Addr 0x01FC) $ Left 0xC3
+                                         , CondLS (Addr 0x01FB) $ Left 0x11
+                                         , CondLS (Addr 0x01FA) $ Left 0x11
+                                         , CondLS (Addr 0x01F9) $ Left 0xFF
+                                         , CondLS (Addr 0x01F8) $ Left 0xFF
+                                         , CondLS (Addr 0x01F7) $ Left 0x55
+                                         , CondLS (Addr 0x01F6) $ Left 0x55
+                                         , CondLS (Addr 0x01F5) $ Left 0xDB
+                                         , CondLS (Addr 0x01F4) $ Left 0xDB
+                                         , CondLS SR (Left $ srFromString "N-1--I--")
+                                         , CondCycleR 135 135
+                                         ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "LAX Test" tracefn h emures
             -- NESTest ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"

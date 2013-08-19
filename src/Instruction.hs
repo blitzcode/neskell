@@ -67,6 +67,7 @@ data Mnemonic =
     | TXS | TYA
     -- Illegal / Unofficial
     | KIL Word8 | NOI Word8 | DCB Word8
+    | LAX
       deriving (Show, Eq)
 
 data OpCode = OpCode Mnemonic AddressMode
@@ -140,7 +141,9 @@ decodeOpCode w = case w of
     ; 0x74 -> OpCode (NOI w) ZeroPageX ; 0xD4 -> OpCode (NOI w) ZeroPageX ; 0xF4 -> OpCode (NOI w) ZeroPageX
     ; 0x1C -> OpCode (NOI w) AbsoluteX ; 0x3C -> OpCode (NOI w) AbsoluteX ; 0x5C -> OpCode (NOI w) AbsoluteX
     ; 0x7C -> OpCode (NOI w) AbsoluteX ; 0xDC -> OpCode (NOI w) AbsoluteX ; 0xFC -> OpCode (NOI w) AbsoluteX
-    ; _    -> OpCode (DCB w) Implied
+    ; 0xAB -> OpCode LAX Immediate     ; 0xA7 -> OpCode LAX ZeroPage      ; 0xB7 -> OpCode LAX ZeroPageY
+    ; 0xAF -> OpCode LAX Absolute      ; 0xBF -> OpCode LAX AbsoluteY     ; 0xA3 -> OpCode LAX IdxInd
+    ; 0xB3 -> OpCode LAX IndIdx        ; _    -> OpCode (DCB w) Implied
 
 data Instruction = Instruction OpCode [Word8]
 

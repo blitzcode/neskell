@@ -816,6 +816,23 @@ execute inst@(Instruction (OpCode mn am) _) = do
                 (if penalty /= 0 then "+1"  else "")
             update16 PC (ilen +)
             advCycles $ baseC + penalty
+        LAX -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace $ printf "\n%s (Illegal OpCode, %s%ib, %i%sC): "
+                (show inst)
+                -- 0xAB / LAX Immediate is highly unstable, just execute it as
+                -- expected, unlikely anybody relies on its exact behavior
+                (if am == Immediate then "Unstable, " else "")
+                ilen
+                baseC
+                (if penalty /= 0 then "+1"  else "")
+            op <- loadOperand8 inst
+            updateNZ op
+            store8Trace A op
+            store8Trace X op
+            update16 PC (ilen +)
+            advCycles $ baseC + penalty
     traceM $ do
         cpustate <- showCPUState
         return $ "\n" ++ cpustate ++ "\n"

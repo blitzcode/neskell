@@ -948,13 +948,6 @@ TXS          ;Implied       $9A  1   2
 ;--------------------------------------
 TYA          ;Implied       $98  1   2
 
-; DCB -  Define Constant Byte
-;
-; Not an actual opcode, used for embedding data into the assembly, we map any
-; unsupported illegal instructions to it
-
-DCB #$AB
-
 ; Illegal / Unofficial Opcodes Start Here
 ; ---------------------------------------
 
@@ -1085,6 +1078,43 @@ DCB #$00
 ;NOI #$FC $0000,X Absolute,X    $FC  3   4+
 DCB #$FC
 DCB #$00
+DCB #$00
+
+; LAX - Load Accumulator and Index X with Memory
+;
+; Equivalent to LDX value then TXA, or LDA value then TAX.
+; 
+;
+;    M -> X, M -> A                   N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if X = 0
+; N Negative Flag     Set if bit 7 of X is set
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;LAX #$00     Immediate     $AB  2   2  *Highly Unstable*
+DCB #$AB
+DCB #$00
+;LAX $00      Zero Page     $A7  2   3
+DCB #$A7
+DCB #$00
+;LAX $00,Y    Zero Page,Y   $B7  2   4
+DCB #$B7
+DCB #$00
+;LAX $0000    Absolute      $AF  3   4
+DCB #$AF
+DCB #$00
+DCB #$00
+;LAX $0000,Y  Absolute,Y    $BF  3   4+
+DCB #$BF
+DCB #$00
+DCB #$00
+;LAX ($00,X)  IdxInd        $A3  2   6
+DCB #$A3
+DCB #$00
+;LAX ($00),Y  IndIdx        $B3  2   5+
+DCB #$B3
 DCB #$00
 
 ; +  = Add 1 to cycles if page boundary is crossed during address computation
