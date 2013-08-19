@@ -54,6 +54,7 @@ operandLen IdxInd      = 1
 operandLen IndIdx      = 1
 
 data Mnemonic =
+    -- Official
       ADC | AND | ASL | BCC | BCS | BEQ
     | BIT | BMI | BNE | BPL | BRK | BVC
     | BVS | CLC | CLD | CLI | CLV | CMP
@@ -63,15 +64,19 @@ data Mnemonic =
     | PHP | PLA | PLP | ROL | ROR | RTI
     | RTS | SBC | SEC | SED | SEI | STA
     | STX | STY | TAX | TAY | TSX | TXA
-    | TXS | TYA | DCB Word8
+    | TXS | TYA
+    -- Illegal / Unofficial
+    | KIL Word8
+    | DCB Word8
       deriving (Show, Eq)
 
 data OpCode = OpCode Mnemonic AddressMode
               deriving (Show, Eq)
 
 decodeOpCode :: Word8 -> OpCode
-decodeOpCode opc =
-    case opc of
+decodeOpCode w =
+    case w of
+        -- Official
         ; 0x69 -> OpCode ADC Immediate   ; 0x65 -> OpCode ADC ZeroPage    ; 0x75 -> OpCode ADC ZeroPageX   
         ; 0x6D -> OpCode ADC Absolute    ; 0x7D -> OpCode ADC AbsoluteX   ; 0x79 -> OpCode ADC AbsoluteY   
         ; 0x61 -> OpCode ADC IdxInd      ; 0x71 -> OpCode ADC IndIdx      ; 0x29 -> OpCode AND Immediate   
@@ -122,14 +127,22 @@ decodeOpCode opc =
         ; 0x8E -> OpCode STX Absolute    ; 0x84 -> OpCode STY ZeroPage    ; 0x94 -> OpCode STY ZeroPageX   
         ; 0x8C -> OpCode STY Absolute    ; 0xAA -> OpCode TAX Implied     ; 0xA8 -> OpCode TAY Implied     
         ; 0xBA -> OpCode TSX Implied     ; 0x8A -> OpCode TXA Implied     ; 0x9A -> OpCode TXS Implied     
-        ; 0x98 -> OpCode TYA Implied     ; _    -> OpCode (DCB opc) Implied
+        ; 0x98 -> OpCode TYA Implied     
+        -- Illegal / Unofficial
+        ; 0x02 -> OpCode (KIL w) Implied ; 0x12 -> OpCode (KIL w) Implied ; 0x22 -> OpCode (KIL w) Implied
+        ; 0x32 -> OpCode (KIL w) Implied ; 0x42 -> OpCode (KIL w) Implied ; 0x52 -> OpCode (KIL w) Implied
+        ; 0x62 -> OpCode (KIL w) Implied ; 0x72 -> OpCode (KIL w) Implied ; 0x92 -> OpCode (KIL w) Implied
+        ; 0xB2 -> OpCode (KIL w) Implied ; 0xD2 -> OpCode (KIL w) Implied ; 0xF2 -> OpCode (KIL w) Implied
+        ; _    -> OpCode (DCB w) Implied
 
 data Instruction = Instruction OpCode [Word8]
 
 instance Show Instruction where
     -- Special case: DCB is not an instruction, but a mnemonic for embedding raw
-    -- bytes into the assembly. We decode all illegal opcodes to it
+    -- bytes into the assembly. Many illegal opcodes are also identical in
+    -- behavior, we store their binary representation to distinguish them
     show (Instruction (OpCode (DCB b) Implied) []) = printf "DCB #$%02X" b
+    show (Instruction (OpCode (KIL b) Implied) []) = printf "KIL #$%02X" b
     show (Instruction (OpCode mn am) op) =
         show mn ++
         case am of

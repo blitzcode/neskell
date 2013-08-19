@@ -14,12 +14,12 @@
 ; 'instr_test_ref_disasm.asm'. Those two files were generated using the tools
 ; of 6502js (https://github.com/skilldrick/6502js). The hexdump output
 ; can be converted to a binary with 'cat hexdmp | xxd -r -seek -1536 > bin'.
-; Note that all instruction arguments are sequential numbers from $00 to $AB. A
+; Note that all instruction arguments are sequential numbers from $00. A
 ; bug in 6502js prevents the relative addressing in branch instructions to
 ; assemble, only labels can be targeted. As a workaround, all branch
 ; instructions target 'lbl' and were later manually fixed in the binary /
-; disassembly to their correct targets. We also handle 'DCB' slightly
-; different, see end of the file.
+; disassembly to their correct targets (sequential numbers). At the end of the
+; file are also all supported illegal / unofficial opcodes.
 ;
 ; References / Sources / Originals:
 ;
@@ -27,6 +27,7 @@
 ; http://e-tradition.net/bytes/6502/6502_instruction_set.html
 ; http://www.obelisk.demon.co.uk/6502/reference.html
 ; http://www.atariarchives.org/alp/appendix_1.php
+; http://visual6502.org/wiki/index.php?title=6502_all_256_Opcodes
 
 ; Instructions with all addressing modes in alphabetical order
 ; ------------------------------------------------------------
@@ -947,15 +948,53 @@ TXS          ;Implied       $9A  1   2
 ;--------------------------------------
 TYA          ;Implied       $98  1   2
 
+; DCB -  Define Constant Byte
+;
+; Not an actual opcode, used for embedding data into the assembly, we map any
+; unsupported illegal instructions to it
+
+DCB #$AB
+
+; Illegal / Unofficial Opcodes Start Here
+; ---------------------------------------
+
+; KIL - Crash Processor
+;
+; Illegal opcode which puts the CPU in an unrecoverable state
+;
+;                                     N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;KIL          Implied       $02  1   -
+;KIL          Implied       $12  1   -
+;KIL          Implied       $22  1   -
+;KIL          Implied       $32  1   -
+;KIL          Implied       $42  1   -
+;KIL          Implied       $52  1   -
+;KIL          Implied       $62  1   -
+;KIL          Implied       $72  1   -
+;KIL          Implied       $92  1   -
+;KIL          Implied       $B2  1   -
+;KIL          Implied       $D2  1   -
+;KIL          Implied       $F2  1   -
+
+DCB #$02
+DCB #$12
+DCB #$22
+DCB #$32
+DCB #$42
+DCB #$52
+DCB #$62
+DCB #$72
+DCB #$92
+DCB #$B2
+DCB #$D2
+DCB #$F2
+
 ; +  = Add 1 to cycles if page boundary is crossed during address computation
 ;      Store instructions have this extra cycle always build in as they can't
 ;      do a false write when a carry on the address LSB occurs
 ; ++ = Add 1 to cycles if branch is taken, one more if branch occurs to different page
-
-; DCB -  Define Constant Byte
-;
-; Not an actual opcode, used for embedding data into the assembly, we map any
-; illegal instructions to it
-
-DCB #$AB
 

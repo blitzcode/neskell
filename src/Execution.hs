@@ -221,6 +221,7 @@ detectLoopOnPC inst = do
         Instruction (OpCode BPL _) [0xFE] -> return . not . getFlag FN =<< load8 SR
         Instruction (OpCode BVS _) [0xFE] -> return .       getFlag FV =<< load8 SR
         Instruction (OpCode BVC _) [0xFE] -> return . not . getFlag FV =<< load8 SR
+        Instruction (OpCode (KIL _) _) _  -> return True
         _                                 -> return False
 
 {-# INLINE execute #-}
@@ -803,6 +804,9 @@ execute inst@(Instruction (OpCode mn am) _) = do
         DCB _ -> do
             trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
             update16 PC (1 +)
+            advCycles 1
+        KIL _ -> do
+            trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
             advCycles 1
     traceM $ do
         cpustate <- showCPUState
