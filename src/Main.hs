@@ -483,7 +483,7 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "LAX Test" tracefn h emures
-            -- NESTest ROM test
+            -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
                 let emures = runEmulator [ (bin, 0x8000)
@@ -498,7 +498,7 @@ runTests = do
                                          ]
                                          True
                                          traceMB
-                checkEmuTestResult "NESTest ROM Test" tracefn h emures
+                checkEmuTestResult "NESTest CPU ROM Test" tracefn h emures
             {-
             -- Functional 6502 test
             do
