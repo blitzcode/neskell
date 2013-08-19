@@ -9,7 +9,7 @@ import MonadEmulator (LoadStore(..))
 import Util (srFromString)
 
 import Data.Monoid (All(..), getAll)
-import Data.Word (Word64)
+import Data.Word (Word8, Word64)
 import Control.Monad (when, unless)
 import Control.Monad.Writer (execWriterT, tell, WriterT)
 import Control.Monad.Error (throwError)
@@ -39,13 +39,19 @@ checkEmuTestResult ::
     String ->
     String ->
     Handle ->
-    ([Cond], [Cond], [Cond], String, B.ByteString) ->
+    ([Cond], [Cond], [Cond], String, String, B.ByteString) ->
     WriterT All IO ()
-checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust, trace) = do
+checkEmuTestResult testName tracefn h ( condSuccess
+                                      , condFailure
+                                      , condStop
+                                      , cpust
+                                      , lastInst
+                                      , trace
+                                      ) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
-                    "    Stop Reason      " ++ showCond condStop    ++ "\n" ++
-                    "    Unmet Conditions " ++ showCond condFailure ++ "\n" ++
-                    "    Met Conditions   " ++ showCond condSuccess ++ "\n"
+                    "    Stop Reason      " ++ showCond condStop         ++ "\n"  ++
+                    "    Unmet Conditions " ++ showCond condFailure      ++ "\n"  ++
+                    "    Met Conditions   " ++ showCond condSuccess      ++ "\n"
         showCond []     = "[ ]"
         showCond (x:[]) = "[ " ++ show x ++ " ]"
         showCond (x:xs) = "[ " ++ show x ++ "\n"
@@ -60,8 +66,9 @@ checkEmuTestResult testName tracefn h (condSuccess, condFailure, condStop, cpust
         tell $ All False
         liftIO $ do
             putStrLn $ testName ++ " " ++ resultStr ++
-                "    CPU State        "             ++ cpust   ++ "\n" ++
-                "    Trace            Written to '" ++ tracefn ++ "'"
+                "    CPU State        "             ++ cpust    ++ "\n" ++
+                "    Last Instruction '"            ++ lastInst ++ "'\n" ++
+                "    Trace            Written to '" ++ tracefn  ++ "'"
             hFlush stdout -- Show results immediately, don't wait for other tests
 
     -- After days of debugging an out-of-memory error, it became clear that the

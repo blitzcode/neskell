@@ -14,7 +14,8 @@ import Execution
 import Instruction
 
 import qualified Data.ByteString.Lazy as B
-import Data.Word (Word16, Word64)
+import Data.Word (Word8, Word16, Word64)
+import Data.Monoid (getAll, All(..), mempty, (<>))
 import Control.Monad (when, unless, filterM)
 import Control.Applicative ((<$>))
 import Text.Printf
@@ -37,25 +38,31 @@ instance Show Cond where
     show CondLoopPC       = "CondLoopPC"
 
 {-# INLINE checkCond #-}
-checkCond :: MonadEmulator m => Cond -> m Bool
-checkCond cond =
+checkCond :: MonadEmulator m => Instruction -> Cond -> m Bool
+checkCond inst@(Instruction (OpCode decMn _) _) cond = -- Instruction is passed just to avoid decoding 2x
     case cond of
         CondLS     ls w -> case w of Left w8 -> (== w8) <$> load8 ls; Right w16 -> (== w16) <$> load16 ls
-        CondOpC    mn   -> do (Instruction (OpCode decMn _) _) <- decodeInstructionM
-                              return $ decMn == mn
+        CondOpC    mn   -> return $ decMn == mn
         CondCycleR l h  -> do c <- getCycles
                               return $ (c >= l) && (c <= h)
-        CondLoopPC      -> detectLoopOnPC =<< decodeInstructionM
+        CondLoopPC      -> detectLoopOnPC inst
+
+traceMemory :: MonadEmulator m => Word16 -> Word16 -> m ()
+traceMemory offs len =
+    let go [] = return mempty
+        go xs = do let (ls@(x:_), rest) = splitAt 16 xs
+                   line <- mapM (load8 . Addr) ls
+                   let zero = all (== 0) line
+                   unless zero . trace $ printf "%04X" x ++ concatMap (printf " %02X") line ++ "\n"
+                   (All zero <>) <$> go rest
+     in do allzero <- getAll <$> go [offs..offs + len - 1]
+           when allzero $ trace "(All Zero)\n"
 
 loadBinary :: MonadEmulator m => B.ByteString -> Word16 -> m ()
-loadBinary bin offs = do
-    mapM_ (\i -> do let w8   = B.index bin i
-                        addr = offs + fromIntegral i 
-                    store8 (Addr addr) w8
-                    -- TODO: This doesn't work if we start at an address not
-                    --       divisible by 16
-                    when (addr `mod` 16 == 0) . trace . printf "\n%04X" $ addr
-                    trace $ printf " %02X" w8)
+loadBinary bin offs =
+    mapM_ (\i -> let w8   = B.index bin i
+                     addr = offs + fromIntegral i 
+                  in store8 (Addr addr) w8)
           [0..B.length bin - 1]
 
 runEmulator ::
@@ -69,13 +76,15 @@ runEmulator ::
     , [Cond]                    -- ...not met
     , [Cond]                    -- Stopping conditions met
     , String                    -- Debug string of last CPU state
+    , String                    -- Last instruction
     , B.ByteString              -- Last traceMB MB of the execution trace
     )
 runEmulator bins setup stopc verc traceEnable traceMB =
     runSTEmulator traceEnable traceMB $ do
-        trace "Load Binary:\n"
-        mapM_ (\(bin, offs) -> loadBinary bin offs) bins
-        trace "\n\nSetup: "
+        trace "Load Binary:\n\n"
+        mapM_ (\(bin, offs) -> do loadBinary bin offs
+                                  traceMemory offs . fromIntegral . B.length $ bin) bins
+        trace "\nSetup: "
         mapM_ (\(ls, w) ->
             case w of
                 Left  w8  -> store8Trace  ls w8
@@ -86,16 +95,29 @@ runEmulator bins setup stopc verc traceEnable traceMB =
         trace "\n"
         -- Inlining everything (check, decode, execute...) in this main loop makes a huge difference 
         let loop = do
-                stop <- or <$> mapM (checkCond) stopc
+                inst <- decodeInstructionM
+                stop <- or <$> mapM (checkCond inst) stopc
                 unless stop $ do
-                    execute =<< decodeInstructionM
+                    execute inst
                     loop
          in do
                 loop
-                condSuccess <- filterM               (checkCond)   verc
-                condFailure <- filterM (\x -> not <$> checkCond x) verc
-                condStop    <- filterM               (checkCond)   stopc
+                -- Done, trace the first 512 bytes of memory and return other diagnostic information
+                trace "\nZero Page:\n\n"
+                traceMemory 0x0000 0xFF
+                trace "\nStack:\n\n"
+                traceMemory 0x0100 0xFF
+                inst        <- decodeInstructionM
+                condSuccess <- filterM               (checkCond inst  ) verc
+                condFailure <- filterM (\x -> not <$> checkCond inst x) verc
+                condStop    <- filterM               (checkCond inst  ) stopc
                 cpust       <- showCPUState
                 cputrace    <- getTrace
-                return (condSuccess, condFailure, condStop, cpust, cputrace)
+                return ( condSuccess
+                       , condFailure
+                       , condStop
+                       , cpust
+                       , show inst
+                       , cputrace
+                       )
 
