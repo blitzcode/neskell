@@ -1,5 +1,5 @@
 
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ViewPatterns  #-}
 
 module Emulator ( runEmulator
                 , Cond(..)
@@ -38,8 +38,9 @@ instance Show Cond where
     show CondLoopPC       = "CondLoopPC"
 
 {-# INLINE checkCond #-}
+-- Instruction is passed just to avoid decoding 2x
 checkCond :: MonadEmulator m => Instruction -> Cond -> m Bool
-checkCond inst@(Instruction (OpCode _ decMn _) _) cond = -- Instruction is passed just to avoid decoding 2x
+checkCond inst@(Instruction (viewOpCode -> OpCode _ decMn _) _) cond =
     case cond of
         CondLS     ls w -> case w of Left w8 -> (== w8) <$> load8 ls; Right w16 -> (== w16) <$> load16 ls
         CondOpC    mn   -> return $ decMn == mn

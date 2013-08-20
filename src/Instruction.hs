@@ -1,8 +1,12 @@
 
+{-# LANGUAGE ViewPatterns #-}
+
 module Instruction ( AddressMode(..)
                    , operandLen
                    , Mnemonic(..)
-                   , OpCode(..)
+                   , OpCodeView(..)
+                   , OpCode
+                   , viewOpCode
                    , decodeOpCode
                    , Instruction(..)
                    , instructionLen
@@ -69,11 +73,14 @@ data Mnemonic =
     | DCB | KIL | LAX | SAX
       deriving (Show, Eq)
 
--- We store the binary representation as well so we can later distinguish otherwise indentical instructions
-data OpCode = OpCode Word8 Mnemonic AddressMode
+-- We store the binary representation as well so we can later distinguish
+-- otherwise identical instructions. The actual OpCode type is abstract, use
+-- view patterns to access
+data OpCodeView = OpCode Word8 Mnemonic AddressMode
+newtype OpCode = OpCodeC { viewOpCode :: OpCodeView }
 
 decodeOpCode :: Word8 -> OpCode
-decodeOpCode w = case w of
+decodeOpCode w = OpCodeC $ case w of
     -- Official
     ; 0x69 -> OpCode w ADC Immediate   ; 0x65 -> OpCode w ADC ZeroPage    ; 0x75 -> OpCode w ADC ZeroPageX
     ; 0x6D -> OpCode w ADC Absolute    ; 0x7D -> OpCode w ADC AbsoluteX   ; 0x79 -> OpCode w ADC AbsoluteY
@@ -178,17 +185,17 @@ isAmbiguousMn w8 mn = case mn of
     _   -> False
 
 instance Show Instruction where
-    show (Instruction (OpCode w mn am) op) =
+    show (Instruction (viewOpCode -> OpCode w mn am) op) =
         show mn ++ (if isAmbiguousMn w mn then printf "($%02X)" w else "") ++ showAMAndOP am op
 
 {-# INLINE instructionLen #-}
 instructionLen :: Instruction -> Int
-instructionLen (Instruction (OpCode _ _ a) _) = 1 + operandLen a
+instructionLen (Instruction (viewOpCode -> OpCode _ _ a) _) = 1 + operandLen a
 
 decodeInstruction :: VU.Vector Word8 -> Int -> Maybe Instruction
 decodeInstruction mem pc = do
     opMem <- mem VU.!? pc
-    let opc@(OpCode _ _ am) = decodeOpCode opMem
+    let opc@(viewOpCode -> OpCode _ _ am) = decodeOpCode opMem
     case operandLen am of
         -- TODO: We should probably just return a DCB in case the operands are missing
         1 -> do op1 <- mem VU.!? (pc + 1)
@@ -202,7 +209,7 @@ decodeInstruction mem pc = do
 decodeInstructionM :: MonadEmulator m => m Instruction
 decodeInstructionM = do
     pc <- load16 PC
-    opc@(OpCode _ _ am) <- decodeOpCode <$> (load8 $ Addr pc)
+    opc@(viewOpCode -> OpCode _ _ am) <- decodeOpCode <$> (load8 $ Addr pc)
     Instruction opc <$> case operandLen am of
             1 -> mapM (load8 . Addr) [ pc + 1         ]
             2 -> mapM (load8 . Addr) [ pc + 1, pc + 2 ]

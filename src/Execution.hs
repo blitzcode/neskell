@@ -1,4 +1,6 @@
 
+{-# LANGUAGE ViewPatterns #-}
+
 module Execution ( execute
                  , detectLoopOnPC
                  , store8Trace
@@ -32,7 +34,7 @@ store16Trace ls val = do
 -- return value
 
 getOperandAddr8 :: MonadEmulator m => Instruction -> m LoadStore
-getOperandAddr8 inst@(Instruction (OpCode _ _ am) oper) =
+getOperandAddr8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of 
         []           -> case am of Accumulator -> return A
                                    _           -> err
@@ -62,7 +64,7 @@ getOperandAddr8 inst@(Instruction (OpCode _ _ am) oper) =
     err = trace ("getOperandAddr8: AM/OpLen Error: " ++ show inst) >> return A
 
 loadOperand8 :: MonadEmulator m => Instruction -> m Word8
-loadOperand8 inst@(Instruction (OpCode _ _ am) oper) =
+loadOperand8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of 
         [w8] -> case am of Immediate -> return w8
                            Relative  -> return w8
@@ -87,7 +89,7 @@ storeOperand8 inst val = (\ls -> store8Trace ls val) =<< getOperandAddr8 inst
 -- addressing
 
 loadOperand16 :: MonadEmulator m => Instruction -> m Word16
-loadOperand16 inst@(Instruction (OpCode _ _ am) oper) =
+loadOperand16 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
         (opl:oph:[]) -> case am of
             Absolute  ->    return $ makeW16 opl oph
@@ -176,7 +178,7 @@ getAMCycles am =
 
 -- Determine penalty for page crossing in load instructions
 getOperandPageCross :: MonadEmulator m => Instruction -> m Bool
-getOperandPageCross (Instruction (OpCode _ _ am) oper) =
+getOperandPageCross (Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of 
         [w8]      -> case am of IndIdx -> do l <- load8 . Addr . fromIntegral $ w8
                                              y <- load8 Y
@@ -211,22 +213,23 @@ samePage a b = (a .&. 0xFF00) == (b .&. 0xFF00)
 detectLoopOnPC :: MonadEmulator m => Instruction -> m Bool
 detectLoopOnPC inst = do
     case inst of
-                                             -- We don't want to have an operand trace here
-        Instruction (OpCode _ JMP _) _      -> runNoTrace $ (==) <$> load16 PC <*> loadOperand16 inst
-        Instruction (OpCode _ BCS _) [0xFE] -> return .       getFlag FC =<< load8 SR
-        Instruction (OpCode _ BCC _) [0xFE] -> return . not . getFlag FC =<< load8 SR
-        Instruction (OpCode _ BEQ _) [0xFE] -> return .       getFlag FZ =<< load8 SR
-        Instruction (OpCode _ BNE _) [0xFE] -> return . not . getFlag FZ =<< load8 SR
-        Instruction (OpCode _ BMI _) [0xFE] -> return .       getFlag FN =<< load8 SR
-        Instruction (OpCode _ BPL _) [0xFE] -> return . not . getFlag FN =<< load8 SR
-        Instruction (OpCode _ BVS _) [0xFE] -> return .       getFlag FV =<< load8 SR
-        Instruction (OpCode _ BVC _) [0xFE] -> return . not . getFlag FV =<< load8 SR
-        Instruction (OpCode _ KIL _) _      -> return True
-        _                                   -> return False
+        Instruction (viewOpCode -> OpCode _ JMP _) _      ->
+            -- We don't want to have an operand trace here
+            runNoTrace $ (==) <$> load16 PC <*> loadOperand16 inst
+        Instruction (viewOpCode -> OpCode _ BCS _) [0xFE] -> return .       getFlag FC =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ BCC _) [0xFE] -> return . not . getFlag FC =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ BEQ _) [0xFE] -> return .       getFlag FZ =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ BNE _) [0xFE] -> return . not . getFlag FZ =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ BMI _) [0xFE] -> return .       getFlag FN =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ BPL _) [0xFE] -> return . not . getFlag FN =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ BVS _) [0xFE] -> return .       getFlag FV =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ BVC _) [0xFE] -> return . not . getFlag FV =<< load8 SR
+        Instruction (viewOpCode -> OpCode _ KIL _) _      -> return True
+        _                                                 -> return False
 
 {-# INLINE execute #-}
 execute :: MonadEmulator m => Instruction -> m ()
-execute inst@(Instruction (OpCode w mn am) _) = do
+execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
     let ilen = fromIntegral $ instructionLen inst :: Word16
     case mn of
         LDA -> do
