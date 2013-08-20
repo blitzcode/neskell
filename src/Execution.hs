@@ -21,7 +21,7 @@ import Control.Applicative ((<$>), (<*>))
 store8Trace :: MonadEmulator m => LoadStore -> Word8  -> m ()
 store8Trace ls val = do
     trace $ printf "0x%02X→%s, " val (show ls)
-    store8 ls val 
+    store8 ls val
 store16Trace :: MonadEmulator m => LoadStore -> Word16 -> m ()
 store16Trace ls val = do
     trace $ printf "0x%04X→%s, " val (show ls)
@@ -35,7 +35,7 @@ store16Trace ls val = do
 
 getOperandAddr8 :: MonadEmulator m => Instruction -> m LoadStore
 getOperandAddr8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
-    case oper of 
+    case oper of
         []           -> case am of Accumulator -> return A
                                    _           -> err
         [w8]         -> case am of ZeroPage    -> return . Addr $ fromIntegral w8
@@ -65,7 +65,7 @@ getOperandAddr8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
 
 loadOperand8 :: MonadEmulator m => Instruction -> m Word8
 loadOperand8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
-    case oper of 
+    case oper of
         [w8] -> case am of Immediate -> return w8
                            Relative  -> return w8
                            _         -> loadAndTrace
@@ -179,7 +179,7 @@ getAMCycles am =
 -- Determine penalty for page crossing in load instructions
 getOperandPageCross :: MonadEmulator m => Instruction -> m Bool
 getOperandPageCross (Instruction (viewOpCode -> OpCode _ _ am) oper) =
-    case oper of 
+    case oper of
         [w8]      -> case am of IndIdx -> do l <- load8 . Addr . fromIntegral $ w8
                                              y <- load8 Y
                                              return    $ l + y < l
@@ -211,7 +211,7 @@ samePage a b = (a .&. 0xFF00) == (b .&. 0xFF00)
 
 -- Detect if the current instruction jumps to itself (infinite loop)
 detectLoopOnPC :: MonadEmulator m => Instruction -> m Bool
-detectLoopOnPC inst = do
+detectLoopOnPC inst =
     case inst of
         Instruction (viewOpCode -> OpCode _ JMP _) _      ->
             -- We don't want to have an operand trace here
@@ -584,7 +584,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let baseC = getAMCycles am
             trace $ printf "\n%s (%s%ib, %i%sC): "
                 (show inst)
-                (if w == 0xEB then "Illegal OpCode, " else "") -- 0xEB is the only illegal variant
+                (if w == 0xEB then "Illegal, " else "") -- 0xEB is the only illegal variant
                 ilen
                 baseC
                 (if penalty /= 0 then "+1"  else "")
@@ -789,7 +789,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let baseC = getAMCycles am
             trace $ printf "\n%s (%s%ib, %i%sC): "
                 (show inst)
-                (if w /= 0xEA then "Illegal OpCode, " else "") -- 0xEA is the only official NOP
+                (if w /= 0xEA then "Illegal, " else "") -- 0xEA is the only official NOP
                 ilen
                 baseC
                 (if penalty /= 0 then "+1"  else "")
@@ -804,7 +804,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             store16Trace PC pc
             advCycles baseC
         BRK -> do
-            let baseC = 7 
+            let baseC = 7
             trace $ printf "\n%s (%ib, %iC): " (show inst) ilen baseC
             pc <- load16 PC
             storeStack16 $ pc + ilen + 1 -- Don't forget the padding byte
@@ -815,16 +815,16 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             store16Trace PC ivec
             advCycles baseC
         DCB -> do
-            trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen (1 :: Int)
             update16 PC (1 +)
             advCycles 1
         KIL -> do
-            trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen (1 :: Int)
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen (1 :: Int)
             advCycles 1
         LAX -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace $ printf "\n%s (Illegal OpCode, %s%ib, %i%sC): "
+            trace $ printf "\n%s (Illegal, %s%ib, %i%sC): "
                 (show inst)
                 -- 0xAB / LAX Immediate is highly unstable, just execute it as
                 -- expected, unlikely anybody relies on its exact behavior
@@ -840,10 +840,118 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             advCycles $ baseC + penalty
         SAX -> do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
-            trace $ printf "\n%s (Illegal OpCode, %ib, %iC): " (show inst) ilen baseC
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen baseC
             a <- load8 A
             x <- load8 X
             storeOperand8 inst $ a .&. x
+            update16 PC (ilen +)
+            advCycles baseC
+        DCP -> do
+            let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen baseC
+            op <- loadOperand8 inst
+            let m = op - 1
+            storeOperand8 inst m
+            a  <- load8 A
+            sr <- load8 SR
+            let isN = testBit (a - m) 7
+            store8Trace SR
+                . modifyFlag FN isN
+                . modifyFlag FZ (a == op)
+                . modifyFlag FC (a >= op)
+                $ sr
+            update16 PC (ilen +)
+            advCycles baseC
+        ISC -> do
+            let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen baseC
+            op <- loadOperand8 inst
+            let m = op + 1
+            storeOperand8 inst m
+            sr <- load8 SR
+            a  <- load8 A
+            let carry = b2W8 . not $ getFlag FC sr
+            let (r, ncarry) = case getFlag FD sr of
+                                  False -> let res = a - (m + carry) :: Word8
+                                            in (res, not $ if carry == 1 then res >= a else res > a)
+                                  -- http://forum.6502.org/viewtopic.php?p=13441
+                                  True -> let ix     = fromIntegral m :: Int
+                                              xdec   = ((ix `shiftR` 4) * 10) + (ix .&. 0x0F)
+                                                       + fromIntegral carry
+                                              ia     = fromIntegral a :: Int
+                                              adec   = ((ia `shiftR` 4) * 10) + (ia .&. 0x0F) - xdec
+                                              carry' = adec < 0
+                                              adec'  = if carry' then adec + 100 else adec
+                                              res    = ((adec' `div` 10) `shiftL` 4) + (adec' `mod` 10)
+                                           in (fromIntegral res :: Word8, not carry')
+            store8Trace A r
+            -- http://forums.nesdev.com/viewtopic.php?p=60520
+            let overflow = (a `xor` r) .&. ((complement m) `xor` r) .&. 0x80 /= 0
+            store8Trace SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            update16 PC (ilen +)
+            advCycles baseC
+        RLA -> do
+            let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen baseC
+            op <- loadOperand8 inst
+            carry <- getFlag FC <$> load8 SR
+            let rol = (op `shiftL` 1) .|. b2W8 carry
+            storeOperand8 inst rol
+            a <- load8 A
+            let and' = rol .&. a
+            updateNZC and' $ testBit op 7
+            store8Trace A and'
+            update16 PC (ilen +)
+            advCycles baseC
+        RRA -> do
+            let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen baseC
+            op <- loadOperand8 inst
+            rorcarry <- getFlag FC <$> load8 SR
+            let ror = (op `shiftR` 1) .|. if rorcarry then 128 else 0
+            storeOperand8 inst ror
+            sr <- load8 SR
+            a  <- load8 A
+            let carry = b2W8 $ testBit op 0
+            let (r, ncarry) = case getFlag FD sr of
+                                  False -> let res = a + ror + carry
+                                            in (res, if carry == 1 then res <= a else res < a)
+                                  -- http://forum.6502.org/viewtopic.php?p=13441
+                                  True -> let n0     = carry + (a .&. 0x0F) + (ror .&. 0x0F)
+                                              hcarry = n0 >= 10
+                                              n1     = b2W8 hcarry + (a `shiftR` 4) + (ror `shiftR` 4)
+                                              n0'    = if hcarry then n0 - 10 else n0
+                                              carry' = n1 >= 10
+                                              n1'    = if ncarry then n1 - 10 else n1
+                                           in ((n1' `shiftL` 4) + n0', carry')
+            store8Trace A r
+            -- http://forums.nesdev.com/viewtopic.php?p=60520
+            let overflow = (a `xor` r) .&. (ror `xor` r) .&. 0x80 /= 0
+            store8Trace SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            update16 PC (ilen +)
+            advCycles baseC
+        SLO -> do
+            let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen baseC
+            op <- loadOperand8 inst
+            let asl = op `shiftL` 1
+            storeOperand8 inst asl
+            a <- load8 A
+            let r = asl .|. a
+            updateNZC r $ testBit op 7
+            store8Trace A r
+            update16 PC (ilen +)
+            advCycles baseC
+        SRE -> do
+            let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "\n%s (Illegal, %ib, %iC): " (show inst) ilen baseC
+            op <- loadOperand8 inst
+            let lsr = op `shiftR` 1
+            storeOperand8 inst lsr
+            a <- load8 A
+            let r = lsr `xor` a
+            updateNZC r $ testBit op 0
+            store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
     traceM $ do

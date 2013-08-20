@@ -9,7 +9,7 @@ import MonadEmulator (LoadStore(..))
 import Util (srFromString)
 
 import Data.Monoid (All(..), getAll)
-import Data.Word (Word8, Word64)
+import Data.Word (Word64)
 import Control.Monad (when, unless)
 import Control.Monad.Writer (execWriterT, tell, WriterT)
 import Control.Monad.Error (throwError)
@@ -67,7 +67,7 @@ checkEmuTestResult testName tracefn h ( condSuccess
         liftIO $ do
             putStrLn $ testName ++ " " ++ resultStr ++
                 "    CPU State        "             ++ cpust    ++ "\n" ++
-                "    Last Instruction '"            ++ lastInst ++ "'\n" ++
+                "    Last Instruction "             ++ lastInst ++ "\n" ++
                 "    Trace            Written to '" ++ tracefn  ++ "'"
             hFlush stdout -- Show results immediately, don't wait for other tests
 
@@ -511,7 +511,7 @@ runTests = do
                                          , (SP, Left 0xFD)
                                          ]
                                          [ CondLoopPC
-                                         , CondCycleR 20000 (maxBound :: Word64) ]
+                                         , CondCycleR 30000 (maxBound :: Word64) ]
                                          [ CondLS PC (Right 0x0000) 
                                          ]
                                          True

@@ -28,6 +28,8 @@
 ; http://www.obelisk.demon.co.uk/6502/reference.html
 ; http://www.atariarchives.org/alp/appendix_1.php
 ; http://visual6502.org/wiki/index.php?title=6502_all_256_Opcodes
+; http://wiki.nesdev.com/w/index.php/Programming_with_unofficial_opcodes
+; http://www.oxyron.de/html/opcodes02.html
 
 ; Instructions with all addressing modes in alphabetical order
 ; ------------------------------------------------------------
@@ -1144,10 +1146,224 @@ DCB #$00
 ;
 ; Just an alias for the immediate SBC instruction, identical behavior.
 ;
+;                                     N Z C I D V
+;                                     + + + - - +
+;
 ;SYNTAX        MODE          HEX LEN TIM
 ;---------------------------------------
 ;SBC($EB) #$00 Immediate     $EB  2   2
 DCB #$EB
+DCB #$00
+
+; DCP - Combined DEC + CMP
+;
+; Equivalent to DEC value then CMP value, except supporting more addressing
+; modes.
+;
+;                                     N Z C I D V
+;                                     + + + - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;DCP $00      Zero Page     $C7  2   5
+DCB #$C7
+DCB #$00
+;DCP $00,X    Zero Page,X   $D7  2   6
+DCB #$D7
+DCB #$00
+;DCP $0000    Absolute      $CF  3   6
+DCB #$CF
+DCB #$00
+DCB #$00
+;DCP $0000,X  Absolute,X    $DF  3   7
+DCB #$DF
+DCB #$00
+DCB #$00
+;DCP $0000,Y  Absolute,Y    $DB  3   7
+DCB #$DB
+DCB #$00
+DCB #$00
+;DCP ($00,X)  IdxInd        $C3  2   8
+DCB #$C3
+DCB #$00
+;DCP ($00),Y  IndIdx        $D3  2   8
+DCB #$D3
+DCB #$00
+
+; ISC - Combined INC + SBC
+;
+; Equivalent to INC value then SBC value, except supporting more addressing
+; modes.
+;
+;                                     N Z C I D V
+;                                     + + + - - +
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;ISC $00      Zero Page     $E7  2   5
+DCB #$E7
+DCB #$00
+;ISC $00,X    Zero Page,X   $F7  2   6
+DCB #$F7
+DCB #$00
+;ISC $0000    Absolute      $EF  3   6
+DCB #$EF
+DCB #$00
+DCB #$00
+;ISC $0000,X  Absolute,X    $FF  3   7
+DCB #$FF
+DCB #$00
+DCB #$00
+;ISC $0000,Y  Absolute,Y    $FB  3   7
+DCB #$FB
+DCB #$00
+DCB #$00
+;ISC ($00,X)  IdxInd        $E3  2   8
+DCB #$E3
+DCB #$00
+;ISC ($00),Y  IndIdx        $F3  2   8
+DCB #$F3
+DCB #$00
+
+; RLA - Combined ROL + AND
+;
+; Equivalent to ROL value then AND value, except supporting more addressing
+; modes.
+;
+;                                     N Z C I D V
+;                                     + + + - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;RLA $00      Zero Page     $27  2   5
+DCB #$27
+DCB #$00
+;RLA $00,X    Zero Page,X   $37  2   6
+DCB #$37
+DCB #$00
+;RLA $0000    Absolute      $2F  3   6
+DCB #$2F
+DCB #$00
+DCB #$00
+;RLA $0000,X  Absolute,X    $3F  3   7
+DCB #$3F
+DCB #$00
+DCB #$00
+;RLA $0000,Y  Absolute,Y    $3B  3   7
+DCB #$3B
+DCB #$00
+DCB #$00
+;RLA ($00,X)  IdxInd        $23  2   8
+DCB #$23
+DCB #$00
+;RLA ($00),Y  IndIdx        $33  2   8
+DCB #$33
+DCB #$00
+
+; RLA - Combined ROR + ADC
+;
+; Equivalent to ROR value then ADC value, except supporting more addressing
+; modes. Essentially this computes A + value / 2, where value is 9-bit and the
+; division is rounded up. 
+;
+;                                     N Z C I D V
+;                                     + + + - - +
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;RRA $00      Zero Page     $67  2   5
+DCB #$67
+DCB #$00
+;RRA $00,X    Zero Page,X   $77  2   6
+DCB #$77
+DCB #$00
+;RRA $0000    Absolute      $6F  3   6
+DCB #$6F
+DCB #$00
+DCB #$00
+;RRA $0000,X  Absolute,X    $7F  3   7
+DCB #$7F
+DCB #$00
+DCB #$00
+;RRA $0000,Y  Absolute,Y    $7B  3   7
+DCB #$7B
+DCB #$00
+DCB #$00
+;RRA ($00,X)  IdxInd        $63  2   8
+DCB #$63
+DCB #$00
+;RRA ($00),Y  IndIdx        $73  2   8
+DCB #$73
+DCB #$00
+
+; SLO - Combined ASL + ORA
+;
+; Equivalent to ASL value then ORA value, except supporting more addressing
+; modes.
+;
+;                                     N Z C I D V
+;                                     + + + - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;SLO $00      Zero Page     $07  2   5
+DCB #$07
+DCB #$00
+;SLO $00,X    Zero Page,X   $17  2   6
+DCB #$17
+DCB #$00
+;SLO $0000    Absolute      $0F  3   6
+DCB #$0F
+DCB #$00
+DCB #$00
+;SLO $0000,X  Absolute,X    $1F  3   7
+DCB #$1F
+DCB #$00
+DCB #$00
+;SLO $0000,Y  Absolute,Y    $1B  3   7
+DCB #$1B
+DCB #$00
+DCB #$00
+;SLO ($00,X)  IdxInd        $03  2   8
+DCB #$03
+DCB #$00
+;SLO ($00),Y  IndIdx        $13  2   8
+DCB #$13
+DCB #$00
+
+; SRE - Combined LSR + EOR
+;
+; Equivalent to LSR value then EOR value, except supporting more addressing
+; modes.
+;
+;                                     N Z C I D V
+;                                     + + + - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;SRE $00      Zero Page     $47  2   5
+DCB #$47
+DCB #$00
+;SRE $00,X    Zero Page,X   $57  2   6
+DCB #$57
+DCB #$00
+;SRE $0000    Absolute      $4F  3   6
+DCB #$4F
+DCB #$00
+DCB #$00
+;SRE $0000,X  Absolute,X    $5F  3   7
+DCB #$5F
+DCB #$00
+DCB #$00
+;SRE $0000,Y  Absolute,Y    $5B  3   7
+DCB #$5B
+DCB #$00
+DCB #$00
+;SRE ($00,X)  IdxInd        $43  2   8
+DCB #$43
+DCB #$00
+;SRE ($00),Y  IndIdx        $53  2   8
+DCB #$53
 DCB #$00
 
 ; +  = Add 1 to cycles if page boundary is crossed during address computation

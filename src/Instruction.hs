@@ -14,8 +14,7 @@ module Instruction ( AddressMode(..)
                    , decodeInstructionM
                    ) where
 
--- This module contains types and function for representing and decoding
--- all official instructions of the 6502
+-- This module contains types and function for representing and decoding all instructions of the 6502
 
 import Util (makeW16)
 import MonadEmulator (MonadEmulator(..), LoadStore(..))
@@ -70,12 +69,13 @@ data Mnemonic =
     | STX | STY | TAX | TAY | TSX | TXA
     | TXS | TYA
     -- Illegal / Unofficial
-    | DCB | KIL | LAX | SAX
+    | DCB | KIL | LAX | SAX | DCP | ISC
+    | RLA | RRA | SLO | SRE
       deriving (Show, Eq)
 
 -- We store the binary representation as well so we can later distinguish
 -- otherwise identical instructions. The actual OpCode type is abstract, use
--- view patterns to access
+-- view patterns to access (http://stackoverflow.com/a/8172768/1898360)
 data OpCodeView = OpCode Word8 Mnemonic AddressMode
 newtype OpCode = OpCodeC { viewOpCode :: OpCodeView }
 
@@ -151,6 +151,20 @@ decodeOpCode w = let o = OpCode w in OpCodeC $ case w of
     ; 0xAF -> o LAX Absolute    ; 0xBF -> o LAX AbsoluteY   ; 0xA3 -> o LAX IdxInd
     ; 0xB3 -> o LAX IndIdx      ; 0x87 -> o SAX ZeroPage    ; 0x97 -> o SAX ZeroPageY
     ; 0x8F -> o SAX Absolute    ; 0x83 -> o SAX IdxInd      ; 0xEB -> o SBC Immediate
+    ; 0xC7 -> o DCP ZeroPage    ; 0xD7 -> o DCP ZeroPageX   ; 0xCF -> o DCP Absolute
+    ; 0xDF -> o DCP AbsoluteX   ; 0xDB -> o DCP AbsoluteY   ; 0xC3 -> o DCP IdxInd
+    ; 0xD3 -> o DCP IndIdx      ; 0xE7 -> o ISC ZeroPage    ; 0xF7 -> o ISC ZeroPageX
+    ; 0xEF -> o ISC Absolute    ; 0xFF -> o ISC AbsoluteX   ; 0xFB -> o ISC AbsoluteY
+    ; 0xE3 -> o ISC IdxInd      ; 0xF3 -> o ISC IndIdx      ; 0x27 -> o RLA ZeroPage
+    ; 0x37 -> o RLA ZeroPageX   ; 0x2F -> o RLA Absolute    ; 0x3F -> o RLA AbsoluteX
+    ; 0x3B -> o RLA AbsoluteY   ; 0x23 -> o RLA IdxInd      ; 0x33 -> o RLA IndIdx
+    ; 0x67 -> o RRA ZeroPage    ; 0x77 -> o RRA ZeroPageX   ; 0x6F -> o RRA Absolute
+    ; 0x7F -> o RRA AbsoluteX   ; 0x7B -> o RRA AbsoluteY   ; 0x63 -> o RRA IdxInd
+    ; 0x73 -> o RRA IndIdx      ; 0x07 -> o SLO ZeroPage    ; 0x17 -> o SLO ZeroPageX
+    ; 0x0F -> o SLO Absolute    ; 0x1F -> o SLO AbsoluteX   ; 0x1B -> o SLO AbsoluteY
+    ; 0x03 -> o SLO IdxInd      ; 0x13 -> o SLO IndIdx      ; 0x47 -> o SRE ZeroPage
+    ; 0x57 -> o SRE ZeroPageX   ; 0x4F -> o SRE Absolute    ; 0x5F -> o SRE AbsoluteX
+    ; 0x5B -> o SRE AbsoluteY   ; 0x43 -> o SRE IdxInd      ; 0x53 -> o SRE IndIdx
     ; _    -> o DCB Implied
 
 data Instruction = Instruction OpCode [Word8]
@@ -171,7 +185,7 @@ showAMAndOP am op = case am of
     IdxInd      -> case op of [opl]        -> printf " ($%02X,X)"           opl     ; _ -> "OpLnErr"
     IndIdx      -> case op of [opl]        -> printf " ($%02X),Y"           opl     ; _ -> "OpLnErr"
 
--- Many illegal opcodes are identical in behavior and addressing mode, we need
+-- Some illegal opcodes are identical in behavior and addressing mode, we need
 -- to look at the actual binary encoding if we want to distinguish them. For
 -- mnemonics where legal and illegal variants exist, only flag the illegal ones
 -- as ambiguos so we don't clutter up the standard opcode disassembly

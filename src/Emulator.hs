@@ -14,7 +14,7 @@ import Execution
 import Instruction
 
 import qualified Data.ByteString.Lazy as B
-import Data.Word (Word8, Word16, Word64)
+import Data.Word (Word16, Word64)
 import Data.Monoid (getAll, All(..), mempty, (<>))
 import Control.Monad (when, unless, filterM)
 import Control.Applicative ((<$>))

@@ -19,10 +19,12 @@ import qualified Data.Vector.Unboxed.Mutable as VUM
 import Data.Word (Word8, Word16, Word64)
 import Control.Monad.ST (ST, runST)
 import Data.STRef (STRef, newSTRef, readSTRef, modifySTRef')
-import Control.Monad.Reader
+import Control.Monad.Reader (ReaderT, runReaderT, local, ask, asks)
 import Text.Printf
 import qualified Data.ByteString.Lazy as B
 import Control.Applicative (Applicative)
+import Control.Monad (when)
+import Control.Monad.Trans (lift)
 
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
 
