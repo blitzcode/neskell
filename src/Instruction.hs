@@ -80,97 +80,96 @@ data OpCodeView = OpCode Word8 Mnemonic AddressMode
 newtype OpCode = OpCodeC { viewOpCode :: OpCodeView }
 
 decodeOpCode :: Word8 -> OpCode
-decodeOpCode w = OpCodeC $ case w of
+decodeOpCode w = let o = OpCode w in OpCodeC $ case w of
     -- Official
-    ; 0x69 -> OpCode w ADC Immediate   ; 0x65 -> OpCode w ADC ZeroPage    ; 0x75 -> OpCode w ADC ZeroPageX
-    ; 0x6D -> OpCode w ADC Absolute    ; 0x7D -> OpCode w ADC AbsoluteX   ; 0x79 -> OpCode w ADC AbsoluteY
-    ; 0x61 -> OpCode w ADC IdxInd      ; 0x71 -> OpCode w ADC IndIdx      ; 0x29 -> OpCode w AND Immediate
-    ; 0x25 -> OpCode w AND ZeroPage    ; 0x35 -> OpCode w AND ZeroPageX   ; 0x2D -> OpCode w AND Absolute
-    ; 0x3D -> OpCode w AND AbsoluteX   ; 0x39 -> OpCode w AND AbsoluteY   ; 0x21 -> OpCode w AND IdxInd
-    ; 0x31 -> OpCode w AND IndIdx      ; 0x0A -> OpCode w ASL Accumulator ; 0x06 -> OpCode w ASL ZeroPage
-    ; 0x16 -> OpCode w ASL ZeroPageX   ; 0x0E -> OpCode w ASL Absolute    ; 0x1E -> OpCode w ASL AbsoluteX
-    ; 0x90 -> OpCode w BCC Relative    ; 0xB0 -> OpCode w BCS Relative    ; 0xF0 -> OpCode w BEQ Relative
-    ; 0x24 -> OpCode w BIT ZeroPage    ; 0x2C -> OpCode w BIT Absolute    ; 0x30 -> OpCode w BMI Relative
-    ; 0xD0 -> OpCode w BNE Relative    ; 0x10 -> OpCode w BPL Relative    ; 0x00 -> OpCode w BRK Implied
-    ; 0x50 -> OpCode w BVC Relative    ; 0x70 -> OpCode w BVS Relative    ; 0x18 -> OpCode w CLC Implied
-    ; 0xD8 -> OpCode w CLD Implied     ; 0x58 -> OpCode w CLI Implied     ; 0xB8 -> OpCode w CLV Implied
-    ; 0xC9 -> OpCode w CMP Immediate   ; 0xC5 -> OpCode w CMP ZeroPage    ; 0xD5 -> OpCode w CMP ZeroPageX
-    ; 0xCD -> OpCode w CMP Absolute    ; 0xDD -> OpCode w CMP AbsoluteX   ; 0xD9 -> OpCode w CMP AbsoluteY
-    ; 0xC1 -> OpCode w CMP IdxInd      ; 0xD1 -> OpCode w CMP IndIdx      ; 0xE0 -> OpCode w CPX Immediate
-    ; 0xE4 -> OpCode w CPX ZeroPage    ; 0xEC -> OpCode w CPX Absolute    ; 0xC0 -> OpCode w CPY Immediate
-    ; 0xC4 -> OpCode w CPY ZeroPage    ; 0xCC -> OpCode w CPY Absolute    ; 0xC6 -> OpCode w DEC ZeroPage
-    ; 0xD6 -> OpCode w DEC ZeroPageX   ; 0xCE -> OpCode w DEC Absolute    ; 0xDE -> OpCode w DEC AbsoluteX
-    ; 0xCA -> OpCode w DEX Implied     ; 0x88 -> OpCode w DEY Implied     ; 0x49 -> OpCode w EOR Immediate
-    ; 0x45 -> OpCode w EOR ZeroPage    ; 0x55 -> OpCode w EOR ZeroPageX   ; 0x4D -> OpCode w EOR Absolute
-    ; 0x5D -> OpCode w EOR AbsoluteX   ; 0x59 -> OpCode w EOR AbsoluteY   ; 0x41 -> OpCode w EOR IdxInd
-    ; 0x51 -> OpCode w EOR IndIdx      ; 0xE6 -> OpCode w INC ZeroPage    ; 0xF6 -> OpCode w INC ZeroPageX
-    ; 0xEE -> OpCode w INC Absolute    ; 0xFE -> OpCode w INC AbsoluteX   ; 0xE8 -> OpCode w INX Implied
-    ; 0xC8 -> OpCode w INY Implied     ; 0x4C -> OpCode w JMP Absolute    ; 0x6C -> OpCode w JMP Indirect
-    ; 0x20 -> OpCode w JSR Absolute    ; 0xA9 -> OpCode w LDA Immediate   ; 0xA5 -> OpCode w LDA ZeroPage
-    ; 0xB5 -> OpCode w LDA ZeroPageX   ; 0xAD -> OpCode w LDA Absolute    ; 0xBD -> OpCode w LDA AbsoluteX
-    ; 0xB9 -> OpCode w LDA AbsoluteY   ; 0xA1 -> OpCode w LDA IdxInd      ; 0xB1 -> OpCode w LDA IndIdx
-    ; 0xA2 -> OpCode w LDX Immediate   ; 0xA6 -> OpCode w LDX ZeroPage    ; 0xB6 -> OpCode w LDX ZeroPageY
-    ; 0xAE -> OpCode w LDX Absolute    ; 0xBE -> OpCode w LDX AbsoluteY   ; 0xA0 -> OpCode w LDY Immediate
-    ; 0xA4 -> OpCode w LDY ZeroPage    ; 0xB4 -> OpCode w LDY ZeroPageX   ; 0xAC -> OpCode w LDY Absolute
-    ; 0xBC -> OpCode w LDY AbsoluteX   ; 0x4A -> OpCode w LSR Accumulator ; 0x46 -> OpCode w LSR ZeroPage
-    ; 0x56 -> OpCode w LSR ZeroPageX   ; 0x4E -> OpCode w LSR Absolute    ; 0x5E -> OpCode w LSR AbsoluteX
-    ; 0xEA -> OpCode w NOP Implied     ; 0x09 -> OpCode w ORA Immediate   ; 0x05 -> OpCode w ORA ZeroPage
-    ; 0x15 -> OpCode w ORA ZeroPageX   ; 0x0D -> OpCode w ORA Absolute    ; 0x1D -> OpCode w ORA AbsoluteX
-    ; 0x19 -> OpCode w ORA AbsoluteY   ; 0x01 -> OpCode w ORA IdxInd      ; 0x11 -> OpCode w ORA IndIdx
-    ; 0x48 -> OpCode w PHA Implied     ; 0x08 -> OpCode w PHP Implied     ; 0x68 -> OpCode w PLA Implied
-    ; 0x28 -> OpCode w PLP Implied     ; 0x2A -> OpCode w ROL Accumulator ; 0x26 -> OpCode w ROL ZeroPage
-    ; 0x36 -> OpCode w ROL ZeroPageX   ; 0x2E -> OpCode w ROL Absolute    ; 0x3E -> OpCode w ROL AbsoluteX
-    ; 0x6A -> OpCode w ROR Accumulator ; 0x66 -> OpCode w ROR ZeroPage    ; 0x76 -> OpCode w ROR ZeroPageX
-    ; 0x6E -> OpCode w ROR Absolute    ; 0x7E -> OpCode w ROR AbsoluteX   ; 0x40 -> OpCode w RTI Implied
-    ; 0x60 -> OpCode w RTS Implied     ; 0xE9 -> OpCode w SBC Immediate   ; 0xE5 -> OpCode w SBC ZeroPage
-    ; 0xF5 -> OpCode w SBC ZeroPageX   ; 0xED -> OpCode w SBC Absolute    ; 0xFD -> OpCode w SBC AbsoluteX
-    ; 0xF9 -> OpCode w SBC AbsoluteY   ; 0xE1 -> OpCode w SBC IdxInd      ; 0xF1 -> OpCode w SBC IndIdx
-    ; 0x38 -> OpCode w SEC Implied     ; 0xF8 -> OpCode w SED Implied     ; 0x78 -> OpCode w SEI Implied
-    ; 0x85 -> OpCode w STA ZeroPage    ; 0x95 -> OpCode w STA ZeroPageX   ; 0x8D -> OpCode w STA Absolute
-    ; 0x9D -> OpCode w STA AbsoluteX   ; 0x99 -> OpCode w STA AbsoluteY   ; 0x81 -> OpCode w STA IdxInd
-    ; 0x91 -> OpCode w STA IndIdx      ; 0x86 -> OpCode w STX ZeroPage    ; 0x96 -> OpCode w STX ZeroPageY
-    ; 0x8E -> OpCode w STX Absolute    ; 0x84 -> OpCode w STY ZeroPage    ; 0x94 -> OpCode w STY ZeroPageX
-    ; 0x8C -> OpCode w STY Absolute    ; 0xAA -> OpCode w TAX Implied     ; 0xA8 -> OpCode w TAY Implied
-    ; 0xBA -> OpCode w TSX Implied     ; 0x8A -> OpCode w TXA Implied     ; 0x9A -> OpCode w TXS Implied
-    ; 0x98 -> OpCode w TYA Implied
+    ; 0x69 -> o ADC Immediate   ; 0x65 -> o ADC ZeroPage    ; 0x75 -> o ADC ZeroPageX
+    ; 0x6D -> o ADC Absolute    ; 0x7D -> o ADC AbsoluteX   ; 0x79 -> o ADC AbsoluteY
+    ; 0x61 -> o ADC IdxInd      ; 0x71 -> o ADC IndIdx      ; 0x29 -> o AND Immediate
+    ; 0x25 -> o AND ZeroPage    ; 0x35 -> o AND ZeroPageX   ; 0x2D -> o AND Absolute
+    ; 0x3D -> o AND AbsoluteX   ; 0x39 -> o AND AbsoluteY   ; 0x21 -> o AND IdxInd
+    ; 0x31 -> o AND IndIdx      ; 0x0A -> o ASL Accumulator ; 0x06 -> o ASL ZeroPage
+    ; 0x16 -> o ASL ZeroPageX   ; 0x0E -> o ASL Absolute    ; 0x1E -> o ASL AbsoluteX
+    ; 0x90 -> o BCC Relative    ; 0xB0 -> o BCS Relative    ; 0xF0 -> o BEQ Relative
+    ; 0x24 -> o BIT ZeroPage    ; 0x2C -> o BIT Absolute    ; 0x30 -> o BMI Relative
+    ; 0xD0 -> o BNE Relative    ; 0x10 -> o BPL Relative    ; 0x00 -> o BRK Implied
+    ; 0x50 -> o BVC Relative    ; 0x70 -> o BVS Relative    ; 0x18 -> o CLC Implied
+    ; 0xD8 -> o CLD Implied     ; 0x58 -> o CLI Implied     ; 0xB8 -> o CLV Implied
+    ; 0xC9 -> o CMP Immediate   ; 0xC5 -> o CMP ZeroPage    ; 0xD5 -> o CMP ZeroPageX
+    ; 0xCD -> o CMP Absolute    ; 0xDD -> o CMP AbsoluteX   ; 0xD9 -> o CMP AbsoluteY
+    ; 0xC1 -> o CMP IdxInd      ; 0xD1 -> o CMP IndIdx      ; 0xE0 -> o CPX Immediate
+    ; 0xE4 -> o CPX ZeroPage    ; 0xEC -> o CPX Absolute    ; 0xC0 -> o CPY Immediate
+    ; 0xC4 -> o CPY ZeroPage    ; 0xCC -> o CPY Absolute    ; 0xC6 -> o DEC ZeroPage
+    ; 0xD6 -> o DEC ZeroPageX   ; 0xCE -> o DEC Absolute    ; 0xDE -> o DEC AbsoluteX
+    ; 0xCA -> o DEX Implied     ; 0x88 -> o DEY Implied     ; 0x49 -> o EOR Immediate
+    ; 0x45 -> o EOR ZeroPage    ; 0x55 -> o EOR ZeroPageX   ; 0x4D -> o EOR Absolute
+    ; 0x5D -> o EOR AbsoluteX   ; 0x59 -> o EOR AbsoluteY   ; 0x41 -> o EOR IdxInd
+    ; 0x51 -> o EOR IndIdx      ; 0xE6 -> o INC ZeroPage    ; 0xF6 -> o INC ZeroPageX
+    ; 0xEE -> o INC Absolute    ; 0xFE -> o INC AbsoluteX   ; 0xE8 -> o INX Implied
+    ; 0xC8 -> o INY Implied     ; 0x4C -> o JMP Absolute    ; 0x6C -> o JMP Indirect
+    ; 0x20 -> o JSR Absolute    ; 0xA9 -> o LDA Immediate   ; 0xA5 -> o LDA ZeroPage
+    ; 0xB5 -> o LDA ZeroPageX   ; 0xAD -> o LDA Absolute    ; 0xBD -> o LDA AbsoluteX
+    ; 0xB9 -> o LDA AbsoluteY   ; 0xA1 -> o LDA IdxInd      ; 0xB1 -> o LDA IndIdx
+    ; 0xA2 -> o LDX Immediate   ; 0xA6 -> o LDX ZeroPage    ; 0xB6 -> o LDX ZeroPageY
+    ; 0xAE -> o LDX Absolute    ; 0xBE -> o LDX AbsoluteY   ; 0xA0 -> o LDY Immediate
+    ; 0xA4 -> o LDY ZeroPage    ; 0xB4 -> o LDY ZeroPageX   ; 0xAC -> o LDY Absolute
+    ; 0xBC -> o LDY AbsoluteX   ; 0x4A -> o LSR Accumulator ; 0x46 -> o LSR ZeroPage
+    ; 0x56 -> o LSR ZeroPageX   ; 0x4E -> o LSR Absolute    ; 0x5E -> o LSR AbsoluteX
+    ; 0xEA -> o NOP Implied     ; 0x09 -> o ORA Immediate   ; 0x05 -> o ORA ZeroPage
+    ; 0x15 -> o ORA ZeroPageX   ; 0x0D -> o ORA Absolute    ; 0x1D -> o ORA AbsoluteX
+    ; 0x19 -> o ORA AbsoluteY   ; 0x01 -> o ORA IdxInd      ; 0x11 -> o ORA IndIdx
+    ; 0x48 -> o PHA Implied     ; 0x08 -> o PHP Implied     ; 0x68 -> o PLA Implied
+    ; 0x28 -> o PLP Implied     ; 0x2A -> o ROL Accumulator ; 0x26 -> o ROL ZeroPage
+    ; 0x36 -> o ROL ZeroPageX   ; 0x2E -> o ROL Absolute    ; 0x3E -> o ROL AbsoluteX
+    ; 0x6A -> o ROR Accumulator ; 0x66 -> o ROR ZeroPage    ; 0x76 -> o ROR ZeroPageX
+    ; 0x6E -> o ROR Absolute    ; 0x7E -> o ROR AbsoluteX   ; 0x40 -> o RTI Implied
+    ; 0x60 -> o RTS Implied     ; 0xE9 -> o SBC Immediate   ; 0xE5 -> o SBC ZeroPage
+    ; 0xF5 -> o SBC ZeroPageX   ; 0xED -> o SBC Absolute    ; 0xFD -> o SBC AbsoluteX
+    ; 0xF9 -> o SBC AbsoluteY   ; 0xE1 -> o SBC IdxInd      ; 0xF1 -> o SBC IndIdx
+    ; 0x38 -> o SEC Implied     ; 0xF8 -> o SED Implied     ; 0x78 -> o SEI Implied
+    ; 0x85 -> o STA ZeroPage    ; 0x95 -> o STA ZeroPageX   ; 0x8D -> o STA Absolute
+    ; 0x9D -> o STA AbsoluteX   ; 0x99 -> o STA AbsoluteY   ; 0x81 -> o STA IdxInd
+    ; 0x91 -> o STA IndIdx      ; 0x86 -> o STX ZeroPage    ; 0x96 -> o STX ZeroPageY
+    ; 0x8E -> o STX Absolute    ; 0x84 -> o STY ZeroPage    ; 0x94 -> o STY ZeroPageX
+    ; 0x8C -> o STY Absolute    ; 0xAA -> o TAX Implied     ; 0xA8 -> o TAY Implied
+    ; 0xBA -> o TSX Implied     ; 0x8A -> o TXA Implied     ; 0x9A -> o TXS Implied
+    ; 0x98 -> o TYA Implied
     -- Illegal / Unofficial
-    ; 0x02 -> OpCode w KIL Implied     ; 0x12 -> OpCode w KIL Implied     ; 0x22 -> OpCode w KIL Implied
-    ; 0x32 -> OpCode w KIL Implied     ; 0x42 -> OpCode w KIL Implied     ; 0x52 -> OpCode w KIL Implied
-    ; 0x62 -> OpCode w KIL Implied     ; 0x72 -> OpCode w KIL Implied     ; 0x92 -> OpCode w KIL Implied
-    ; 0xB2 -> OpCode w KIL Implied     ; 0xD2 -> OpCode w KIL Implied     ; 0xF2 -> OpCode w KIL Implied
-    ; 0x7A -> OpCode w NOP Implied     ; 0x5A -> OpCode w NOP Implied     ; 0x1A -> OpCode w NOP Implied
-    ; 0x3A -> OpCode w NOP Implied     ; 0xDA -> OpCode w NOP Implied     ; 0xFA -> OpCode w NOP Implied
-    ; 0x80 -> OpCode w NOP Immediate   ; 0x82 -> OpCode w NOP Immediate   ; 0x89 -> OpCode w NOP Immediate
-    ; 0xC2 -> OpCode w NOP Immediate   ; 0xE2 -> OpCode w NOP Immediate   ; 0x04 -> OpCode w NOP ZeroPage
-    ; 0x64 -> OpCode w NOP ZeroPage    ; 0x44 -> OpCode w NOP ZeroPage    ; 0x0C -> OpCode w NOP Absolute
-    ; 0x14 -> OpCode w NOP ZeroPageX   ; 0x34 -> OpCode w NOP ZeroPageX   ; 0x54 -> OpCode w NOP ZeroPageX
-    ; 0x74 -> OpCode w NOP ZeroPageX   ; 0xD4 -> OpCode w NOP ZeroPageX   ; 0xF4 -> OpCode w NOP ZeroPageX
-    ; 0x1C -> OpCode w NOP AbsoluteX   ; 0x3C -> OpCode w NOP AbsoluteX   ; 0x5C -> OpCode w NOP AbsoluteX
-    ; 0x7C -> OpCode w NOP AbsoluteX   ; 0xDC -> OpCode w NOP AbsoluteX   ; 0xFC -> OpCode w NOP AbsoluteX
-    ; 0xAB -> OpCode w LAX Immediate   ; 0xA7 -> OpCode w LAX ZeroPage    ; 0xB7 -> OpCode w LAX ZeroPageY
-    ; 0xAF -> OpCode w LAX Absolute    ; 0xBF -> OpCode w LAX AbsoluteY   ; 0xA3 -> OpCode w LAX IdxInd
-    ; 0xB3 -> OpCode w LAX IndIdx      ; 0x87 -> OpCode w SAX ZeroPage    ; 0x97 -> OpCode w SAX ZeroPageY
-    ; 0x8F -> OpCode w SAX Absolute    ; 0x83 -> OpCode w SAX IdxInd      ; 0xEB -> OpCode w SBC Immediate
-    ; _    -> OpCode w DCB Implied
+    ; 0x02 -> o KIL Implied     ; 0x12 -> o KIL Implied     ; 0x22 -> o KIL Implied
+    ; 0x32 -> o KIL Implied     ; 0x42 -> o KIL Implied     ; 0x52 -> o KIL Implied
+    ; 0x62 -> o KIL Implied     ; 0x72 -> o KIL Implied     ; 0x92 -> o KIL Implied
+    ; 0xB2 -> o KIL Implied     ; 0xD2 -> o KIL Implied     ; 0xF2 -> o KIL Implied
+    ; 0x7A -> o NOP Implied     ; 0x5A -> o NOP Implied     ; 0x1A -> o NOP Implied
+    ; 0x3A -> o NOP Implied     ; 0xDA -> o NOP Implied     ; 0xFA -> o NOP Implied
+    ; 0x80 -> o NOP Immediate   ; 0x82 -> o NOP Immediate   ; 0x89 -> o NOP Immediate
+    ; 0xC2 -> o NOP Immediate   ; 0xE2 -> o NOP Immediate   ; 0x04 -> o NOP ZeroPage
+    ; 0x64 -> o NOP ZeroPage    ; 0x44 -> o NOP ZeroPage    ; 0x0C -> o NOP Absolute
+    ; 0x14 -> o NOP ZeroPageX   ; 0x34 -> o NOP ZeroPageX   ; 0x54 -> o NOP ZeroPageX
+    ; 0x74 -> o NOP ZeroPageX   ; 0xD4 -> o NOP ZeroPageX   ; 0xF4 -> o NOP ZeroPageX
+    ; 0x1C -> o NOP AbsoluteX   ; 0x3C -> o NOP AbsoluteX   ; 0x5C -> o NOP AbsoluteX
+    ; 0x7C -> o NOP AbsoluteX   ; 0xDC -> o NOP AbsoluteX   ; 0xFC -> o NOP AbsoluteX
+    ; 0xAB -> o LAX Immediate   ; 0xA7 -> o LAX ZeroPage    ; 0xB7 -> o LAX ZeroPageY
+    ; 0xAF -> o LAX Absolute    ; 0xBF -> o LAX AbsoluteY   ; 0xA3 -> o LAX IdxInd
+    ; 0xB3 -> o LAX IndIdx      ; 0x87 -> o SAX ZeroPage    ; 0x97 -> o SAX ZeroPageY
+    ; 0x8F -> o SAX Absolute    ; 0x83 -> o SAX IdxInd      ; 0xEB -> o SBC Immediate
+    ; _    -> o DCB Implied
 
 data Instruction = Instruction OpCode [Word8]
 
 showAMAndOP :: AddressMode -> [Word8] -> String
-showAMAndOP am op =
-    case am of
-        Implied     -> case op of []           ->        ""                             ; _ -> "OpLnErr"
-        Accumulator -> case op of []           ->        " A"                           ; _ -> "OpLnErr"
-        Immediate   -> case op of [opl]        -> printf " #$%02X"              opl     ; _ -> "OpLnErr"
-        ZeroPage    -> case op of [opl]        -> printf " $%02X"               opl     ; _ -> "OpLnErr"
-        ZeroPageX   -> case op of [opl]        -> printf " $%02X,X"             opl     ; _ -> "OpLnErr"
-        ZeroPageY   -> case op of [opl]        -> printf " $%02X,Y"             opl     ; _ -> "OpLnErr"
-        Relative    -> case op of [opl]        -> printf " $%02X"               opl     ; _ -> "OpLnErr"
-        Absolute    -> case op of (opl:oph:[]) -> printf " $%04X"     $ makeW16 opl oph ; _ -> "OpLnErr"
-        AbsoluteX   -> case op of (opl:oph:[]) -> printf " $%04X,X"   $ makeW16 opl oph ; _ -> "OpLnErr"
-        AbsoluteY   -> case op of (opl:oph:[]) -> printf " $%04X,Y"   $ makeW16 opl oph ; _ -> "OpLnErr"
-        Indirect    -> case op of (opl:oph:[]) -> printf " ($%04X)"   $ makeW16 opl oph ; _ -> "OpLnErr"
-        IdxInd      -> case op of [opl]        -> printf " ($%02X,X)"           opl     ; _ -> "OpLnErr"
-        IndIdx      -> case op of [opl]        -> printf " ($%02X),Y"           opl     ; _ -> "OpLnErr"
+showAMAndOP am op = case am of
+    Implied     -> case op of []           ->        ""                             ; _ -> "OpLnErr"
+    Accumulator -> case op of []           ->        " A"                           ; _ -> "OpLnErr"
+    Immediate   -> case op of [opl]        -> printf " #$%02X"              opl     ; _ -> "OpLnErr"
+    ZeroPage    -> case op of [opl]        -> printf " $%02X"               opl     ; _ -> "OpLnErr"
+    ZeroPageX   -> case op of [opl]        -> printf " $%02X,X"             opl     ; _ -> "OpLnErr"
+    ZeroPageY   -> case op of [opl]        -> printf " $%02X,Y"             opl     ; _ -> "OpLnErr"
+    Relative    -> case op of [opl]        -> printf " $%02X"               opl     ; _ -> "OpLnErr"
+    Absolute    -> case op of (opl:oph:[]) -> printf " $%04X"     $ makeW16 opl oph ; _ -> "OpLnErr"
+    AbsoluteX   -> case op of (opl:oph:[]) -> printf " $%04X,X"   $ makeW16 opl oph ; _ -> "OpLnErr"
+    AbsoluteY   -> case op of (opl:oph:[]) -> printf " $%04X,Y"   $ makeW16 opl oph ; _ -> "OpLnErr"
+    Indirect    -> case op of (opl:oph:[]) -> printf " ($%04X)"   $ makeW16 opl oph ; _ -> "OpLnErr"
+    IdxInd      -> case op of [opl]        -> printf " ($%02X,X)"           opl     ; _ -> "OpLnErr"
+    IndIdx      -> case op of [opl]        -> printf " ($%02X),Y"           opl     ; _ -> "OpLnErr"
 
 -- Many illegal opcodes are identical in behavior and addressing mode, we need
 -- to look at the actual binary encoding if we want to distinguish them. For
