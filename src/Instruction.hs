@@ -143,7 +143,8 @@ decodeOpCode w = case w of
     ; 0xAB -> OpCode w LAX Immediate   ; 0xA7 -> OpCode w LAX ZeroPage    ; 0xB7 -> OpCode w LAX ZeroPageY
     ; 0xAF -> OpCode w LAX Absolute    ; 0xBF -> OpCode w LAX AbsoluteY   ; 0xA3 -> OpCode w LAX IdxInd
     ; 0xB3 -> OpCode w LAX IndIdx      ; 0x87 -> OpCode w SAX ZeroPage    ; 0x97 -> OpCode w SAX ZeroPageY
-    ; 0x8F -> OpCode w SAX Absolute    ; 0x83 -> OpCode w SAX IdxInd      ; _    -> OpCode w DCB Implied
+    ; 0x8F -> OpCode w SAX Absolute    ; 0x83 -> OpCode w SAX IdxInd      ; 0xEB -> OpCode w SBC Immediate
+    ; _    -> OpCode w DCB Implied
 
 data Instruction = Instruction OpCode [Word8]
 
@@ -172,8 +173,8 @@ isAmbiguousMn :: Word8 -> Mnemonic -> Bool
 isAmbiguousMn w8 mn = case mn of
     DCB -> True
     KIL -> True
-    NOP -> (w8 /= 0xEA)
-    SBC -> (w8 == 0xEB)
+    NOP -> (w8 /= 0xEA) -- Only a single official variant
+    SBC -> (w8 == 0xEB) -- All except one official
     _   -> False
 
 instance Show Instruction where

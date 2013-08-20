@@ -579,7 +579,11 @@ execute inst@(Instruction (OpCode w mn am) _) = do
         SBC -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
-            trace $ printf "\n%s (%ib, %i%sC): " (show inst) ilen baseC
+            trace $ printf "\n%s (%s%ib, %i%sC): "
+                (show inst)
+                (if w == 0xEB then "Illegal OpCode, " else "") -- 0xEB is the only illegal variant
+                ilen
+                baseC
                 (if penalty /= 0 then "+1"  else "")
             sr <- load8 SR
             op <- loadOperand8 inst

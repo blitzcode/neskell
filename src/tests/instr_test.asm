@@ -1140,6 +1140,16 @@ DCB #$00
 DCB #$83
 DCB #$00
 
+; SBC - Illegal SBC Variants
+;
+; Just an alias for the immediate SBC instruction, identical behavior.
+;
+;SYNTAX        MODE          HEX LEN TIM
+;---------------------------------------
+;SBC($EB) #$00 Immediate     $EB  2   2
+DCB #$EB
+DCB #$00
+
 ; +  = Add 1 to cycles if page boundary is crossed during address computation
 ;      Store instructions have this extra cycle always build in as they can't
 ;      do a false write when a carry on the address LSB occurs

@@ -5,7 +5,7 @@
 # Tests instructions ADC & SBC with all addressing modes.
 # Assumes that loads & stores work with all addressing modes.
 #
-# Expected Results: $30=0x9D
+# Expected Results: $30=0xAA
 
 start:
 LDA #$6A
@@ -21,6 +21,10 @@ LDA #$FF
 ADC #$FF
 ADC #$FF
 SBC #$AE
+
+; Illegal alias for SBC Immediate
+DCB #$EB
+DCB #$FE
 
 STA $40
 LDX $40

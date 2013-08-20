@@ -227,12 +227,12 @@ runTests = do
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         [ CondLS (Addr 0x0030) (Left 0x9D)
+                                         [ CondLS (Addr 0x0030) (Left 0xAA)
                                          , CondLS SR (Left $ srFromString "N-1--I-C")
-                                         , CondLS A (Left 0x9D)
-                                         , CondLS X (Left 0x31)
-                                         , CondLS Y (Left 0x16)
-                                         , CondCycleR 203 203
+                                         , CondLS A (Left 0xAA)
+                                         , CondLS X (Left 0x34)
+                                         , CondLS Y (Left 0x01)
+                                         , CondCycleR 205 205
                                          ]
                                          True
                                          traceMB
@@ -511,7 +511,7 @@ runTests = do
                                          , (SP, Left 0xFD)
                                          ]
                                          [ CondLoopPC
-                                         , CondCycleR 16384 (maxBound :: Word64) ]
+                                         , CondCycleR 20000 (maxBound :: Word64) ]
                                          [ CondLS PC (Right 0x0000) 
                                          ]
                                          True

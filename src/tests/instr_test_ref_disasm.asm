@@ -199,3 +199,4 @@ SAX $00
 SAX $00,Y
 SAX $0000
 SAX ($00,X)
+SBC($EB) #$00
