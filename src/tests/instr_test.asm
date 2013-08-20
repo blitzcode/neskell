@@ -962,34 +962,34 @@ TYA          ;Implied       $98  1   2
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
-;KIL          Implied       $02  1   -
+;KIL($02)     Implied       $02  1   -
 DCB #$02
-;KIL          Implied       $12  1   -
+;KIL($12)     Implied       $12  1   -
 DCB #$12
-;KIL          Implied       $22  1   -
+;KIL($22)     Implied       $22  1   -
 DCB #$22
-;KIL          Implied       $32  1   -
+;KIL($32)     Implied       $32  1   -
 DCB #$32
-;KIL          Implied       $42  1   -
+;KIL($42)     Implied       $42  1   -
 DCB #$42
-;KIL          Implied       $52  1   -
+;KIL($52)     Implied       $52  1   -
 DCB #$52
-;KIL          Implied       $62  1   -
+;KIL($62)     Implied       $62  1   -
 DCB #$62
-;KIL          Implied       $72  1   -
+;KIL($72)     Implied       $72  1   -
 DCB #$72
-;KIL          Implied       $92  1   -
+;KIL($92)     Implied       $92  1   -
 DCB #$92
-;KIL          Implied       $B2  1   -
+;KIL($B2)     Implied       $B2  1   -
 DCB #$B2
-;KIL          Implied       $D2  1   -
+;KIL($D2)     Implied       $D2  1   -
 DCB #$D2
-;KIL          Implied       $F2  1   -
+;KIL($F2)     Implied       $F2  1   -
 DCB #$F2
 
-; NOI - Illegal NOP Variant
+; NOP - Illegal NOP Variants
 ;
-; The NOI instruction causes no changes to the processor other than the normal
+; The NOP instruction causes no changes to the processor other than the normal
 ; incrementing of the program counter to the next instruction.
 ;
 ;                                     N Z C I D V
@@ -997,85 +997,85 @@ DCB #$F2
 ;
 ;SYNTAX           MODE          HEX LEN TIM
 ;-----------------------------------------
-;NOI #$7A         Implied       $7A  1   2
-DCB #$7A
-;NOI #$5A         Implied       $5A  1   2
+;NOP($7A)         Implied       $7A  1   2
+DCB #$7A)
+;NOP($5A)         Implied       $5A  1   2
 DCB #$5A
-;NOI #$1A         Implied       $1A  1   2
+;NOP($1A)         Implied       $1A  1   2
 DCB #$1A
-;NOI #$3A         Implied       $3A  1   2
+;NOP($3A)         Implied       $3A  1   2
 DCB #$3A
-;NOI #$DA         Implied       $DA  1   2
+;NOP($DA)         Implied       $DA  1   2
 DCB #$DA
-;NOI #$FA         Implied       $FA  1   2
+;NOP($FA)         Implied       $FA  1   2
 DCB #$FA
-;NOI #$80 #$00    Immediate     $80  2   2
+;NOP($80) #$00    Immediate     $80  2   2
 DCB #$80
 DCB #$00
-;NOI #$82 #$00    Immediate     $82  2   2
+;NOP($82) #$00    Immediate     $82  2   2
 DCB #$82
 DCB #$00
-;NOI #$89 #$00    Immediate     $89  2   2
+;NOP($89) #$00    Immediate     $89  2   2
 DCB #$89
 DCB #$00
-;NOI #$C2 #$00    Immediate     $C2  2   2
+;NOP($C2) #$00    Immediate     $C2  2   2
 DCB #$C2
 DCB #$00
-;NOI #$E2 #$00    Immediate     $E2  2   2
+;NOP($E2) #$00    Immediate     $E2  2   2
 DCB #$E2
 DCB #$00
-;NOI #$04 $00     Zero Page     $04  2   3
+;NOP($04) $00     Zero Page     $04  2   3
 DCB #$04
 DCB #$00
-;NOI #$64 $00     Zero Page     $64  2   3
+;NOP($64) $00     Zero Page     $64  2   3
 DCB #$64
 DCB #$00
-;NOI #$44 $00     Zero Page     $44  2   3
+;NOP($44) $00     Zero Page     $44  2   3
 DCB #$44
 DCB #$00
-;NOI #$0C $0000   Absolute      $0C  3   4
+;NOP($0C) $0000   Absolute      $0C  3   4
 DCB #$0C
 DCB #$00
 DCB #$00
-;NOI #$14 $00,X   Zero Page,X   $14  2   4
+;NOP($14) $00,X   Zero Page,X   $14  2   4
 DCB #$14
 DCB #$00
-;NOI #$34 $00,X   Zero Page,X   $34  2   4
+;NOP($34) $00,X   Zero Page,X   $34  2   4
 DCB #$34
 DCB #$00
-;NOI #$54 $00,X   Zero Page,X   $54  2   4
+;NOP($54) $00,X   Zero Page,X   $54  2   4
 DCB #$54
 DCB #$00
-;NOI #$74 $00,X   Zero Page,X   $74  2   4
+;NOP($74) $00,X   Zero Page,X   $74  2   4
 DCB #$74
 DCB #$00
-;NOI #$D4 $00,X   Zero Page,X   $D4  2   4
+;NOP($D4) $00,X   Zero Page,X   $D4  2   4
 DCB #$D4
 DCB #$00
-;NOI #$F4 $00,X   Zero Page,X   $F4  2   4
+;NOP($F4) $00,X   Zero Page,X   $F4  2   4
 DCB #$F4
 DCB #$00
-;NOI #$1C $0000,X Absolute,X    $1C  3   4+
+;NOP($1C) $0000,X Absolute,X    $1C  3   4+
 DCB #$1C
 DCB #$00
 DCB #$00
-;NOI #$3C $0000,X Absolute,X    $3C  3   4+
+;NOP($3C) $0000,X Absolute,X    $3C  3   4+
 DCB #$3C
 DCB #$00
 DCB #$00
-;NOI #$5C $0000,X Absolute,X    $5C  3   4+
+;NOP($5C) $0000,X Absolute,X    $5C  3   4+
 DCB #$5C
 DCB #$00
 DCB #$00
-;NOI #$7C $0000,X Absolute,X    $7C  3   4+
+;NOP($7C) $0000,X Absolute,X    $7C  3   4+
 DCB #$7C
 DCB #$00
 DCB #$00
-;NOI #$DC $0000,X Absolute,X    $DC  3   4+
+;NOP($DC) $0000,X Absolute,X    $DC  3   4+
 DCB #$DC
 DCB #$00
 DCB #$00
-;NOI #$FC $0000,X Absolute,X    $FC  3   4+
+;NOP($FC) $0000,X Absolute,X    $FC  3   4+
 DCB #$FC
 DCB #$00
 DCB #$00

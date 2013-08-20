@@ -443,9 +443,9 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "KIL Test" tracefn h emures
-            -- NOI test
+            -- Illegal NOP test
             do
-                bin <- liftIO $ B.readFile "./tests/noi_test.bin"
+                bin <- liftIO $ B.readFile "./tests/nop_test.bin"
                 let emures = runEmulator [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
@@ -456,7 +456,7 @@ runTests = do
                                          ]
                                          True
                                          traceMB
-                checkEmuTestResult "NOI Test" tracefn h emures
+                checkEmuTestResult "Illegal NOP Test" tracefn h emures
             -- LAX test
             do
                 bin <- liftIO $ B.readFile "./tests/lax_test.bin"
