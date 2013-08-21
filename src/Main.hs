@@ -524,6 +524,24 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "SAX Test" tracefn h emures
+            -- Illegal RMW test
+            do
+                bin <- liftIO $ B.readFile "./tests/illegal_rmw_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600)
+                                         , (SP, Left 0xFD)
+                                         ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 3000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS A  $ Left 0xC3
+                                         , CondLS SP $ Left 0x7F
+                                         , CondCycleR 2545 2545
+                                         ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "Illegal RMW Test" tracefn h emures
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
@@ -533,7 +551,7 @@ runTests = do
                                          , (SP, Left 0xFD)
                                          ]
                                          [ CondLS PC (Right 0x0001)
-                                         , CondCycleR 50000 (maxBound :: Word64)
+                                         , CondCycleR 30000 (maxBound :: Word64)
                                          ]
                                          [ CondLS PC (Right 0x0001)
                                          , CondLS (Addr 0x0002) $ Left 0x00
@@ -543,6 +561,10 @@ runTests = do
                                          , CondLS Y  $ Left 0x15
                                          , CondLS SP $ Left 0xFF
                                          , CondLS SR (Left $ srFromString "--1--IZC")
+                                         -- TODO: Verify cycles against Visual 2A03. Not sure if that's 
+                                         --       possible, though. IIRC it has a full 6502 with BCD,
+                                         --       and this code does not work correctly if the BCD flag
+                                         --       is obeyed
                                          , CondCycleR 26553 26553
                                          ]
                                          True
@@ -563,6 +585,10 @@ runTests = do
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
             -}
+            -- TODO: Add test for illegal BCD values and the NVZ flags after
+            --       BCD ADC and SBC. Those are not officially valid, but their
+            --       behavior is well understood and we curently don't match
+            --       Visual 6502 in some cases
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]

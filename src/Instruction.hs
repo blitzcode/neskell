@@ -190,7 +190,7 @@ showAMAndOP am op = case am of
 -- to look at the actual binary encoding if we want to distinguish them. Print
 -- the hexadecimal encoding of the instruction right after the mnemonic so we
 -- lose no information in the disassembly. For mnemonics where legal and illegal
--- variants exist, only flag the illegal ones as ambiguos so we don't clutter up
+-- variants exist, only flag the illegal ones as ambiguous so we don't clutter up
 -- the standard opcode disassembly
 isAmbiguousMn :: Word8 -> Mnemonic -> Bool
 isAmbiguousMn w8 mn = case mn of
