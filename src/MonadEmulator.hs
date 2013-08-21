@@ -29,7 +29,7 @@ import Control.Monad.Trans (lift)
 data LoadStore = A | X | Y | SR | SP | PC | PCL | PCH | Addr Word16
 
 instance Show LoadStore where
-    show (Addr w) = printf "0x%04X" w
+    show (Addr w) = printf "%04X" w
     show A   = "A"  ; show X   = "X"  ; show Y   = "Y"  ; show SR  = "SR" ; show SP  = "SP"
     show PC  = "PC" ; show PCL = "PCL"; show PCH = "PCH"
 
@@ -40,8 +40,8 @@ data CPUState s = CPUState
     , cpuTraceEnable :: Bool
     }
 
-showCPUState :: MonadEmulator m => m String
-showCPUState = do
+showCPUState :: MonadEmulator m => Bool -> m String
+showCPUState fieldNames = do
     a  <- load8 A
     x  <- load8 X
     y  <- load8 Y
@@ -49,8 +49,11 @@ showCPUState = do
     sp <- load8 SP
     pc <- load16 PC
     c  <- getCycles
-    return $ printf "A:0x%02X X:0x%02X Y:0x%02X SR:0x%02X:%s SP:0x%02X PC:0x%04X C:%09i"
-        a x y sr (makeSRString sr) sp pc c
+    return $ printf
+         (if fieldNames
+        then "C:%07i PC:$%04X A:$%02X X:$%02X Y:$%02X SR:$%02X:%s SP:$%02X"
+        else "%07i %04X %02X %02X %02X %02X:%s %02X")
+        c pc a x y sr (makeSRString sr) sp
 
 -- The 'standard' way of doing this would probably be using a newtype wrapper,
 -- but with FlexibleInstances on this works and just seems simpler

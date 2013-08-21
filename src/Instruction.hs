@@ -9,6 +9,7 @@ module Instruction ( AddressMode(..)
                    , viewOpCode
                    , decodeOpCode
                    , Instruction(..)
+                   , showInstructionDisambiguate
                    , instructionLen
                    , decodeInstruction
                    , decodeInstructionM
@@ -186,9 +187,11 @@ showAMAndOP am op = case am of
     IndIdx      -> case op of [opl]        -> printf " ($%02X),Y"           opl     ; _ -> "OpLnErr"
 
 -- Some illegal opcodes are identical in behavior and addressing mode, we need
--- to look at the actual binary encoding if we want to distinguish them. For
--- mnemonics where legal and illegal variants exist, only flag the illegal ones
--- as ambiguos so we don't clutter up the standard opcode disassembly
+-- to look at the actual binary encoding if we want to distinguish them. Print
+-- the hexadecimal encoding of the instruction right after the mnemonic so we
+-- lose no information in the disassembly. For mnemonics where legal and illegal
+-- variants exist, only flag the illegal ones as ambiguos so we don't clutter up
+-- the standard opcode disassembly
 isAmbiguousMn :: Word8 -> Mnemonic -> Bool
 isAmbiguousMn w8 mn = case mn of
     DCB -> True
@@ -196,10 +199,13 @@ isAmbiguousMn w8 mn = case mn of
     NOP -> (w8 /= 0xEA) -- Only a single official variant
     SBC -> (w8 == 0xEB) -- All except one official
     _   -> False
+showInstructionDisambiguate :: Instruction -> String
+showInstructionDisambiguate (Instruction (viewOpCode -> OpCode w mn am) op) =
+    show mn ++ (if isAmbiguousMn w mn then printf "($%02X)" w else "") ++ showAMAndOP am op
 
 instance Show Instruction where
-    show (Instruction (viewOpCode -> OpCode w mn am) op) =
-        show mn ++ (if isAmbiguousMn w mn then printf "($%02X)" w else "") ++ showAMAndOP am op
+    show (Instruction (viewOpCode -> OpCode _ mn am) op) =
+        show mn ++ showAMAndOP am op
 
 {-# INLINE instructionLen #-}
 instructionLen :: Instruction -> Int

@@ -3,7 +3,7 @@
 
 module Main (main) where
 
-import Instruction (Mnemonic(..), decodeInstruction, instructionLen)
+import Instruction (Mnemonic(..), decodeInstruction, instructionLen, showInstructionDisambiguate)
 import Emulator (runEmulator, Cond(..))
 import MonadEmulator (LoadStore(..))
 import Util (srFromString)
@@ -539,7 +539,7 @@ disassemble bin = do
         disassemble' pc =
             case decodeInstruction vec pc of
                 Just instr -> let newPC   = pc + instructionLen instr
-                                  showI   = B8.pack . show $ instr
+                                  showI   = B8.pack . showInstructionDisambiguate $ instr
                                   validPC = newPC < VU.length vec
                                   -- Build result using : instead of ++, no stack overflow etc.
                                in if validPC then showI : disassemble' newPC else [showI]

@@ -28,11 +28,13 @@ data Cond =
 
 instance Show Cond where
     show (CondLS SR w   ) = case w of
-                                Left  w8  -> printf "SR == 0x%02X:%s" w8 (makeSRString w8)
+                                Left  w8  -> printf "SR == $%02X:%s" w8 (makeSRString w8)
                                 _         -> error "Can't compare SR to 16 bit value"
     show (CondLS ls w   ) = case w of
-                                Left  w8  -> printf "%s == 0x%02X" (show ls) w8
-                                Right w16 -> printf "%s == 0x%04X" (show ls) w16
+                                Left  w8  -> printf "%s == $%02X" showLS w8
+                                Right w16 -> printf "%s == $%04X" showLS w16
+                              where
+                                showLS = case ls of Addr _ -> "$"; _ -> ""; ++ show ls
     show (CondOpC mn    ) = "OpCode(PC) == " ++ show mn
     show (CondCycleR l h) = unwords ["Cycle ∈ [", show l, ",", show h, "]"]
     show CondLoopPC       = "CondLoopPC"
@@ -93,7 +95,9 @@ runEmulator bins setup stopc verc traceEnable traceMB =
             $ (SP, Left 0xFF)
             : (SR, Left . setFlag FI . setFlag F1 $ 0)
             : setup
-        trace "\n"
+        trace $ "\n\nCycles  PC   AC IX IY Status Reg. SP Instr. Operand ILnCycl Op. Load  Stores"    ++
+                  "\nElapsed $PC  $A $X $Y $P:NV1BDIZC $S $I:Mne Data    [OIU]bC $Adr→$Val $Val→$Dst" ++
+                "\n----------------------------------------------------------------------------------------"
         -- Inlining everything (check, decode, execute...) in this main loop makes a huge difference 
         let loop = do
                 inst <- decodeInstructionM
@@ -104,15 +108,15 @@ runEmulator bins setup stopc verc traceEnable traceMB =
          in do
                 loop
                 -- Done, trace the first 512 bytes of memory and return other diagnostic information
-                trace "\nZero Page:\n\n"
-                traceMemory 0x0000 0xFF
+                trace "\n\nZero Page:\n\n"
+                traceMemory 0x0000 256
                 trace "\nStack:\n\n"
-                traceMemory 0x0100 0xFF
+                traceMemory 0x0100 256
                 inst        <- decodeInstructionM
                 condSuccess <- filterM               (checkCond inst  ) verc
                 condFailure <- filterM (\x -> not <$> checkCond inst x) verc
                 condStop    <- filterM               (checkCond inst  ) stopc
-                cpust       <- showCPUState
+                cpust       <- showCPUState True
                 cputrace    <- getTrace
                 return ( condSuccess
                        , condFailure
