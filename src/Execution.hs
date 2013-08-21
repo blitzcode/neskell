@@ -593,7 +593,8 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             op <- loadOperand8 inst
             a  <- load8 A
             let carry = b2W8 $ getFlag FC sr
-            let (r, ncarry) = case getFlag FD sr of
+            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            let (r, ncarry) = case bcd of
                                   False -> let res = a + op + carry
                                             in (res, if carry == 1 then res <= a else res < a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
@@ -623,7 +624,8 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             op <- loadOperand8 inst
             a  <- load8 A
             let carry = b2W8 . not $ getFlag FC sr
-            let (r, ncarry) = case getFlag FD sr of
+            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            let (r, ncarry) = case bcd of
                                   False -> let res = a - (op + carry) :: Word8
                                             in (res, not $ if carry == 1 then res >= a else res > a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
@@ -903,8 +905,8 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let isN = testBit (a - m) 7
             store8Trace SR
                 . modifyFlag FN isN
-                . modifyFlag FZ (a == op)
-                . modifyFlag FC (a >= op)
+                . modifyFlag FZ (a == m)
+                . modifyFlag FC (a >= m)
                 $ sr
             update16 PC (ilen +)
             advCycles baseC
@@ -917,7 +919,8 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             sr <- load8 SR
             a  <- load8 A
             let carry = b2W8 . not $ getFlag FC sr
-            let (r, ncarry) = case getFlag FD sr of
+            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            let (r, ncarry) = case bcd of
                                   False -> let res = a - (m + carry) :: Word8
                                             in (res, not $ if carry == 1 then res >= a else res > a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441
@@ -959,7 +962,8 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             sr <- load8 SR
             a  <- load8 A
             let carry = b2W8 $ testBit op 0
-            let (r, ncarry) = case getFlag FD sr of
+            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            let (r, ncarry) = case bcd of
                                   False -> let res = a + ror + carry
                                             in (res, if carry == 1 then res <= a else res < a)
                                   -- http://forum.6502.org/viewtopic.php?p=13441

@@ -5,7 +5,7 @@ module Main (main) where
 
 import Instruction (Mnemonic(..), decodeInstruction, instructionLen, showInstructionDisambiguate)
 import Emulator (runEmulator, Cond(..))
-import MonadEmulator (LoadStore(..))
+import MonadEmulator (LoadStore(..), Processor(..))
 import Util (srFromString)
 
 import Data.Monoid (All(..), getAll)
@@ -105,7 +105,8 @@ runTests = do
             -- Load / Store test
             do
                 bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -122,7 +123,8 @@ runTests = do
             -- AND / OR / XOR test
             do
                 bin <- liftIO $ B.readFile "./tests/and_or_xor_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -140,7 +142,8 @@ runTests = do
             -- INC / DEC test
             do
                 bin <- liftIO $ B.readFile "./tests/inc_dec_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -155,7 +158,8 @@ runTests = do
             -- Bitshift test
             do
                 bin <- liftIO $ B.readFile "./tests/bitshift_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -171,7 +175,8 @@ runTests = do
             -- JMP/JSR/RTS test
             do
                 bin <- liftIO $ B.readFile "./tests/jump_ret_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -189,7 +194,8 @@ runTests = do
             -- JMP bug test
             do
                 bin <- liftIO $ B.readFile "./tests/jump_bug_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -204,7 +210,8 @@ runTests = do
             -- Register Transfer test
             do
                 bin <- liftIO $ B.readFile "./tests/reg_transf_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -222,7 +229,8 @@ runTests = do
             -- Add / Sub test
             do
                 bin <- liftIO $ B.readFile "./tests/add_sub_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -240,7 +248,8 @@ runTests = do
             -- BCD Add / Sub test
             do
                 bin <- liftIO $ B.readFile "./tests/bcd_add_sub_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -264,7 +273,8 @@ runTests = do
             -- Add / Sub CVZN flag test
             do
                 bin <- liftIO $ B.readFile "./tests/add_sub_cvzn_flag_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -291,7 +301,8 @@ runTests = do
             -- CMP/BEQ/BNE test
             do
                 bin <- liftIO $ B.readFile "./tests/cmp_beq_bne_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -308,7 +319,8 @@ runTests = do
             -- CPX/CPY/BIT test
             do
                 bin <- liftIO $ B.readFile "./tests/cpx_cpy_bit_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -324,7 +336,8 @@ runTests = do
             -- Misc. branch test
             do
                 bin <- liftIO $ B.readFile "./tests/misc_branch_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -342,7 +355,8 @@ runTests = do
             -- Branch backwards test
             do
                 bin <- liftIO $ B.readFile "./tests/branch_backwards_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -356,7 +370,8 @@ runTests = do
             -- Flag test
             do
                 bin <- liftIO $ B.readFile "./tests/flag_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -371,7 +386,8 @@ runTests = do
             -- Special flag test
             do
                 bin <- liftIO $ B.readFile "./tests/special_flag_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -388,7 +404,8 @@ runTests = do
             -- Stack test
             do
                 bin <- liftIO $ B.readFile "./tests/stack_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -404,7 +421,8 @@ runTests = do
             -- RTI test
             do
                 bin <- liftIO $ B.readFile "./tests/rti_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -420,7 +438,8 @@ runTests = do
             -- BRK test
             do
                 bin <- liftIO $ B.readFile "./tests/brk_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC NOP
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -436,7 +455,8 @@ runTests = do
             -- KIL test
             do
                 bin <- liftIO $ B.readFile "./tests/kil_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondLoopPC ]
                                          [ CondLS PC (Right $ 0x0600) ]
@@ -446,7 +466,8 @@ runTests = do
             -- Illegal NOP test
             do
                 bin <- liftIO $ B.readFile "./tests/nop_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -460,7 +481,8 @@ runTests = do
             -- LAX test
             do
                 bin <- liftIO $ B.readFile "./tests/lax_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -486,7 +508,8 @@ runTests = do
             -- SAX test
             do
                 bin <- liftIO $ B.readFile "./tests/sax_test.bin"
-                let emures = runEmulator [ (bin, 0x0600) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
@@ -504,15 +527,23 @@ runTests = do
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
-                let emures = runEmulator [ (bin, 0x8000)
-                                         , (bin, 0xC000)
-                                         ]
+                let emures = runEmulator NES_2A03
+                                         [ (bin, 0xC000) ]
                                          [ (PC, Right 0xC000)
                                          , (SP, Left 0xFD)
                                          ]
-                                         [ CondLoopPC
-                                         , CondCycleR 30000 (maxBound :: Word64) ]
-                                         [ CondLS PC (Right 0x0000) 
+                                         [ CondLS PC (Right 0x0001)
+                                         , CondCycleR 50000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS PC (Right 0x0001)
+                                         , CondLS (Addr 0x0002) $ Left 0x00
+                                         , CondLS (Addr 0x0003) $ Left 0x00
+                                         , CondLS A  $ Left 0x00
+                                         , CondLS X  $ Left 0xFF
+                                         , CondLS Y  $ Left 0x15
+                                         , CondLS SP $ Left 0xFF
+                                         , CondLS SR (Left $ srFromString "--1--IZC")
+                                         , CondCycleR 26553 26553
                                          ]
                                          True
                                          traceMB
@@ -521,7 +552,8 @@ runTests = do
             -- Functional 6502 test
             do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
-                let emures = runEmulator [ (bin, 0x0400) ]
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
                                          [ CondLoopPC ]
                                          [ CondLS PC (Right 0x32E9) 

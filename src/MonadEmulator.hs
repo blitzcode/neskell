@@ -6,6 +6,7 @@ module MonadEmulator (MonadEmulator(..)
                      , runSTEmulator
                      , getTrace
                      , showCPUState
+                     , Processor (..)
                      ) where
 
 -- Exports the principal monad in which emulator code modifying the state of
@@ -33,11 +34,14 @@ instance Show LoadStore where
     show A   = "A"  ; show X   = "X"  ; show Y   = "Y"  ; show SR  = "SR" ; show SP  = "SP"
     show PC  = "PC" ; show PCL = "PCL"; show PCH = "PCH"
 
+data Processor = NMOS_6502 | NES_2A03 deriving Eq
+
 data CPUState s = CPUState
     { cpuState       :: VUM.MVector s Word8
     , cpuCycles      :: STRef       s Word64
     , cpuTraceRB     :: RingBuffer  s
     , cpuTraceEnable :: Bool
+    , cpuModel       :: Processor
     }
 
 showCPUState :: MonadEmulator m => Bool -> m String
@@ -69,6 +73,7 @@ class (Functor m, Monad m, Applicative m) => MonadEmulator m where
     runNoTrace :: m a -> m a
     advCycles  :: Word64 -> m ()
     getCycles  :: m Word64
+    getModel   :: m Processor
 
 lsToStateIdx :: LoadStore -> Int
 lsToStateIdx ls =
@@ -130,6 +135,7 @@ instance MonadEmulator (RSTEmu s) where
     getCycles = do
         cycles <- asks cpuCycles
         lift $ readSTRef cycles
+    getModel = asks cpuModel
 
 -- We don't want to export this through MonadEmulator, only needs to be called
 -- from code directly inside runSTEmulator's argument function. Preferably once,
@@ -140,8 +146,8 @@ getTrace = do
     list <- lift $ unsafeFreezeRingBuffer rb
     return $ B.pack list
 
-runSTEmulator :: Bool -> Int -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type magic
-runSTEmulator traceEnable traceMB f = 
+runSTEmulator :: Bool -> Int -> Processor -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type
+runSTEmulator traceEnable traceMB processor f = 
     runST $ do
         initState   <- VUM.replicate (65536 + 7) (0 :: Word8)
         initCycles  <- newSTRef 0
@@ -151,6 +157,7 @@ runSTEmulator traceEnable traceMB f =
                   , cpuCycles       = initCycles
                   , cpuTraceEnable  = traceEnable
                   , cpuTraceRB      = initTraceRB
+                  , cpuModel        = processor
                   }
         runReaderT f cpu
 

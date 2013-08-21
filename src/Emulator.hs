@@ -69,6 +69,7 @@ loadBinary bin offs =
           [0..B.length bin - 1]
 
 runEmulator ::
+    Processor                -> -- Model of the processor to be emulated
     [(B.ByteString, Word16)] -> -- List of program binaries and their offsets
     [(LoadStore, L8R16)]     -> -- Store operations to set up simulator state
     [Cond]                   -> -- The simulator will stop when any of these conditions are met
@@ -82,8 +83,8 @@ runEmulator ::
     , String                    -- Last instruction
     , B.ByteString              -- Last traceMB MB of the execution trace
     )
-runEmulator bins setup stopc verc traceEnable traceMB =
-    runSTEmulator traceEnable traceMB $ do
+runEmulator processor bins setup stopc verc traceEnable traceMB =
+    runSTEmulator traceEnable traceMB processor $ do
         trace "Load Binary:\n\n"
         mapM_ (\(bin, offs) -> do loadBinary bin offs
                                   traceMemory offs . fromIntegral . B.length $ bin) bins
