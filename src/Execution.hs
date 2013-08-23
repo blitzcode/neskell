@@ -122,10 +122,16 @@ updateNZ x = do
     sr <- load8 SR
     store8Trace SR $ setNZ x sr
 
+setNZC :: Word8 -> Bool -> Word8 -> Word8
+setNZC x carry sr =
+    let isN = testBit x 7
+        isZ = x == 0
+     in modifyFlag FN isN . modifyFlag FZ isZ .  modifyFlag FC carry $ sr
+
 updateNZC :: MonadEmulator m => Word8 -> Bool -> m ()
 updateNZC x carry = do
     sr <- load8 SR
-    store8Trace SR . setNZ x . modifyFlag FC carry $ sr
+    store8Trace SR . setNZC x carry $ sr
 
 storeStack8 :: MonadEmulator m => Word8 -> m ()
 storeStack8 w8 = do
@@ -1038,9 +1044,15 @@ DCB #$00
   Immediate   |ANC #arg   |$2B| 2 | 2
 -}
         ANC -> do
+            let baseC = 2 :: Word64
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            op <- loadOperand8 inst
+            a  <- load8 A
+            sr <- load8 SR
+            let r = op .&. a
+            store8Trace SR . modifyFlag FC (testBit r 7) . setNZ r $ sr
             update16 PC (ilen +)
-            advCycles 1
-
+            advCycles baseC
 
 {-
 ; ALR - Combined AND + LSR
@@ -1072,9 +1084,17 @@ DCB #$00
    Immediate   |ALR #arg   |$4B| 2 | 2
 -}
         ALR -> do
+            let baseC = 2 :: Word64
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            op <- loadOperand8 inst
+            a  <- load8 A
+            let and'  = op .&. a
+                r     = and' `shiftR` 1
+                carry = testBit and' 0
+            updateNZC r $ carry
+            storeOperand8 inst r
             update16 PC (ilen +)
-            advCycles 1
-
+            advCycles baseC
 
 {-
 ; ARR - Combined AND + ROR with different SR effects
@@ -1117,9 +1137,20 @@ DCB #$00
    Immediate   |ARR #arg   |$6B| 2 | 2
 -}
         ARR -> do
+            -- TODO: This instruction should behave very different in decimal mode
+            let baseC = 2 :: Word64
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            op <- loadOperand8 inst
+            sr <- load8 SR
+            a  <- load8 A
+            let and'   = op .&. a
+                carry  = getFlag FC sr
+                r      = (and' `shiftR` 1) .|. if carry then 128 else 0
+                ncarry = testBit and' 0
+            store8Trace SR $ setNZC r ncarry sr
+            storeOperand8 inst r
             update16 PC (ilen +)
-            advCycles 1
-
+            advCycles baseC
 
 {-
 ; XAA - Unstable opcode, like a three register AND
@@ -1148,8 +1179,21 @@ DCB #$00
     N and Z flags are set according to the result of XAA 
 -}
         XAA -> do
+            let baseC = 2 :: Word64
+            trace $ printf "%02X:%-11s U%ib%iC " w (show inst) ilen baseC
+            -- This opcode is not stable on a real 6502 and its result depends
+            -- on analog effects and varies between different CPUs and operating
+            -- conditions. This is a valid, if not entirely accurate
+            -- implementation of its operation
+            op <- loadOperand8 inst
+            a  <- load8 A
+            x  <- load8 X
+            let magic = 0xFF
+                r     = (a .|. magic) .&. x .&. op
+            store8Trace A r
+            updateNZ r
             update16 PC (ilen +)
-            advCycles 1
+            advCycles baseC
 
 
 {-
@@ -1184,8 +1228,18 @@ DCB #$00
    Absolute,Y  |AXA arg,Y  |$9F| 3 | 5
 -}
         AHX -> do
+            let baseC = 1 + getAMCycles am
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            a <- load8 A
+            x <- load8 X
+            addrHI <- (\ls -> case ls of
+                          Addr addr -> return . snd . splitW16 $ addr
+                          _         -> trace "AM Err" >> return 0)
+                      =<< getOperandAddr8 inst
+            let r = a .&. x .&. (addrHI + 1);
+            storeOperand8 inst r
             update16 PC (ilen +)
-            advCycles 1
+            advCycles baseC
 
 
 {-
@@ -1220,8 +1274,19 @@ DCB #$00
    Absolute,Y  |XAS arg,Y  |$9B| 3 | 5
 -}
         TAS -> do
+            let baseC = 1 + getAMCycles am
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            a <- load8 A
+            x <- load8 X
+            let sp = x .&. a
+            store8Trace SP sp
+            addrHI <- (\ls -> case ls of
+                          Addr addr -> return . snd . splitW16 $ addr
+                          _         -> trace "AM Err" >> return 0)
+                      =<< getOperandAddr8 inst
+            storeOperand8 inst $ sp .&. (addrHI + 1)
             update16 PC (ilen +)
-            advCycles 1
+            advCycles baseC
 
 
 {-
@@ -1254,8 +1319,16 @@ DCB #$00
    Absolute,Y  |SXA arg,Y  |$9E| 3 | 5
 -}
         SHX -> do
+            let baseC = 1 :: Word64
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            x <- load8 X
+            addrHI <- (\ls -> case ls of
+                          Addr addr -> return . snd . splitW16 $ addr
+                          _         -> trace "AM Err" >> return 0)
+                      =<< getOperandAddr8 inst
+            storeOperand8 inst $ x .&. (addrHI + 1)
             update16 PC (ilen +)
-            advCycles 1
+            advCycles baseC
 
 
 {-
@@ -1288,8 +1361,16 @@ DCB #$00
    Absolute,X  |SHY arg,X  |$9C| 3 | 5
 -}
         SHY -> do
+            let baseC = 1 :: Word64
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            y <- load8 Y
+            addrHI <- (\ls -> case ls of
+                          Addr addr -> return . snd . splitW16 $ addr
+                          _         -> trace "AM Err" >> return 0)
+                      =<< getOperandAddr8 inst
+            storeOperand8 inst $ y .&. (addrHI + 1)
             update16 PC (ilen +)
-            advCycles 1
+            advCycles baseC
 
 
 {-
@@ -1322,9 +1403,19 @@ DCB #$00
    Absolute,Y  |LAR arg,Y  |$BB| 3 | 4 * add one cycle when page boundary is crossed
 -}
         LAS -> do
+            penalty <- getOperandPageCrossPenalty inst
+            let baseC = getAMCycles am
+            trace $ printf "%02X:%-11s I%ib%iC%s " w (show inst) ilen baseC
+                (if penalty /= 0 then "+1"  else "  ")
+            op <- loadOperand8 inst
+            sp <- load8 SP
+            let r = sp .&. op
+            store8Trace SP r
+            store8Trace A  r
+            store8Trace X  r
+            updateNZ r
             update16 PC (ilen +)
-            advCycles 1
-
+            advCycles $ baseC + penalty
 
 {-
 ; AXS - Store A AND X minus M into X
@@ -1338,7 +1429,7 @@ DCB #$00
 ;
 ; Z Zero Flag         Set if A = 0
 ; N Negative Flag     Set if bit 7 set
-; C Carry Flag        Clear if overflow in bit 7
+; C Carry Flag        Set if (A & X) >= M
 ;
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
@@ -1360,6 +1451,14 @@ DCB #$00
    Immediate   |AXS #arg   |$CB| 2 | 2
 -}
         AXS -> do
+            let baseC = 2 :: Word64
+            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            op <- loadOperand8 inst
+            a  <- load8 A
+            x  <- load8 X
+            let r = (a .&. x) - op
+            store8Trace X r
+            updateNZC r $ (a .&. x) >= op
             update16 PC (ilen +)
-            advCycles 1
+            advCycles baseC
 

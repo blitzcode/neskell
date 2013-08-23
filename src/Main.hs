@@ -579,12 +579,14 @@ runTests = do
                                          [ (PC, Right 0x0400) ]
                                          [ CondLoopPC ]
                                          [ CondLS PC (Right 0x32E9) 
+                                         -- TODO: Verify cycle count
                                          , CondCycleR 92608051 92608051
                                          ]
                                          False
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
             -}
+
             -- TODO: Add test for illegal BCD values and the NVZ flags after
             --       BCD ADC and SBC. Those are not officially valid, but their
             --       behavior is well understood and we curently don't match
@@ -592,6 +594,8 @@ runTests = do
             --
             --       http://www.6502.org/tutorials/decimal_mode.html
             --       http://visual6502.org/wiki/index.php?title=6502DecimalMode
+
+            --  TODO: Add test for decimal mode of ARR
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
