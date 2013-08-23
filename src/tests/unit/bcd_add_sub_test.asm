@@ -1,10 +1,10 @@
 
-# Tests from http://www.6502.org/tutorials/decimal_mode.html
-#
-# After the test, 0x87 0x91 0x29 0x27 0x34 0x73 0x41 0x46 0x05 should be on the stack
-#
-# Some CLC/SEC instructions are commented out to test that the carry is
-# correctly set by the predecessor, comment back in to make all tests standalone
+; Tests from http://www.6502.org/tutorials/decimal_mode.html
+;
+; After the test, 0x87 0x91 0x29 0x27 0x34 0x73 0x41 0x46 0x05 should be on the stack
+;
+; Some CLC/SEC instructions are commented out to test that the carry is
+; correctly set by the predecessor, comment back in to make all tests standalone
 
 SED
 

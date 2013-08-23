@@ -1,5 +1,5 @@
 
-# Test all variants of illegal NOP opcode
+; Test all variants of illegal NOP opcode
 
 NOP($7A)
 NOP($5A)

@@ -1,9 +1,9 @@
 
-# Test illegal / unofficial LAX opcode
-# Skip 0xAB / LAX Immediate, it is not stable
-#
-# Stack should look like this in the end
-# 01F0: 00 00 00 00 DB DB 55 55 FF FF 11 11 C3 C3 21 21
+; Test illegal / unofficial LAX opcode
+; Skip 0xAB / LAX Immediate, it is not stable
+;
+; Stack should look like this in the end
+; 01F0: 00 00 00 00 DB DB 55 55 FF FF 11 11 C3 C3 21 21
 
 ; Setup memory locations
 
@@ -36,49 +36,49 @@ STA $303F
 ; Test all six stable LAX addressing modes, push both registers on the stack
 
 ;LAX $01     ; A = X = 0x21
- DCB #$A7
- DCB #$01
+ DCB $A7
+ DCB $01
 PHA
 TXA
 PHA
 
 LDY #$05
 ;LAX $10,Y   ; A = X = 0xC3
- DCB #$B7
- DCB #$10
+ DCB $B7
+ DCB $10
 PHA
 TXA
 PHA
 
 ;LAX $2F12   ; A = X = 0x11
- DCB #$AF
- DCB #$12
- DCB #$2F
+ DCB $AF
+ DCB $12
+ DCB $2F
 PHA
 TXA
 PHA
 
 LDY #$05
 ;LAX $2C14,Y ; A = X = 0xFF
- DCB #$BF
- DCB #$14
- DCB #$2C
+ DCB $BF
+ DCB $14
+ DCB $2C
 PHA
 TXA
 PHA
 
 LDX #$01
 ;LAX ($1F,X) ; A = X = 0x55
- DCB #$A3
- DCB #$1F
+ DCB $A3
+ DCB $1F
 PHA
 TXA
 PHA
 
 LDY #$03
 ;LAX ($30),Y ; A = X = 0xDB
- DCB #$B3
- DCB #$30
+ DCB $B3
+ DCB $30
 PHA
 TXA
 PHA

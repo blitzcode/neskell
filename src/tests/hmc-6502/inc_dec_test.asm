@@ -1,11 +1,8 @@
 
-# Test taken from hmc-6502
-# http://code.google.com/p/hmc-6502/source/browse/trunk/emu/testvectors/TestAllInstructions/
-
-# Tests instructions INC & DEC with all addressing modes.
-# Assumes that LDA/LDX/LDY & STA/STX/STY work with all addressing modes.
-#
-# Expected Results: $71=0xFF
+; Tests instructions INC & DEC with all addressing modes.
+; Assumes that LDA/LDX/LDY & STA/STX/STY work with all addressing modes.
+;
+; Expected Results: $71=0xFF
 
 start:
 LDA #$FF

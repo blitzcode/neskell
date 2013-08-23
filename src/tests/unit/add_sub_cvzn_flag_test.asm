@@ -1,8 +1,8 @@
 
-# Tests CV flags as described in http://www.6502.org/tutorials/vflag.html
-# Also tests CLC/SEC/PHP and the NZ flags
-# Note that 6502js does not set the I flag by default, so stack will differ
-# without an additional SEI
+; Tests CV flags as described in http://www.6502.org/tutorials/vflag.html
+; Also tests CLC/SEC/PHP and the NZ flags
+; Note that 6502js does not set the I flag by default, so stack will differ
+; without an additional SEI
 
 CLC      ; 1 + 1 = 2, returns C = 0
 LDA #$01

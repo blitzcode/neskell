@@ -97,14 +97,14 @@ runTests = do
         w <- execWriterT $ do -- WriterT All IO ()
             -- Decoding test
             do
-                bin <- liftIO $ B.readFile "./tests/instr_test.bin"
-                ref <- liftIO $ B.readFile "./tests/instr_test_ref_disasm.asm"
+                bin <- liftIO $ B.readFile "./tests/decoding/instr_test.bin"
+                ref <- liftIO $ B.readFile "./tests/decoding/instr_test_ref_disasm.asm"
                 case decodingTest bin ref of
                     Left err -> (tell $ All False) >> (liftIO . putStrLn $ "Decoding Test Failed: " ++ err)
                     Right _  -> return ()
             -- Load / Store test
             do
-                bin <- liftIO $ B.readFile "./tests/load_store_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/load_store_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -122,7 +122,7 @@ runTests = do
                 checkEmuTestResult "Load / Store Test" tracefn h emures
             -- AND / OR / XOR test
             do
-                bin <- liftIO $ B.readFile "./tests/and_or_xor_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/and_or_xor_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -141,7 +141,7 @@ runTests = do
                 checkEmuTestResult "AND / OR / XOR Test" tracefn h emures
             -- INC / DEC test
             do
-                bin <- liftIO $ B.readFile "./tests/inc_dec_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/inc_dec_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -157,7 +157,7 @@ runTests = do
                 checkEmuTestResult "INC / DEC Test" tracefn h emures
             -- Bitshift test
             do
-                bin <- liftIO $ B.readFile "./tests/bitshift_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/bitshift_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -174,7 +174,7 @@ runTests = do
                 checkEmuTestResult "Bitshift Test" tracefn h emures
             -- JMP/JSR/RTS test
             do
-                bin <- liftIO $ B.readFile "./tests/jump_ret_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/jump_ret_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -193,7 +193,7 @@ runTests = do
                 checkEmuTestResult "JMP/JSR/RTS Test" tracefn h emures
             -- JMP bug test
             do
-                bin <- liftIO $ B.readFile "./tests/jump_bug_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/jump_bug_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -209,7 +209,7 @@ runTests = do
                 checkEmuTestResult "Jump Bug Test" tracefn h emures
             -- Register Transfer test
             do
-                bin <- liftIO $ B.readFile "./tests/reg_transf_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/reg_transf_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -228,7 +228,7 @@ runTests = do
                 checkEmuTestResult "Register Transfer Test" tracefn h emures
             -- Add / Sub test
             do
-                bin <- liftIO $ B.readFile "./tests/add_sub_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/add_sub_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -247,7 +247,7 @@ runTests = do
                 checkEmuTestResult "Add / Sub Test" tracefn h emures
             -- BCD Add / Sub test
             do
-                bin <- liftIO $ B.readFile "./tests/bcd_add_sub_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/bcd_add_sub_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -272,7 +272,7 @@ runTests = do
                 checkEmuTestResult "BCD Add / Sub Test" tracefn h emures
             -- Add / Sub CVZN flag test
             do
-                bin <- liftIO $ B.readFile "./tests/add_sub_cvzn_flag_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/add_sub_cvzn_flag_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -300,7 +300,7 @@ runTests = do
                 checkEmuTestResult "Add / Sub CVZN Flag Test" tracefn h emures
             -- CMP/BEQ/BNE test
             do
-                bin <- liftIO $ B.readFile "./tests/cmp_beq_bne_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/cmp_beq_bne_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -318,7 +318,7 @@ runTests = do
                 checkEmuTestResult "CMP/BEQ/BNE Test" tracefn h emures
             -- CPX/CPY/BIT test
             do
-                bin <- liftIO $ B.readFile "./tests/cpx_cpy_bit_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/cpx_cpy_bit_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -335,7 +335,7 @@ runTests = do
                 checkEmuTestResult "CPX/CPY/BIT Test" tracefn h emures
             -- Misc. branch test
             do
-                bin <- liftIO $ B.readFile "./tests/misc_branch_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/misc_branch_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -354,7 +354,7 @@ runTests = do
                 checkEmuTestResult "Misc. Branch Test" tracefn h emures
             -- Branch backwards test
             do
-                bin <- liftIO $ B.readFile "./tests/branch_backwards_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/branch_backwards_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -369,7 +369,7 @@ runTests = do
                 checkEmuTestResult "Branch Backwards Test" tracefn h emures
             -- Flag test
             do
-                bin <- liftIO $ B.readFile "./tests/flag_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/flag_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -385,7 +385,7 @@ runTests = do
                 checkEmuTestResult "Flag Test" tracefn h emures
             -- Special flag test
             do
-                bin <- liftIO $ B.readFile "./tests/special_flag_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/special_flag_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -403,7 +403,7 @@ runTests = do
                 checkEmuTestResult "Special Flag Test" tracefn h emures
             -- Stack test
             do
-                bin <- liftIO $ B.readFile "./tests/stack_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/stack_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -420,7 +420,7 @@ runTests = do
                 checkEmuTestResult "Stack Test" tracefn h emures
             -- RTI test
             do
-                bin <- liftIO $ B.readFile "./tests/rti_test.bin"
+                bin <- liftIO $ B.readFile "./tests/hmc-6502/rti_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -437,7 +437,7 @@ runTests = do
                 checkEmuTestResult "RTI Test" tracefn h emures
             -- BRK test
             do
-                bin <- liftIO $ B.readFile "./tests/brk_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/brk_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -454,7 +454,7 @@ runTests = do
                 checkEmuTestResult "BRK Test" tracefn h emures
             -- KIL test
             do
-                bin <- liftIO $ B.readFile "./tests/kil_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/kil_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -465,7 +465,7 @@ runTests = do
                 checkEmuTestResult "KIL Test" tracefn h emures
             -- Illegal NOP test
             do
-                bin <- liftIO $ B.readFile "./tests/nop_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/nop_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -480,7 +480,7 @@ runTests = do
                 checkEmuTestResult "Illegal NOP Test" tracefn h emures
             -- LAX test
             do
-                bin <- liftIO $ B.readFile "./tests/lax_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/lax_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -507,7 +507,7 @@ runTests = do
                 checkEmuTestResult "LAX Test" tracefn h emures
             -- SAX test
             do
-                bin <- liftIO $ B.readFile "./tests/sax_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/sax_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
@@ -526,7 +526,7 @@ runTests = do
                 checkEmuTestResult "SAX Test" tracefn h emures
             -- Illegal RMW test
             do
-                bin <- liftIO $ B.readFile "./tests/illegal_rmw_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/illegal_rmw_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600)

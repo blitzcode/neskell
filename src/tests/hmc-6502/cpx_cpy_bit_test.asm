@@ -1,12 +1,9 @@
 
-# Test taken from hmc-6502
-# http://code.google.com/p/hmc-6502/source/browse/trunk/emu/testvectors/TestAllInstructions/
-
-# Tests instructions CPX & CPY & BIT for all addressing modes.
-# Assumes that loads & stores (with all addressing modes) & BEQ & BNE work.
-# Also assumes that AND & ORA & EOR work with all addressing modes.
-#
-# Expected Results: $42 = 0xA5
+; Tests instructions CPX & CPY & BIT for all addressing modes.
+; Assumes that loads & stores (with all addressing modes) & BEQ & BNE work.
+; Also assumes that AND & ORA & EOR work with all addressing modes.
+;
+; Expected Results: $42 = 0xA5
 
 start:
 ; prepare memory

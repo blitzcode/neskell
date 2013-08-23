@@ -1,11 +1,8 @@
 
-# Test taken from hmc-6502
-# http://code.google.com/p/hmc-6502/source/browse/trunk/emu/testvectors/TestAllInstructions/
-
-# Tests instructions INC & DEC with all addressing modes.
-# Assumes that loads & stores & ORA work with all addressing modes.
-#
-# Expected Results: $01DD = 0x6E
+; Tests instructions INC & DEC with all addressing modes.
+; Assumes that loads & stores & ORA work with all addressing modes.
+;
+; Expected Results: $01DD = 0x6E
 
 start:
 LDA #$4B

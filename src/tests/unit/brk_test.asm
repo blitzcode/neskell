@@ -1,7 +1,7 @@
 
-# BRK interrupt test
-#
-# Expected Value: $FF = $44
+; BRK interrupt test
+;
+; Expected Value: $FF = $44
 
 JMP start ; Keep ISR at a fixed address when we change the program
 

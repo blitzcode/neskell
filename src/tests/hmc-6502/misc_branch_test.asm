@@ -1,11 +1,8 @@
 
-# Test taken from hmc-6502
-# http://code.google.com/p/hmc-6502/source/browse/trunk/emu/testvectors/TestAllInstructions/
-
-# Tests all other branch instructions (BPL & BMI & BVC & BVS & BCC & BCS).
-# Assumes that ADC & SBC & EOR work with all addressing modes.
-#
-# Expected Results: $80 = 0x1F
+; Tests all other branch instructions (BPL & BMI & BVC & BVS & BCC & BCS).
+; Assumes that ADC & SBC & EOR work with all addressing modes.
+;
+; Expected Results: $80 = 0x1F
 
 start:
 ; prepare memory

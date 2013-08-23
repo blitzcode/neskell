@@ -1422,7 +1422,7 @@ DCB #$00
 ;
 ; Stores to X the value of (A & X) - Immediate. This instruction does not have
 ; any decimal mode, and it does not affect the V flag. Also Carry will be
-; ignored in the subtraction, but set according to the result.
+; ignored in the subtraction, but set according to the result (like CMP).
 ;
 ;  X <- (A & X) - M                   N Z C I D V
 ;                                     + + + - - -

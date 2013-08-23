@@ -1,9 +1,9 @@
 
-# Test the page wrapping bug in the indirect addressing mode of the JMP instruction
-#
-# Expected Value: $00 = $65
-# 
-# 6502js fails this test, works fine in Visual 6502, of course
+; Test the page wrapping bug in the indirect addressing mode of the JMP instruction
+;
+; Expected Value: $00 = $65
+; 
+; 6502js fails this test, works fine in Visual 6502, of course
 
 ; Setup addresses
 LDA #$16

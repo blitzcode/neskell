@@ -967,29 +967,29 @@ TYA          ;Implied       $98  1   2
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;KIL($02)     Implied       $02  1   -
-DCB #$02
+DCB $02
 ;KIL($12)     Implied       $12  1   -
-DCB #$12
+DCB $12
 ;KIL($22)     Implied       $22  1   -
-DCB #$22
+DCB $22
 ;KIL($32)     Implied       $32  1   -
-DCB #$32
+DCB $32
 ;KIL($42)     Implied       $42  1   -
-DCB #$42
+DCB $42
 ;KIL($52)     Implied       $52  1   -
-DCB #$52
+DCB $52
 ;KIL($62)     Implied       $62  1   -
-DCB #$62
+DCB $62
 ;KIL($72)     Implied       $72  1   -
-DCB #$72
+DCB $72
 ;KIL($92)     Implied       $92  1   -
-DCB #$92
+DCB $92
 ;KIL($B2)     Implied       $B2  1   -
-DCB #$B2
+DCB $B2
 ;KIL($D2)     Implied       $D2  1   -
-DCB #$D2
+DCB $D2
 ;KIL($F2)     Implied       $F2  1   -
-DCB #$F2
+DCB $F2
 
 ; NOP - Illegal NOP Variants
 ;
@@ -1002,87 +1002,87 @@ DCB #$F2
 ;SYNTAX           MODE          HEX LEN TIM
 ;-----------------------------------------
 ;NOP($7A)         Implied       $7A  1   2
-DCB #$7A)
+DCB $7A)
 ;NOP($5A)         Implied       $5A  1   2
-DCB #$5A
+DCB $5A
 ;NOP($1A)         Implied       $1A  1   2
-DCB #$1A
+DCB $1A
 ;NOP($3A)         Implied       $3A  1   2
-DCB #$3A
+DCB $3A
 ;NOP($DA)         Implied       $DA  1   2
-DCB #$DA
+DCB $DA
 ;NOP($FA)         Implied       $FA  1   2
-DCB #$FA
+DCB $FA
 ;NOP($80) #$00    Immediate     $80  2   2
-DCB #$80
-DCB #$00
+DCB $80
+DCB $00
 ;NOP($82) #$00    Immediate     $82  2   2
-DCB #$82
-DCB #$00
+DCB $82
+DCB $00
 ;NOP($89) #$00    Immediate     $89  2   2
-DCB #$89
-DCB #$00
+DCB $89
+DCB $00
 ;NOP($C2) #$00    Immediate     $C2  2   2
-DCB #$C2
-DCB #$00
+DCB $C2
+DCB $00
 ;NOP($E2) #$00    Immediate     $E2  2   2
-DCB #$E2
-DCB #$00
+DCB $E2
+DCB $00
 ;NOP($04) $00     Zero Page     $04  2   3
-DCB #$04
-DCB #$00
+DCB $04
+DCB $00
 ;NOP($64) $00     Zero Page     $64  2   3
-DCB #$64
-DCB #$00
+DCB $64
+DCB $00
 ;NOP($44) $00     Zero Page     $44  2   3
-DCB #$44
-DCB #$00
+DCB $44
+DCB $00
 ;NOP($0C) $0000   Absolute      $0C  3   4
-DCB #$0C
-DCB #$00
-DCB #$00
+DCB $0C
+DCB $00
+DCB $00
 ;NOP($14) $00,X   Zero Page,X   $14  2   4
-DCB #$14
-DCB #$00
+DCB $14
+DCB $00
 ;NOP($34) $00,X   Zero Page,X   $34  2   4
-DCB #$34
-DCB #$00
+DCB $34
+DCB $00
 ;NOP($54) $00,X   Zero Page,X   $54  2   4
-DCB #$54
-DCB #$00
+DCB $54
+DCB $00
 ;NOP($74) $00,X   Zero Page,X   $74  2   4
-DCB #$74
-DCB #$00
+DCB $74
+DCB $00
 ;NOP($D4) $00,X   Zero Page,X   $D4  2   4
-DCB #$D4
-DCB #$00
+DCB $D4
+DCB $00
 ;NOP($F4) $00,X   Zero Page,X   $F4  2   4
-DCB #$F4
-DCB #$00
+DCB $F4
+DCB $00
 ;NOP($1C) $0000,X Absolute,X    $1C  3   4+
-DCB #$1C
-DCB #$00
-DCB #$00
+DCB $1C
+DCB $00
+DCB $00
 ;NOP($3C) $0000,X Absolute,X    $3C  3   4+
-DCB #$3C
-DCB #$00
-DCB #$00
+DCB $3C
+DCB $00
+DCB $00
 ;NOP($5C) $0000,X Absolute,X    $5C  3   4+
-DCB #$5C
-DCB #$00
-DCB #$00
+DCB $5C
+DCB $00
+DCB $00
 ;NOP($7C) $0000,X Absolute,X    $7C  3   4+
-DCB #$7C
-DCB #$00
-DCB #$00
+DCB $7C
+DCB $00
+DCB $00
 ;NOP($DC) $0000,X Absolute,X    $DC  3   4+
-DCB #$DC
-DCB #$00
-DCB #$00
+DCB $DC
+DCB $00
+DCB $00
 ;NOP($FC) $0000,X Absolute,X    $FC  3   4+
-DCB #$FC
-DCB #$00
-DCB #$00
+DCB $FC
+DCB $00
+DCB $00
 
 ; LAX - Load Accumulator and Index X with Memory
 ;
@@ -1098,28 +1098,28 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;LAX #$00     Immediate     $AB  2   2  *Highly Unstable*
-DCB #$AB
-DCB #$00
+DCB $AB
+DCB $00
 ;LAX $00      Zero Page     $A7  2   3
-DCB #$A7
-DCB #$00
+DCB $A7
+DCB $00
 ;LAX $00,Y    Zero Page,Y   $B7  2   4
-DCB #$B7
-DCB #$00
+DCB $B7
+DCB $00
 ;LAX $0000    Absolute      $AF  3   4
-DCB #$AF
-DCB #$00
-DCB #$00
+DCB $AF
+DCB $00
+DCB $00
 ;LAX $0000,Y  Absolute,Y    $BF  3   4+
-DCB #$BF
-DCB #$00
-DCB #$00
+DCB $BF
+DCB $00
+DCB $00
 ;LAX ($00,X)  IdxInd        $A3  2   6
-DCB #$A3
-DCB #$00
+DCB $A3
+DCB $00
 ;LAX ($00),Y  IndIdx        $B3  2   5+
-DCB #$B3
-DCB #$00
+DCB $B3
+DCB $00
 
 ; SAX - Stores the Bitwise AND of A and X
 ;
@@ -1131,18 +1131,18 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;SAX $00      Zero Page     $87  2   3
-DCB #$87
-DCB #$00
+DCB $87
+DCB $00
 ;SAX $00,Y    Zero Page,Y   $97  2   4
-DCB #$97
-DCB #$00
+DCB $97
+DCB $00
 ;SAX $0000    Absolute      $8F  3   4
-DCB #$8F
-DCB #$00
-DCB #$00
+DCB $8F
+DCB $00
+DCB $00
 ;SAX ($00,X)  IdxInd        $83  2   6
-DCB #$83
-DCB #$00
+DCB $83
+DCB $00
 
 ; SBC - Illegal SBC Variants
 ;
@@ -1154,8 +1154,8 @@ DCB #$00
 ;SYNTAX        MODE          HEX LEN TIM
 ;---------------------------------------
 ;SBC($EB) #$00 Immediate     $EB  2   2
-DCB #$EB
-DCB #$00
+DCB $EB
+DCB $00
 
 ; DCP - Combined DEC + CMP
 ;
@@ -1168,29 +1168,29 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;DCP $00      Zero Page     $C7  2   5
-DCB #$C7
-DCB #$00
+DCB $C7
+DCB $00
 ;DCP $00,X    Zero Page,X   $D7  2   6
-DCB #$D7
-DCB #$00
+DCB $D7
+DCB $00
 ;DCP $0000    Absolute      $CF  3   6
-DCB #$CF
-DCB #$00
-DCB #$00
+DCB $CF
+DCB $00
+DCB $00
 ;DCP $0000,X  Absolute,X    $DF  3   7
-DCB #$DF
-DCB #$00
-DCB #$00
+DCB $DF
+DCB $00
+DCB $00
 ;DCP $0000,Y  Absolute,Y    $DB  3   7
-DCB #$DB
-DCB #$00
-DCB #$00
+DCB $DB
+DCB $00
+DCB $00
 ;DCP ($00,X)  IdxInd        $C3  2   8
-DCB #$C3
-DCB #$00
+DCB $C3
+DCB $00
 ;DCP ($00),Y  IndIdx        $D3  2   8
-DCB #$D3
-DCB #$00
+DCB $D3
+DCB $00
 
 ; ISC - Combined INC + SBC
 ;
@@ -1203,29 +1203,29 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;ISC $00      Zero Page     $E7  2   5
-DCB #$E7
-DCB #$00
+DCB $E7
+DCB $00
 ;ISC $00,X    Zero Page,X   $F7  2   6
-DCB #$F7
-DCB #$00
+DCB $F7
+DCB $00
 ;ISC $0000    Absolute      $EF  3   6
-DCB #$EF
-DCB #$00
-DCB #$00
+DCB $EF
+DCB $00
+DCB $00
 ;ISC $0000,X  Absolute,X    $FF  3   7
-DCB #$FF
-DCB #$00
-DCB #$00
+DCB $FF
+DCB $00
+DCB $00
 ;ISC $0000,Y  Absolute,Y    $FB  3   7
-DCB #$FB
-DCB #$00
-DCB #$00
+DCB $FB
+DCB $00
+DCB $00
 ;ISC ($00,X)  IdxInd        $E3  2   8
-DCB #$E3
-DCB #$00
+DCB $E3
+DCB $00
 ;ISC ($00),Y  IndIdx        $F3  2   8
-DCB #$F3
-DCB #$00
+DCB $F3
+DCB $00
 
 ; RLA - Combined ROL + AND
 ;
@@ -1238,29 +1238,29 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;RLA $00      Zero Page     $27  2   5
-DCB #$27
-DCB #$00
+DCB $27
+DCB $00
 ;RLA $00,X    Zero Page,X   $37  2   6
-DCB #$37
-DCB #$00
+DCB $37
+DCB $00
 ;RLA $0000    Absolute      $2F  3   6
-DCB #$2F
-DCB #$00
-DCB #$00
+DCB $2F
+DCB $00
+DCB $00
 ;RLA $0000,X  Absolute,X    $3F  3   7
-DCB #$3F
-DCB #$00
-DCB #$00
+DCB $3F
+DCB $00
+DCB $00
 ;RLA $0000,Y  Absolute,Y    $3B  3   7
-DCB #$3B
-DCB #$00
-DCB #$00
+DCB $3B
+DCB $00
+DCB $00
 ;RLA ($00,X)  IdxInd        $23  2   8
-DCB #$23
-DCB #$00
+DCB $23
+DCB $00
 ;RLA ($00),Y  IndIdx        $33  2   8
-DCB #$33
-DCB #$00
+DCB $33
+DCB $00
 
 ; RLA - Combined ROR + ADC
 ;
@@ -1274,29 +1274,29 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;RRA $00      Zero Page     $67  2   5
-DCB #$67
-DCB #$00
+DCB $67
+DCB $00
 ;RRA $00,X    Zero Page,X   $77  2   6
-DCB #$77
-DCB #$00
+DCB $77
+DCB $00
 ;RRA $0000    Absolute      $6F  3   6
-DCB #$6F
-DCB #$00
-DCB #$00
+DCB $6F
+DCB $00
+DCB $00
 ;RRA $0000,X  Absolute,X    $7F  3   7
-DCB #$7F
-DCB #$00
-DCB #$00
+DCB $7F
+DCB $00
+DCB $00
 ;RRA $0000,Y  Absolute,Y    $7B  3   7
-DCB #$7B
-DCB #$00
-DCB #$00
+DCB $7B
+DCB $00
+DCB $00
 ;RRA ($00,X)  IdxInd        $63  2   8
-DCB #$63
-DCB #$00
+DCB $63
+DCB $00
 ;RRA ($00),Y  IndIdx        $73  2   8
-DCB #$73
-DCB #$00
+DCB $73
+DCB $00
 
 ; SLO - Combined ASL + ORA
 ;
@@ -1309,29 +1309,29 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;SLO $00      Zero Page     $07  2   5
-DCB #$07
-DCB #$00
+DCB $07
+DCB $00
 ;SLO $00,X    Zero Page,X   $17  2   6
-DCB #$17
-DCB #$00
+DCB $17
+DCB $00
 ;SLO $0000    Absolute      $0F  3   6
-DCB #$0F
-DCB #$00
-DCB #$00
+DCB $0F
+DCB $00
+DCB $00
 ;SLO $0000,X  Absolute,X    $1F  3   7
-DCB #$1F
-DCB #$00
-DCB #$00
+DCB $1F
+DCB $00
+DCB $00
 ;SLO $0000,Y  Absolute,Y    $1B  3   7
-DCB #$1B
-DCB #$00
-DCB #$00
+DCB $1B
+DCB $00
+DCB $00
 ;SLO ($00,X)  IdxInd        $03  2   8
-DCB #$03
-DCB #$00
+DCB $03
+DCB $00
 ;SLO ($00),Y  IndIdx        $13  2   8
-DCB #$13
-DCB #$00
+DCB $13
+DCB $00
 
 ; SRE - Combined LSR + EOR
 ;
@@ -1344,29 +1344,29 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;SRE $00      Zero Page     $47  2   5
-DCB #$47
-DCB #$00
+DCB $47
+DCB $00
 ;SRE $00,X    Zero Page,X   $57  2   6
-DCB #$57
-DCB #$00
+DCB $57
+DCB $00
 ;SRE $0000    Absolute      $4F  3   6
-DCB #$4F
-DCB #$00
-DCB #$00
+DCB $4F
+DCB $00
+DCB $00
 ;SRE $0000,X  Absolute,X    $5F  3   7
-DCB #$5F
-DCB #$00
-DCB #$00
+DCB $5F
+DCB $00
+DCB $00
 ;SRE $0000,Y  Absolute,Y    $5B  3   7
-DCB #$5B
-DCB #$00
-DCB #$00
+DCB $5B
+DCB $00
+DCB $00
 ;SRE ($00,X)  IdxInd        $43  2   8
-DCB #$43
-DCB #$00
+DCB $43
+DCB $00
 ;SRE ($00),Y  IndIdx        $53  2   8
-DCB #$53
-DCB #$00
+DCB $53
+DCB $00
 
 ; ANC - Sets SR based on A AND M
 ;
@@ -1383,11 +1383,11 @@ DCB #$00
 ;SYNTAX        MODE         HEX LEN TIM
 ;--------------------------------------
 ;ANC($0B) #$00 Immediate    $0B  2   2
-DCB #$0B
-DCB #$00
+DCB $0B
+DCB $00
 ;ANC($2B) #$00 Immediate    $2B  2   2
-DCB #$2B
-DCB #$00
+DCB $2B
+DCB $00
 
 ; ALR - Combined AND + LSR
 ;
@@ -1403,8 +1403,8 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;ALR #$00     Immediate     $4B  2   2
-DCB #$4B
-DCB #$00
+DCB $4B
+DCB $00
 
 ; ARR - Combined AND + ROR with different SR effects
 ;
@@ -1424,8 +1424,8 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;ARR #$00     Immediate     $6B  2   2
-DCB #$6B
-DCB #$00
+DCB $6B
+DCB $00
 
 ; XAA - Unstable opcode, like a three register AND
 ;
@@ -1443,8 +1443,8 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;XAA #$00     Immediate     $8B  2   2  *Highly Unstable*
-DCB #$8B
-DCB #$00
+DCB $8B
+DCB $00
 
 ; AHX - Store A & X & (ADDR_HI + 1) into M
 ;
@@ -1457,12 +1457,12 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;AHX ($00),Y  IndIdx        $93  2   6
-DCB #$93
-DCB #$00
+DCB $93
+DCB $00
 ;AHX $0000,Y  Absolute,Y    $9F  3   5
-DCB #$9F
-DCB #$00
-DCB #$00
+DCB $9F
+DCB $00
+DCB $00
 
 ; TAS - AND A, X, SP, ADDR_HI
 ;
@@ -1476,9 +1476,9 @@ DCB #$00
 ;SYNTAX      MODE           HEX LEN TIM
 ;--------------------------------------
 ;TAS $0000,Y Absolute,Y     $9B  3   5
-DCB #$9B
-DCB #$00
-DCB #$00
+DCB $9B
+DCB $00
+DCB $00
 
 ; SHX - X AND ADDR_HI
 ;
@@ -1491,9 +1491,9 @@ DCB #$00
 ;SYNTAX      MODE           HEX LEN TIM
 ;--------------------------------------
 ;SHX $0000,Y Absolute,Y     $9E  3   5
-DCB #$9E
-DCB #$00
-DCB #$00
+DCB $9E
+DCB $00
+DCB $00
 
 ; SHY - Y AND ADDR_HI
 ;
@@ -1506,9 +1506,9 @@ DCB #$00
 ;SYNTAX      MODE           HEX LEN TIM
 ;--------------------------------------
 ;SHY $0000,Y Absolute,Y     $9C  3   5
-DCB #$9C
-DCB #$00
-DCB #$00
+DCB $9C
+DCB $00
+DCB $00
 
 ; LAS - Load A, X and SP with SP AND M
 ;
@@ -1524,9 +1524,9 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;LAS $0000,Y  Absolute,Y    $BB  3   4+
-DCB #$BB
-DCB #$00
-DCB #$00
+DCB $BB
+DCB $00
+DCB $00
 
 ; AXS - Store A AND X minus M into X
 ;
@@ -1544,8 +1544,8 @@ DCB #$00
 ;SYNTAX       MODE          HEX LEN TIM
 ;--------------------------------------
 ;AXS #$00     Immediate     $CB  2   2
-DCB #$CB
-DCB #$00
+DCB $CB
+DCB $00
 
 ; +  = Add 1 to cycles if page boundary is crossed during address computation
 ;      Store instructions have this extra cycle always build in as they can't

@@ -1,11 +1,8 @@
 
-# Test taken from hmc-6502
-# http://code.google.com/p/hmc-6502/source/browse/trunk/emu/testvectors/TestAllInstructions/
-
-# Tests instructions ADC & SBC with all addressing modes.
-# Assumes that loads & stores work with all addressing modes.
-#
-# Expected Results: $30=0xAA
+; Tests instructions ADC & SBC with all addressing modes.
+; Assumes that loads & stores work with all addressing modes.
+;
+; Expected Results: $30=0xAA
 
 start:
 LDA #$6A
@@ -23,8 +20,8 @@ ADC #$FF
 SBC #$AE
 
 ; Illegal alias for SBC Immediate
-DCB #$EB
-DCB #$FE
+DCB $EB
+DCB $FE
 
 STA $40
 LDX $40

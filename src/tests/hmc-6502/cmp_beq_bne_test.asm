@@ -1,15 +1,12 @@
 
-# Test taken from hmc-6502
-# http://code.google.com/p/hmc-6502/source/browse/trunk/emu/testvectors/TestAllInstructions/
+; Tests instructions CMP (all addressing modes) & BEQ & BNE.
+; Assumes that loads & stores work with all addressing modes.
+; Also assumes that AND & ORA & EOR work with all addressing modes.
+;
+; Expected Results: $15 = 0x7F
 
-# Tests instructions CMP (all addressing modes) & BEQ & BNE.
-# Assumes that loads & stores work with all addressing modes.
-# Also assumes that AND & ORA & EOR work with all addressing modes.
-#
-# Expected Results: $15 = 0x7F
-
-# Note that this test does not seem to work in 6502js, but Visual 6502 gives the
-# correct result
+; Note that this test does not seem to work in 6502js, but Visual 6502 gives the
+; correct result
 
 start:
 ; prepare memory
