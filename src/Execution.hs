@@ -859,11 +859,6 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             ivec <- load16 $ Addr 0xFFFE
             store16Trace PC ivec
             advCycles baseC
-        DCB -> do
-            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen (1 :: Int)
-            traceNoOpLoad
-            update16 PC (1 +)
-            advCycles 1
         KIL -> do
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen (1 :: Int)
             traceNoOpLoad
@@ -1004,4 +999,367 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
+
+
+{-
+; ANC - Sets SR based on A AND M
+;
+; Does A AND M, setting N and Z flags based on the result. Then it copies N
+; (bit 7) to C. A and M are not modified.
+;
+;    A AND M                          N Z C I D V
+;                                     + + + - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
+; C Carry Flag        Set if bit 7 set
+;
+;SYNTAX        MODE         HEX LEN TIM
+;--------------------------------------
+;ANC($0B) #$00 Immediate    $0B  2   2
+DCB #$0B
+DCB #$00
+;ANC($2B) #$00 Immediate    $2B  2   2
+DCB #$2B
+DCB #$00
+
+ 0B *ANC imm 2   $0B: bytes: 2 cycles: 2 A____=>____P __ 
+ 2B *ANC imm 2   $2B: bytes: 2 cycles: 2 A____=>____P __ 
+   ANC #i ($0B ii, $2B ii; 2 cycles) 
+   Does AND #i, setting N and Z flags based on the result. Then it copies N (bit 7) to C.
+   A:=A&#{imm} NZC
+   this command performs an AND operation only, but bit 7 is put into the carry, as if the ASL/ROL would have been executed.
+   AND byte with accumulator. If result is negative then carry is
+   set. Status flags: N,Z,C
+   -
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Immediate   |ANC #arg   |$0B| 2 | 2
+  Immediate   |ANC #arg   |$2B| 2 | 2
+-}
+        ANC -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; ALR - Combined AND + LSR
+;
+; Does A AND M followed by LSR A.
+;
+;    A = A AND M                      N Z C I D V
+;    0 -> [76543210] -> C             0 + + - - -
+;
+; C Carry Flag        Set to contents of old bit 0
+; Z Zero Flag         Set if result = 0
+; N Negative Flag     Set to 0
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;ALR #$00     Immediate     $4B  2   2
+DCB #$4B
+DCB #$00
+
+ 4B *ALR imm 2   $4B: bytes: 2 cycles: 2 A____=>A___P __ 
+   ALR #i ($4B ii; 2 cycles) 
+   Equivalent to AND #i then LSR A.
+   A:=(A&#{imm})/2 NZC
+   AND byte with accumulator, then shift right one bit in accumu-
+   lator. Status flags: N,Z,C
+   -   
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Immediate   |ALR #arg   |$4B| 2 | 2
+-}
+        ALR -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; ARR - Combined AND + ROR with different SR effects
+;
+; Similar to doing AND Immediate followed by ROR A, but setting the flags
+; C and V differently.
+;
+; In decimal mode, this instruction has some rather strange behavior,
+; explained in detail in http://www.viceteam.org/plain/64doc.txt
+;
+;                                     N Z C I D V
+;                                     + + + - - +
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of the result is set
+; C Carry Flag        Set if bit 6 of the result is set
+; V Overflow Flag     Set to Bit5 ^ Bit6
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;ARR #$00     Immediate     $6B  2   2
+DCB #$6B
+DCB #$00
+
+ 6B *ARR imm 2   $6B: bytes: 2 cycles: 2 A___P=>A___P __ 
+   ARR #i ($6B ii; 2 cycles)
+   Similar to AND #i then ROR A, except sets the flags differently.
+   N and Z are normal, but C is bit 6 and V is bit 6 xor bit 5.
+   A:=(A&#{imm})/2 NVZC
+   part of this command are some ADC mechanisms. following effects appear after AND but before ROR: the V-Flag is set according to (A and #{imm})+#{imm}, bit 0 does NOT go into carry, but bit 7 is exchanged with the carry.
+   AND byte with accumulator, then rotate one bit right in accu-
+   mulator and check bit 5 and 6:
+   If both bits are 1: set C, clear V.
+   If both bits are 0: clear C and V.
+   If only bit 5 is 1: set V, clear C.
+   If only bit 6 is 1: set C and V.
+   Status flags: N,V,Z,C
+   -
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Immediate   |ARR #arg   |$6B| 2 | 2
+-}
+        ARR -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; XAA - Unstable opcode, like a three register AND
+;
+; See http://visual6502.org/wiki/index.php?title=6502_Opcode_8B_%28XAA,_ANE%29
+; for a good analysis. This opcode is not stable on a real 6502 and its
+; result depends on analog effects and varies between different CPUs and
+; operating conditions.
+;
+;  A = (A OR magic) AND X AND M       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of A is set
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;XAA #$00     Immediate     $8B  2   2  *Highly Unstable*
+DCB #$8B
+DCB #$00
+
+ 8B *XAA imm 2   $8B: bytes: 2 cycles: 2 _____=>A___P __ 
+   http://visual6502.org/wiki/index.php?title=6502_Opcode_8B_%28XAA,_ANE%29
+   XAA - will more or less AND together the three inputs: the X register, the A register, and the immediate operand.
+   A = (A | magic) & X & imm
+    N and Z flags are set according to the result of XAA 
+-}
+        XAA -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; AHX - Store A & X & (ADDR_HI + 1) into M
+;
+; There are some conflicting description of what this opcode does, but this
+; version seems to match the reference best.
+;
+;  A & X & (ADDR_HI + 1) -> M         N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;AHX ($00),Y  IndIdx        $93  2   6
+DCB #$93
+DCB #$00
+;AHX $0000,Y  Absolute,Y    $9F  3   5
+DCB #$9F
+DCB #$00
+DCB #$00
+
+ 93 *AHX izy 6   $93: bytes: 2 cycles: 6 _____=>_____ RW izy
+ 9F *AHX aby 5   $9F: bytes: 3 cycles: 5 _____=>_____ RW absy
+   {adr}:=A&X&H NoFlags unstable in certain matters
+  SHA $93,$9F     Store (A & X & (ADDR_HI + 1))
+   AND X register with accumulator then AND result with 7 and
+   store in memory. Status flags: -
+   -
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   (Indirect),Y|AXA arg    |$93| 2 | 6
+   Absolute,Y  |AXA arg,Y  |$9F| 3 | 5
+-}
+        AHX -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; TAS - AND A, X, SP, ADDR_HI
+;
+; AND X register with accumulator and store result in stack pointer, then AND
+; stack pointer with the high byte of the target address of the argument + 1.
+; Store result in memory.
+;
+;  X AND A -> SP                      N Z C I D V
+;  SP AND (ADDR_HI + 1) -> M          - - - - - -
+;
+;SYNTAX      MODE           HEX LEN TIM
+;--------------------------------------
+;TAS $0000,Y Absolute,Y     $9B  3   5
+DCB #$9B
+DCB #$00
+DCB #$00
+
+ 9B *TAS aby 5   $9B: bytes: X cycles: 5 __Y__=>___S_ _W 
+   S:=A&X {adr}:=S&H NoFlags unstable in certain matters
+   AND X register with accumulator and store result in stack
+   pointer, then AND stack pointer with the high byte of the
+   target address of the argument + 1. Store result in memory.
+   -   
+   S = X AND A, M = S AND HIGH(arg) + 1
+   - 
+   Status flags: -
+   -   
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Absolute,Y  |XAS arg,Y  |$9B| 3 | 5
+-}
+        TAS -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; SHX - X AND ADDR_HI
+;
+; AND X register with the high byte of the target address of the argument + 1.
+; Store the result in memory.
+;
+;  X AND (ADDR_HI + 1) -> M           N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX      MODE           HEX LEN TIM
+;--------------------------------------
+;SHX $0000,Y Absolute,Y     $9E  3   5
+DCB #$9E
+DCB #$00
+DCB #$00
+
+ 9E *SHX aby 5   $9E: bytes: 3 cycles: 5 _X___=>_____ RW absy
+   {adr}:=X&H NoFlags unstable in certain matters
+   AND X register with the high byte of the target address of the
+   argument + 1. Store the result in memory.
+   -
+   M = X AND HIGH(arg) + 1
+   -
+   Status flags: -
+   -
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Absolute,Y  |SXA arg,Y  |$9E| 3 | 5
+-}
+        SHX -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; SHY - Y AND ADDR_HI
+;
+; AND Y register with the high byte of the target address of the argument + 1.
+; Store the result in memory.
+;
+;  Y AND (ADDR_HI + 1) -> M           N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX      MODE           HEX LEN TIM
+;--------------------------------------
+;SHY $0000,Y Absolute,Y     $9C  3   5
+DCB #$9C
+DCB #$00
+DCB #$00
+
+ 9C *SHY abx 5   $9C: bytes: 3 cycles: 5 __Y__=>_____ RW absx
+   {adr}:=Y&H NoFlags unstable in certain matters
+   AND Y register with the high byte of the target address of the
+   argument + 1. Store the result in memory.
+   -
+   M = Y AND HIGH(arg) + 1
+   -
+   Status flags: -
+   -
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Absolute,X  |SHY arg,X  |$9C| 3 | 5
+-}
+        SHY -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; LAS - Load A, X and SP with SP AND M
+;
+; AND memory with stack pointer, transfer result to accumulator, X register
+; and stack pointer.
+;
+;    SP AND M -> A, X, SP             N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;LAS $0000,Y  Absolute,Y    $BB  3   4+
+DCB #$BB
+DCB #$00
+DCB #$00
+
+ BB *LAS aby 4*  $BB: bytes: 3 cycles: 4 ___S_=>AX_SP R_ absy
+   A,X,S:={adr}&S NZ
+   AND memory with stack pointer, transfer result to accumulator,
+   X register and stack pointer.
+   Status flags: N,Z
+   -
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Absolute,Y  |LAR arg,Y  |$BB| 3 | 4 * add one cycle when page boundary is crossed
+-}
+        LAS -> do
+            update16 PC (ilen +)
+            advCycles 1
+
+
+{-
+; AXS - Store A AND X minus M into X
+;
+; Stores to X the value of (A & X) - Immediate. This instruction does not have
+; any decimal mode, and it does not affect the V flag. Also Carry will be
+; ignored in the subtraction, but set according to the result.
+;
+;  X <- (A & X) - M                   N Z C I D V
+;                                     + + + - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
+; C Carry Flag        Clear if overflow in bit 7
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;AXS #$00     Immediate     $CB  2   2
+DCB #$CB
+DCB #$00
+
+ CB *AXS imm 2   $CB: bytes: 2 cycles: 2 _____=>_X__P __ 
+ AXS #i ($CB ii, 2 cycles)
+    Sets X to {(A AND X) - #value without borrow}, and updates NZC. One might use TXA AXS #-element_size to iterate through an array of structures or other elements larger than a byte, where the 6502 architecture usually prefers a structure of arrays. For example, TXA AXS #$FC could step to the next OAM entry or to the next APU channel, saving one byte and four cycles over four INXs. Also called SBX. 
+    X:=A&X-#{imm} NZC
+    performs CMP and DEX at the same time, so that the MINUS sets the flag like CMP, not SBC.
+   AND X register with accumulator and store result in X regis-
+   ter, then subtract byte from X register (without borrow).
+   Status flags: N,Z,C
+   -
+   Addressing  |Mnemonics  |Opc|Sz | n
+   ------------|-----------|---|---|---
+   Immediate   |AXS #arg   |$CB| 2 | 2
+-}
+        AXS -> do
+            update16 PC (ilen +)
+            advCycles 1
 

@@ -7,7 +7,7 @@
 ; and used as ground truth during emulator development, also suitable as an
 ; assembler / disassembler test. Nice to have it all in one place, plus each
 ; of these documents has typos, omissions and errors which were discovered
-; during the N-way merge.
+; during the N-way merge and some Visual 6502 debugging sessions.
 ;
 ; For testing disassembly / instruction decoding, the file 'instr_test.bin' is
 ; an assembled version of this file, and its disassembly should match
@@ -30,6 +30,8 @@
 ; http://visual6502.org/wiki/index.php?title=6502_all_256_Opcodes
 ; http://wiki.nesdev.com/w/index.php/Programming_with_unofficial_opcodes
 ; http://www.oxyron.de/html/opcodes02.html
+; http://www.viceteam.org/plain/64doc.txt
+; http://www.ataripreservation.org/websites/freddy.offenga/illopc31.txt
 
 ; Instructions with all addressing modes in alphabetical order
 ; ------------------------------------------------------------
@@ -1364,6 +1366,185 @@ DCB #$43
 DCB #$00
 ;SRE ($00),Y  IndIdx        $53  2   8
 DCB #$53
+DCB #$00
+
+; ANC - Sets SR based on A AND M
+;
+; Does A AND M, setting N and Z flags based on the result. Then it copies N
+; (bit 7) to C. A and M are not modified.
+;
+;    A AND M                          N Z C I D V
+;                                     + + + - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
+; C Carry Flag        Set if bit 7 set
+;
+;SYNTAX        MODE         HEX LEN TIM
+;--------------------------------------
+;ANC($0B) #$00 Immediate    $0B  2   2
+DCB #$0B
+DCB #$00
+;ANC($2B) #$00 Immediate    $2B  2   2
+DCB #$2B
+DCB #$00
+
+; ALR - Combined AND + LSR
+;
+; Does A AND M followed by LSR A.
+;
+;    A = A AND M                      N Z C I D V
+;    0 -> [76543210] -> C             0 + + - - -
+;
+; C Carry Flag        Set to contents of old bit 0
+; Z Zero Flag         Set if result = 0
+; N Negative Flag     Set to 0
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;ALR #$00     Immediate     $4B  2   2
+DCB #$4B
+DCB #$00
+
+; ARR - Combined AND + ROR with different SR effects
+;
+; Similar to doing AND Immediate followed by ROR A, but setting the flags
+; C and V differently.
+;
+; In decimal mode, this instruction has some rather strange behavior,
+; explained in detail in http://www.viceteam.org/plain/64doc.txt
+;
+;                                     N Z C I D V
+;                                     + + + - - +
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of the result is set
+; C Carry Flag        Set if bit 6 of the result is set
+; V Overflow Flag     Set to Bit5 ^ Bit6
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;ARR #$00     Immediate     $6B  2   2
+DCB #$6B
+DCB #$00
+
+; XAA - Unstable opcode, like a three register AND
+;
+; See http://visual6502.org/wiki/index.php?title=6502_Opcode_8B_%28XAA,_ANE%29
+; for a good analysis. This opcode is not stable on a real 6502 and its
+; result depends on analog effects and varies between different CPUs and
+; operating conditions.
+;
+;  A = (A OR magic) AND X AND M       N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 of A is set
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;XAA #$00     Immediate     $8B  2   2  *Highly Unstable*
+DCB #$8B
+DCB #$00
+
+; AHX - Store A & X & (ADDR_HI + 1) into M
+;
+; There are some conflicting description of what this opcode does, but this
+; version seems to match the reference best.
+;
+;  A & X & (ADDR_HI + 1) -> M         N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;AHX ($00),Y  IndIdx        $93  2   6
+DCB #$93
+DCB #$00
+;AHX $0000,Y  Absolute,Y    $9F  3   5
+DCB #$9F
+DCB #$00
+DCB #$00
+
+; TAS - AND A, X, SP, ADDR_HI
+;
+; AND X register with accumulator and store result in stack pointer, then AND
+; stack pointer with the high byte of the target address of the argument + 1.
+; Store result in memory.
+;
+;  X AND A -> SP                      N Z C I D V
+;  SP AND (ADDR_HI + 1) -> M          - - - - - -
+;
+;SYNTAX      MODE           HEX LEN TIM
+;--------------------------------------
+;TAS $0000,Y Absolute,Y     $9B  3   5
+DCB #$9B
+DCB #$00
+DCB #$00
+
+; SHX - X AND ADDR_HI
+;
+; AND X register with the high byte of the target address of the argument + 1.
+; Store the result in memory.
+;
+;  X AND (ADDR_HI + 1) -> M           N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX      MODE           HEX LEN TIM
+;--------------------------------------
+;SHX $0000,Y Absolute,Y     $9E  3   5
+DCB #$9E
+DCB #$00
+DCB #$00
+
+; SHY - Y AND ADDR_HI
+;
+; AND Y register with the high byte of the target address of the argument + 1.
+; Store the result in memory.
+;
+;  Y AND (ADDR_HI + 1) -> M           N Z C I D V
+;                                     - - - - - -
+;
+;SYNTAX      MODE           HEX LEN TIM
+;--------------------------------------
+;SHY $0000,Y Absolute,Y     $9C  3   5
+DCB #$9C
+DCB #$00
+DCB #$00
+
+; LAS - Load A, X and SP with SP AND M
+;
+; AND memory with stack pointer, transfer result to accumulator, X register
+; and stack pointer.
+;
+;    SP AND M -> A, X, SP             N Z C I D V
+;                                     + + - - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;LAS $0000,Y  Absolute,Y    $BB  3   4+
+DCB #$BB
+DCB #$00
+DCB #$00
+
+; AXS - Store A AND X minus M into X
+;
+; Stores to X the value of (A & X) - Immediate. This instruction does not have
+; any decimal mode, and it does not affect the V flag. Also Carry will be
+; ignored in the subtraction, but set according to the result.
+;
+;  X <- (A & X) - M                   N Z C I D V
+;                                     + + + - - -
+;
+; Z Zero Flag         Set if A = 0
+; N Negative Flag     Set if bit 7 set
+; C Carry Flag        Clear if overflow in bit 7
+;
+;SYNTAX       MODE          HEX LEN TIM
+;--------------------------------------
+;AXS #$00     Immediate     $CB  2   2
+DCB #$CB
 DCB #$00
 
 ; +  = Add 1 to cycles if page boundary is crossed during address computation

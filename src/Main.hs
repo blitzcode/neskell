@@ -589,6 +589,9 @@ runTests = do
             --       BCD ADC and SBC. Those are not officially valid, but their
             --       behavior is well understood and we curently don't match
             --       Visual 6502 in some cases
+            --
+            --       http://www.6502.org/tutorials/decimal_mode.html
+            --       http://visual6502.org/wiki/index.php?title=6502DecimalMode
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]

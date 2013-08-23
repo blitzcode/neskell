@@ -70,8 +70,10 @@ data Mnemonic =
     | STX | STY | TAX | TAY | TSX | TXA
     | TXS | TYA
     -- Illegal / Unofficial
-    | DCB | KIL | LAX | SAX | DCP | ISC
-    | RLA | RRA | SLO | SRE
+    | KIL | LAX | SAX | DCP | ISC | RLA
+    | RRA | SLO | SRE | ANC | ALR | ARR
+    | XAA | AHX | TAS | SHX | SHY | LAS
+    | AXS
       deriving (Show, Eq)
 
 -- We store the binary representation as well so we can later distinguish
@@ -166,7 +168,11 @@ decodeOpCode w = let o = OpCode w in OpCodeC $ case w of
     ; 0x03 -> o SLO IdxInd      ; 0x13 -> o SLO IndIdx      ; 0x47 -> o SRE ZeroPage
     ; 0x57 -> o SRE ZeroPageX   ; 0x4F -> o SRE Absolute    ; 0x5F -> o SRE AbsoluteX
     ; 0x5B -> o SRE AbsoluteY   ; 0x43 -> o SRE IdxInd      ; 0x53 -> o SRE IndIdx
-    ; _    -> o DCB Implied
+    ; 0x0B -> o ANC Immediate   ; 0x2B -> o ANC Immediate   ; 0x4B -> o ALR Immediate
+    ; 0x6B -> o ARR Immediate   ; 0x8B -> o XAA Immediate   ; 0x93 -> o AHX IndIdx
+    ; 0x9F -> o AHX AbsoluteY   ; 0x9B -> o TAS AbsoluteY   ; 0x9E -> o SHX AbsoluteY
+    ; 0x9C -> o SHY AbsoluteY   ; 0xBB -> o LAS AbsoluteY   ; 0xCB -> o AXS Immediate
+    _ -> undefined -- Somehow GHC thinks 256 unique matches for a byte is non-exhaustive
 
 data Instruction = Instruction OpCode [Word8]
 
@@ -194,7 +200,7 @@ showAMAndOP am op = case am of
 -- the standard opcode disassembly
 isAmbiguousMn :: Word8 -> Mnemonic -> Bool
 isAmbiguousMn w8 mn = case mn of
-    DCB -> True
+    ANC -> True
     KIL -> True
     NOP -> (w8 /= 0xEA) -- Only a single official variant
     SBC -> (w8 == 0xEB) -- All except one official
@@ -216,7 +222,7 @@ decodeInstruction mem pc = do
     opMem <- mem VU.!? pc
     let opc@(viewOpCode -> OpCode _ _ am) = decodeOpCode opMem
     case operandLen am of
-        -- TODO: We should probably just return a DCB in case the operands are missing
+        -- TODO: We should probably just return a NOP in case the operands are missing
         1 -> do op1 <- mem VU.!? (pc + 1)
                 return $ Instruction opc [op1]
         2 -> do op1 <- mem VU.!? (pc + 1)
