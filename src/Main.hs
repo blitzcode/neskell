@@ -311,7 +311,6 @@ runTests = do
                                          , CondLS A (Left 0x7F)
                                          , CondLS Y (Left 0x7F)
                                          , CondCycleR 152 152
-                                         -- TODO: Test does not cover branch page crossing
                                          ]
                                          True
                                          traceMB
@@ -367,6 +366,21 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "Branch Backwards Test" tracefn h emures
+            -- Branch pagecrossing test
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/branch_pagecross_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x02F9) ]
+                                         [ (PC, Right 0x02F9) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS A (Left 0xFF)
+                                         , CondCycleR 14 14
+                                         ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "Branch Pagecrossing Test" tracefn h emures
             -- Flag test
             do
                 bin <- liftIO $ B.readFile "./tests/hmc-6502/flag_test.bin"
