@@ -1045,7 +1045,7 @@ DCB #$00
 -}
         ANC -> do
             let baseC = 2 :: Word64
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
             a  <- load8 A
             sr <- load8 SR
@@ -1085,14 +1085,14 @@ DCB #$00
 -}
         ALR -> do
             let baseC = 2 :: Word64
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
             a  <- load8 A
             let and'  = op .&. a
                 r     = and' `shiftR` 1
                 carry = testBit and' 0
             updateNZC r $ carry
-            storeOperand8 inst r
+            store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
 
@@ -1139,7 +1139,7 @@ DCB #$00
         ARR -> do
             -- TODO: This instruction should behave very different in decimal mode
             let baseC = 2 :: Word64
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
             sr <- load8 SR
             a  <- load8 A
@@ -1148,7 +1148,7 @@ DCB #$00
                 r      = (and' `shiftR` 1) .|. if carry then 128 else 0
                 ncarry = testBit and' 0
             store8Trace SR $ setNZC r ncarry sr
-            storeOperand8 inst r
+            store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
 
@@ -1180,7 +1180,7 @@ DCB #$00
 -}
         XAA -> do
             let baseC = 2 :: Word64
-            trace $ printf "%02X:%-11s U%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s U%ib%iC   " w (show inst) ilen baseC
             -- This opcode is not stable on a real 6502 and its result depends
             -- on analog effects and varies between different CPUs and operating
             -- conditions. This is a valid, if not entirely accurate
@@ -1229,7 +1229,8 @@ DCB #$00
 -}
         AHX -> do
             let baseC = 1 + getAMCycles am
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
+            traceNoOpLoad
             a <- load8 A
             x <- load8 X
             addrHI <- (\ls -> case ls of
@@ -1275,7 +1276,8 @@ DCB #$00
 -}
         TAS -> do
             let baseC = 1 + getAMCycles am
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
+            traceNoOpLoad
             a <- load8 A
             x <- load8 X
             let sp = x .&. a
@@ -1320,7 +1322,8 @@ DCB #$00
 -}
         SHX -> do
             let baseC = 1 :: Word64
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
+            traceNoOpLoad
             x <- load8 X
             addrHI <- (\ls -> case ls of
                           Addr addr -> return . snd . splitW16 $ addr
@@ -1362,7 +1365,8 @@ DCB #$00
 -}
         SHY -> do
             let baseC = 1 :: Word64
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
+            traceNoOpLoad
             y <- load8 Y
             addrHI <- (\ls -> case ls of
                           Addr addr -> return . snd . splitW16 $ addr
@@ -1452,7 +1456,7 @@ DCB #$00
 -}
         AXS -> do
             let baseC = 2 :: Word64
-            trace $ printf "%02X:%-11s I%ib%iC " w (show inst) ilen baseC
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
             a  <- load8 A
             x  <- load8 X

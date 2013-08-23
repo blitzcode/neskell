@@ -556,6 +556,24 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "Illegal RMW Test" tracefn h emures
+            -- Illegal misc. test
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/illegal_misc_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600)
+                                         , (SP, Left 0xFD)
+                                         ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         [ CondLS A  $ Left 0xD8
+                                         , CondLS SP $ Left 0xD9
+                                         , CondCycleR 711 711
+                                         ]
+                                         True
+                                         traceMB
+                checkEmuTestResult "Illegal Misc. Test" tracefn h emures
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
