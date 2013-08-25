@@ -1,5 +1,5 @@
 
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ViewPatterns, LambdaCase #-}
 
 module Execution ( execute
                  , detectLoopOnPC
@@ -167,8 +167,8 @@ loadStack16 = do
     return $ makeW16 l h
 
 getAMCycles :: AddressMode -> Word64
-getAMCycles am =
-    case am of
+getAMCycles =
+    \case
         Implied     -> 2
         Accumulator -> 0
         Immediate   -> 2
@@ -207,10 +207,10 @@ getOperandPageCrossPenalty inst = (\pagec -> return $ if pagec then 1 else 0) =<
 -- occurs for the three modes with 16 bit address computations, regardless of
 -- actually having a carry on the address LSB
 getStorePageCrossPenalty :: AddressMode -> Word64
-getStorePageCrossPenalty am = case am of IndIdx    -> 1
-                                         AbsoluteX -> 1
-                                         AbsoluteY -> 1
-                                         _         -> 0
+getStorePageCrossPenalty = \case IndIdx    -> 1
+                                 AbsoluteX -> 1
+                                 AbsoluteY -> 1
+                                 _         -> 0
 
 -- Two's complement to signed integer conversion
 makeSigned :: Word8 -> Int
@@ -1105,7 +1105,7 @@ DCB #$00
 ; In decimal mode, this instruction has some rather strange behavior,
 ; explained in detail in http://www.viceteam.org/plain/64doc.txt
 ;
-;                                     N Z C I D V
+;  A = ROR (A AND M)                  N Z C I D V
 ;                                     + + + - - +
 ; Z Zero Flag         Set if A = 0
 ; N Negative Flag     Set if bit 7 of the result is set
@@ -1233,9 +1233,8 @@ DCB #$00
             traceNoOpLoad
             a <- load8 A
             x <- load8 X
-            addrHI <- (\ls -> case ls of
-                          Addr addr -> return . snd . splitW16 $ addr
-                          _         -> trace "AM Err" >> return 0)
+            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
+                            _         -> trace "AM Err" >> return 0
                       =<< getOperandAddr8 inst
             let r = a .&. x .&. (addrHI + 1);
             storeOperand8 inst r
@@ -1282,9 +1281,8 @@ DCB #$00
             x <- load8 X
             let sp = x .&. a
             store8Trace SP sp
-            addrHI <- (\ls -> case ls of
-                          Addr addr -> return . snd . splitW16 $ addr
-                          _         -> trace "AM Err" >> return 0)
+            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
+                            _         -> trace "AM Err" >> return 0
                       =<< getOperandAddr8 inst
             storeOperand8 inst $ sp .&. (addrHI + 1)
             update16 PC (ilen +)
@@ -1325,9 +1323,8 @@ DCB #$00
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
             x <- load8 X
-            addrHI <- (\ls -> case ls of
-                          Addr addr -> return . snd . splitW16 $ addr
-                          _         -> trace "AM Err" >> return 0)
+            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
+                            _         -> trace "AM Err" >> return 0
                       =<< getOperandAddr8 inst
             storeOperand8 inst $ x .&. (addrHI + 1)
             update16 PC (ilen +)
@@ -1368,9 +1365,8 @@ DCB #$00
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
             y <- load8 Y
-            addrHI <- (\ls -> case ls of
-                          Addr addr -> return . snd . splitW16 $ addr
-                          _         -> trace "AM Err" >> return 0)
+            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
+                            _         -> trace "AM Err" >> return 0
                       =<< getOperandAddr8 inst
             storeOperand8 inst $ y .&. (addrHI + 1)
             update16 PC (ilen +)

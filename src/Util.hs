@@ -12,7 +12,7 @@ module Util ( L8R16
             , b2W8) where
 
 import Data.Word (Word8, Word16)
-import Data.Bits
+import Data.Bits ((.|.), (.&.), shiftL, shiftR, testBit, setBit, clearBit)
 
 type L8R16 = Either Word8 Word16
 
