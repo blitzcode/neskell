@@ -605,8 +605,9 @@ runTests = do
                                          , CondLS (Addr 0x01FD) $ Left 0xB5
                                          , CondLS (Addr 0x01FE) $ Left 0x34
                                          , CondLS (Addr 0x01FF) $ Left 0x36
-                                         -- TODO: Verify cycle count against reference
-                                         , CondCycleR 365 365
+                                         -- TODO: Cycle count from Visual 6502,
+                                         --       also check against VICE
+                                         , CondCycleR 381 381
                                          ]
                                          True
                                          traceMB
