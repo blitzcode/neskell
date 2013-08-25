@@ -171,7 +171,7 @@ decodeOpCode w = let o = OpCode w in OpCodeC $ case w of
     ; 0x0B -> o ANC Immediate   ; 0x2B -> o ANC Immediate   ; 0x4B -> o ALR Immediate
     ; 0x6B -> o ARR Immediate   ; 0x8B -> o XAA Immediate   ; 0x93 -> o AHX IndIdx
     ; 0x9F -> o AHX AbsoluteY   ; 0x9B -> o TAS AbsoluteY   ; 0x9E -> o SHX AbsoluteY
-    ; 0x9C -> o SHY AbsoluteY   ; 0xBB -> o LAS AbsoluteY   ; 0xCB -> o AXS Immediate
+    ; 0x9C -> o SHY AbsoluteX   ; 0xBB -> o LAS AbsoluteY   ; 0xCB -> o AXS Immediate
     _ -> undefined -- Somehow GHC thinks 256 unique matches for a byte is non-exhaustive
 
 data Instruction = Instruction OpCode [Word8]

@@ -549,7 +549,8 @@ runTests = do
                                          [ CondOpC BRK
                                          , CondCycleR 3000 (maxBound :: Word64)
                                          ]
-                                         [ CondLS A  $ Left 0xC3
+                                         [ -- TODO: Check all stack values instead of checksum
+                                           CondLS A  $ Left 0xC3
                                          , CondLS SP $ Left 0x7F
                                          , CondCycleR 2545 2545
                                          ]
@@ -561,15 +562,51 @@ runTests = do
                 bin <- liftIO $ B.readFile "./tests/unit/illegal_misc_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
-                                         [ (PC, Right 0x0600)
-                                         , (SP, Left 0xFD)
-                                         ]
+                                         [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         [ CondLS A  $ Left 0xD8
-                                         , CondLS SP $ Left 0xD9
-                                         , CondCycleR 711 711
+                                         [ CondLS SP $ Left 0xD9
+                                         , CondLS (Addr 0x01DA) $ Left 0xFF
+                                         , CondLS (Addr 0x01DB) $ Left 0xB4
+                                         , CondLS (Addr 0x01DC) $ Left 0x4C
+                                         , CondLS (Addr 0x01DD) $ Left 0x35
+                                         , CondLS (Addr 0x01DE) $ Left 0xA0
+                                         , CondLS (Addr 0x01DF) $ Left 0xA0
+                                         , CondLS (Addr 0x01E0) $ Left 0xA0
+                                         , CondLS (Addr 0x01E1) $ Left 0x00
+                                         , CondLS (Addr 0x01E2) $ Left 0x00
+                                         , CondLS (Addr 0x01E3) $ Left 0x01
+                                         , CondLS (Addr 0x01E4) $ Left 0x80
+                                         , CondLS (Addr 0x01E5) $ Left 0x01
+                                         , CondLS (Addr 0x01E6) $ Left 0x55
+                                         , CondLS (Addr 0x01E7) $ Left 0x80
+                                         , CondLS (Addr 0x01E8) $ Left 0x01
+                                         , CondLS (Addr 0x01E9) $ Left 0x34
+                                         , CondLS (Addr 0x01EA) $ Left 0x09
+                                         , CondLS (Addr 0x01EB) $ Left 0xB4
+                                         , CondLS (Addr 0x01EC) $ Left 0x80
+                                         , CondLS (Addr 0x01ED) $ Left 0xB5
+                                         , CondLS (Addr 0x01EE) $ Left 0xFF
+                                         , CondLS (Addr 0x01EF) $ Left 0x36
+                                         , CondLS (Addr 0x01F0) $ Left 0x00
+                                         , CondLS (Addr 0x01F1) $ Left 0x75
+                                         , CondLS (Addr 0x01F2) $ Left 0x55
+                                         , CondLS (Addr 0x01F3) $ Left 0xF5
+                                         , CondLS (Addr 0x01F4) $ Left 0xD5
+                                         , CondLS (Addr 0x01F5) $ Left 0x35
+                                         , CondLS (Addr 0x01F6) $ Left 0x7F
+                                         , CondLS (Addr 0x01F7) $ Left 0x37
+                                         , CondLS (Addr 0x01F8) $ Left 0x00
+                                         , CondLS (Addr 0x01F9) $ Left 0x35
+                                         , CondLS (Addr 0x01FA) $ Left 0x40
+                                         , CondLS (Addr 0x01FB) $ Left 0xB5
+                                         , CondLS (Addr 0x01FC) $ Left 0x36
+                                         , CondLS (Addr 0x01FD) $ Left 0xB5
+                                         , CondLS (Addr 0x01FE) $ Left 0x34
+                                         , CondLS (Addr 0x01FF) $ Left 0x36
+                                         -- TODO: Verify cycle count against reference
+                                         , CondCycleR 365 365
                                          ]
                                          True
                                          traceMB

@@ -1147,7 +1147,8 @@ DCB #$00
                 carry  = getFlag FC sr
                 r      = (and' `shiftR` 1) .|. if carry then 128 else 0
                 ncarry = testBit and' 0
-            store8Trace SR $ setNZC r ncarry sr
+                over   = (testBit r 5) /= (testBit r 6) -- Bit5 ^ Bit6
+            store8Trace SR . modifyFlag FV over . setNZC r ncarry $ sr
             store8Trace A r
             update16 PC (ilen +)
             advCycles baseC

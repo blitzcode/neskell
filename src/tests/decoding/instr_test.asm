@@ -1505,7 +1505,7 @@ DCB $00
 ;
 ;SYNTAX      MODE           HEX LEN TIM
 ;--------------------------------------
-;SHY $0000,Y Absolute,Y     $9C  3   5
+;SHY $0000,X Absolute,X     $9C  3   5
 DCB $9C
 DCB $00
 DCB $00
