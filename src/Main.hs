@@ -9,7 +9,7 @@ import MonadEmulator (LoadStore(..), Processor(..))
 import Util (srFromString)
 
 import Data.Monoid (All(..), getAll)
-import Data.Word (Word64)
+import Data.Word (Word8, Word64)
 import Control.Monad (when, unless)
 import Control.Monad.Writer (execWriterT, tell, WriterT)
 import Control.Monad.Error (throwError)
@@ -22,6 +22,7 @@ import System.Exit (exitSuccess, exitFailure)
 import Data.Time (getZonedTime)
 import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout)
 import System.Mem (performGC)
+import Numeric (readHex)
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
 decodingTest bin ref = do
@@ -85,6 +86,13 @@ checkEmuTestResult testName tracefn h ( condSuccess
     -- leaving ST and evaluating all return values seems to solve the problem
     -- entirely.
     liftIO performGC
+
+makeStackCond :: Word8 -> String -> [Cond]
+makeStackCond initialSP stackstr =
+    let val    = map (fst . head . readHex) . words $ stackstr
+        spAddr = 0x0100 + fromIntegral initialSP
+        addr   = [spAddr - fromIntegral (length val) + 1 .. spAddr]
+     in zipWith (\v sp -> CondLS (Addr sp) (Left v)) val addr
 
 runTests :: IO Bool
 runTests = do
@@ -245,59 +253,6 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "Add / Sub Test" tracefn h emures
-            -- BCD Add / Sub test
-            do
-                bin <- liftIO $ B.readFile "./tests/unit/bcd_add_sub_test.bin"
-                let emures = runEmulator NMOS_6502
-                                         [ (bin, 0x0600) ]
-                                         [ (PC, Right 0x0600) ]
-                                         [ CondOpC BRK
-                                         , CondCycleR 1000 (maxBound :: Word64)
-                                         ]
-                                         [ CondLS (Addr 0x01FF) (Left 0x05)
-                                         , CondLS (Addr 0x01FE) (Left 0x46)
-                                         , CondLS (Addr 0x01FD) (Left 0x41)
-                                         , CondLS (Addr 0x01FC) (Left 0x73)
-                                         , CondLS (Addr 0x01FB) (Left 0x34)
-                                         , CondLS (Addr 0x01FA) (Left 0x27)
-                                         , CondLS (Addr 0x01F9) (Left 0x29)
-                                         , CondLS (Addr 0x01F8) (Left 0x91)
-                                         , CondLS (Addr 0x01F7) (Left 0x87)
-                                         , CondLS SP (Left 0xF6)
-                                         , CondLS SR (Left $ srFromString "N-1-DI--")
-                                         , CondCycleR 73 73
-                                         ]
-                                         True
-                                         traceMB
-                checkEmuTestResult "BCD Add / Sub Test" tracefn h emures
-            -- Add / Sub CVZN flag test
-            do
-                bin <- liftIO $ B.readFile "./tests/unit/add_sub_cvzn_flag_test.bin"
-                let emures = runEmulator NMOS_6502
-                                         [ (bin, 0x0600) ]
-                                         [ (PC, Right 0x0600) ]
-                                         [ CondOpC BRK
-                                         , CondCycleR 1000 (maxBound :: Word64)
-                                         ]
-                                         [ CondLS (Addr 0x01FF) (Left $ srFromString "--1B-I--")
-                                         , CondLS (Addr 0x01FE) (Left $ srFromString "--1B-IZC")
-                                         , CondLS (Addr 0x01FD) (Left $ srFromString "NV1B-I--")
-                                         , CondLS (Addr 0x01FC) (Left $ srFromString "-V1B-I-C")
-                                         , CondLS (Addr 0x01FB) (Left $ srFromString "--1B-I--")
-                                         , CondLS (Addr 0x01FA) (Left $ srFromString "--1B-IZC")
-                                         , CondLS (Addr 0x01F9) (Left $ srFromString "NV1B-I--")
-                                         , CondLS (Addr 0x01F8) (Left $ srFromString "-V1B-I-C")
-                                         , CondLS (Addr 0x01F7) (Left $ srFromString "N-1B-I--")
-                                         , CondLS (Addr 0x01F6) (Left $ srFromString "-V1B-I-C")
-                                         , CondLS (Addr 0x01F5) (Left $ srFromString "NV1B-I--")
-                                         , CondLS (Addr 0x01F4) (Left $ srFromString "NV1B-I--")
-                                         , CondLS A (Left 0x80)
-                                         , CondLS SP (Left 0xF3)
-                                         , CondCycleR 108 108
-                                         ]
-                                         True
-                                         traceMB
-                checkEmuTestResult "Add / Sub CVZN Flag Test" tracefn h emures
             -- CMP/BEQ/BNE test
             do
                 bin <- liftIO $ B.readFile "./tests/hmc-6502/cmp_beq_bne_test.bin"
@@ -432,6 +387,56 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "Stack Test" tracefn h emures
+            -- BCD Add / Sub test
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/bcd_add_sub_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         ( [ CondLS SP (Left 0xF6)
+                                           , CondLS SR (Left $ srFromString "N-1-DI--")
+                                           , CondCycleR 73 73
+                                           ]
+                                           ++ makeStackCond 0xFF "87 91 29 27 34 73 41 46 05"
+                                         )
+                                         True
+                                         traceMB
+                checkEmuTestResult "BCD Add / Sub Test" tracefn h emures
+            -- Add / Sub CVZN flag test
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/add_sub_cvzn_flag_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         ( [ CondLS A (Left 0x80)
+                                           , CondLS SP (Left 0xF3)
+                                           , CondCycleR 108 108
+                                           ]
+                                           ++ zipWith (\sr sp -> CondLS (Addr sp) (Left $ srFromString sr))
+                                                      [ "--1B-I--"
+                                                      , "--1B-IZC"
+                                                      , "NV1B-I--"
+                                                      , "-V1B-I-C"
+                                                      , "--1B-I--"
+                                                      , "--1B-IZC"
+                                                      , "NV1B-I--"
+                                                      , "-V1B-I-C"
+                                                      , "N-1B-I--"
+                                                      , "-V1B-I-C"
+                                                      , "NV1B-I--"
+                                                      , "NV1B-I--"
+                                                      ]
+                                                      (reverse [0x01F4..0x01FF])
+                                         )
+                                         True
+                                         traceMB
+                checkEmuTestResult "Add / Sub CVZN Flag Test" tracefn h emures
             -- RTI test
             do
                 bin <- liftIO $ B.readFile "./tests/hmc-6502/rti_test.bin"
@@ -501,21 +506,12 @@ runTests = do
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         [ CondLS (Addr 0x01FF) $ Left 0x21
-                                         , CondLS (Addr 0x01FE) $ Left 0x21
-                                         , CondLS (Addr 0x01FD) $ Left 0xC3
-                                         , CondLS (Addr 0x01FC) $ Left 0xC3
-                                         , CondLS (Addr 0x01FB) $ Left 0x11
-                                         , CondLS (Addr 0x01FA) $ Left 0x11
-                                         , CondLS (Addr 0x01F9) $ Left 0xFF
-                                         , CondLS (Addr 0x01F8) $ Left 0xFF
-                                         , CondLS (Addr 0x01F7) $ Left 0x55
-                                         , CondLS (Addr 0x01F6) $ Left 0x55
-                                         , CondLS (Addr 0x01F5) $ Left 0xDB
-                                         , CondLS (Addr 0x01F4) $ Left 0xDB
-                                         , CondLS SR (Left $ srFromString "N-1--I--")
-                                         , CondCycleR 135 135
-                                         ]
+                                         ( [ CondLS SP (Left 0xF3)
+                                           , CondLS SR (Left $ srFromString "N-1--I--")
+                                           , CondCycleR 135 135
+                                           ]
+                                           ++ makeStackCond 0xFF "DB DB 55 55 FF FF 11 11 C3 C3 21 21"
+                                         )
                                          True
                                          traceMB
                 checkEmuTestResult "LAX Test" tracefn h emures
@@ -544,16 +540,24 @@ runTests = do
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600)
-                                         , (SP, Left 0xFD)
                                          ]
                                          [ CondOpC BRK
                                          , CondCycleR 3000 (maxBound :: Word64)
                                          ]
-                                         [ -- TODO: Check all stack values instead of checksum
-                                           CondLS A  $ Left 0xC3
-                                         , CondLS SP $ Left 0x7F
-                                         , CondCycleR 2545 2545
-                                         ]
+                                         ( [ CondLS SP $ Left 0x81
+                                           , CondCycleR 1158 1158
+                                           ]
+                                           ++ ( makeStackCond 0xFF $
+                                                    "      00 34 0F 4C B5 D5 4E 35 7D 7B B4 8D 04 35 " ++
+                                                    "0D 50 B4 A0 76 B5 9B 00 B5 BF 32 B5 BB 3A 35 3B " ++
+                                                    "EC B5 FE 22 B5 B3 42 B5 F2 BA B5 FF 80 B5 80 CC " ++
+                                                    "75 66 EF 35 7B 78 35 6A 9D B4 D7 79 35 59 11 34 " ++
+                                                    "35 01 34 01 33 35 11 3B 35 33 ED B5 E4 21 37 00 " ++
+                                                    "42 35 40 43 34 01 00 B5 FE 9A B4 FE 35 B4 97 F1 " ++
+                                                    "B4 FE 3B B4 FE F3 B4 FC 38 B4 FF FF 37 FF 98 35 " ++
+                                                    "99 33 37 33 EF 35 F0 39 35 3A F1 B4 F0 36 35 37 "
+                                              )
+                                         )
                                          True
                                          traceMB
                 checkEmuTestResult "Illegal RMW Test" tracefn h emures
@@ -566,49 +570,17 @@ runTests = do
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         [ CondLS SP $ Left 0xD9
-                                         , CondLS (Addr 0x01DA) $ Left 0xFF
-                                         , CondLS (Addr 0x01DB) $ Left 0xB4
-                                         , CondLS (Addr 0x01DC) $ Left 0x4C
-                                         , CondLS (Addr 0x01DD) $ Left 0x35
-                                         , CondLS (Addr 0x01DE) $ Left 0xA0
-                                         , CondLS (Addr 0x01DF) $ Left 0xA0
-                                         , CondLS (Addr 0x01E0) $ Left 0xA0
-                                         , CondLS (Addr 0x01E1) $ Left 0x00
-                                         , CondLS (Addr 0x01E2) $ Left 0x00
-                                         , CondLS (Addr 0x01E3) $ Left 0x01
-                                         , CondLS (Addr 0x01E4) $ Left 0x80
-                                         , CondLS (Addr 0x01E5) $ Left 0x01
-                                         , CondLS (Addr 0x01E6) $ Left 0x55
-                                         , CondLS (Addr 0x01E7) $ Left 0x80
-                                         , CondLS (Addr 0x01E8) $ Left 0x01
-                                         , CondLS (Addr 0x01E9) $ Left 0x34
-                                         , CondLS (Addr 0x01EA) $ Left 0x09
-                                         , CondLS (Addr 0x01EB) $ Left 0xB4
-                                         , CondLS (Addr 0x01EC) $ Left 0x80
-                                         , CondLS (Addr 0x01ED) $ Left 0xB5
-                                         , CondLS (Addr 0x01EE) $ Left 0xFF
-                                         , CondLS (Addr 0x01EF) $ Left 0x36
-                                         , CondLS (Addr 0x01F0) $ Left 0x00
-                                         , CondLS (Addr 0x01F1) $ Left 0x75
-                                         , CondLS (Addr 0x01F2) $ Left 0x55
-                                         , CondLS (Addr 0x01F3) $ Left 0xF5
-                                         , CondLS (Addr 0x01F4) $ Left 0xD5
-                                         , CondLS (Addr 0x01F5) $ Left 0x35
-                                         , CondLS (Addr 0x01F6) $ Left 0x7F
-                                         , CondLS (Addr 0x01F7) $ Left 0x37
-                                         , CondLS (Addr 0x01F8) $ Left 0x00
-                                         , CondLS (Addr 0x01F9) $ Left 0x35
-                                         , CondLS (Addr 0x01FA) $ Left 0x40
-                                         , CondLS (Addr 0x01FB) $ Left 0xB5
-                                         , CondLS (Addr 0x01FC) $ Left 0x36
-                                         , CondLS (Addr 0x01FD) $ Left 0xB5
-                                         , CondLS (Addr 0x01FE) $ Left 0x34
-                                         , CondLS (Addr 0x01FF) $ Left 0x36
-                                         -- TODO: Cycle count from Visual 6502,
-                                         --       also check against VICE
-                                         , CondCycleR 381 381
-                                         ]
+                                         ( [ CondLS SP $ Left 0xD9
+                                           -- TODO: Cycle count from Visual 6502,
+                                           --       also check against VICE
+                                           , CondCycleR 381 381
+                                           ]
+                                           ++ ( makeStackCond 0xFF $
+                                                    "00 00 00 00 00 00 00 00 00 00 FF B4 4C 35 A0 A0 " ++
+                                                    "A0 00 00 01 80 01 55 80 01 34 09 B4 80 B5 FF 36 " ++
+                                                    "00 75 55 F5 D5 35 7F 37 00 35 40 B5 36 B5 34 36 "
+                                              )
+                                         )
                                          True
                                          traceMB
                 checkEmuTestResult "Illegal Misc. Test" tracefn h emures
@@ -665,7 +637,7 @@ runTests = do
             --       http://www.6502.org/tutorials/decimal_mode.html
             --       http://visual6502.org/wiki/index.php?title=6502DecimalMode
 
-            --  TODO: Add test for decimal mode of ARR
+            --  TODO: Add test for decimal mode of ARR, ISC and ADC
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]

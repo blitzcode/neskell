@@ -2,14 +2,25 @@
 ; Test all illegal RMW opcodes (DCP,ISC,RLA,RRA,SLO,SRE) in all of their
 ; addressing modes (6 * 7 = 42)
 ;
-; Expected Result: A=$C3
-; 
-; The result is a checksum based on the memory, accumulator and flag results of
-; the tested opcodes. There's 42 * 3 values on the stack, comparing them to the
-; reference hardware / emulator is the way to debug if the checksum is wrong.
+; Expected Result: SP = $81
+;
+; After the test the stack should look like this:
+;
+;      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+; 0180 00 00 00 34 0F 4C B5 D5 4E 35 7D 7B B4 8D 04 35
+; 0190 0D 50 B4 A0 76 B5 9B 00 B5 BF 32 B5 BB 3A 35 3B
+; 01A0 EC B5 FE 22 B5 B3 42 B5 F2 BA B5 FF 80 B5 80 CC
+; 01B0 75 66 EF 35 7B 78 35 6A 9D B4 D7 79 35 59 11 34
+; 01C0 35 01 34 01 33 35 11 3B 35 33 ED B5 E4 21 37 00
+; 01D0 42 35 40 43 34 01 00 B5 FE 9A B4 FE 35 B4 97 F1
+; 01E0 B4 FE 3B B4 FE F3 B4 FC 38 B4 FF FF 37 FF 98 35
+; 01F0 99 33 37 33 EF 35 F0 39 35 3A F1 B4 F0 36 35 37
 
 ; DCP - Combined DEC + CMP
 ; ------------------------
+
+LDX #$FF
+TXS
 
 LDA #$37
 STA $00
@@ -569,16 +580,4 @@ PHA
 PHP
 LDA $06
 PHA
-
-; Final checksum
-;---------------
-
-LDA #$00    ; A=$00
-TSX         ; X=SP
-INX         ; X = X + 1
-loop:
-EOR $0100,X ; A = A ^ ($0100 + X)
-INX         ; X = X + 1
-CPX #$FE    ; Z = X == $FE
-BNE loop    ; if Z then goto loop
 
