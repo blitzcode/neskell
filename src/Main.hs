@@ -576,7 +576,7 @@ runTests = do
                                            , CondCycleR 381 381
                                            ]
                                            ++ ( makeStackCond 0xFF $
-                                                    "00 00 00 00 00 00 00 00 00 00 FF B4 4C 35 A0 A0 " ++
+                                                    "                              FF B4 4C 35 A0 A0 " ++
                                                     "A0 00 00 01 80 01 55 80 01 34 09 B4 80 B5 FF 36 " ++
                                                     "00 75 55 F5 D5 35 7F 37 00 35 40 B5 36 B5 34 36 "
                                               )
@@ -584,6 +584,27 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "Illegal Misc. Test" tracefn h emures
+            -- Illegal BCD test
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/illegal_bcd_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         ( [ CondLS SP $ Left 0xDD
+                                           , CondCycleR 210 210
+                                           ]
+                                           ++ ( makeStackCond 0xFF $
+                                                    "                                          9A BD " ++
+                                                    "9A BD 0A 3D 0A 3D 99 BC 00 3F 99 BC 76 3C 74 3C " ++
+                                                    "E0 BD D0 7D 66 3F 65 3D 75 7D 80 FC 80 FC 00 3E "
+                                              )
+                                         )
+                                         True
+                                         traceMB
+                checkEmuTestResult "Illegal BCD Test" tracefn h emures
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
@@ -629,15 +650,11 @@ runTests = do
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
             -}
 
-            -- TODO: Add test for illegal BCD values and the NVZ flags after
-            --       BCD ADC and SBC. Those are not officially valid, but their
-            --       behavior is well understood and we curently don't match
-            --       Visual 6502 in some cases
-            --
-            --       http://www.6502.org/tutorials/decimal_mode.html
-            --       http://visual6502.org/wiki/index.php?title=6502DecimalMode
+            -- TODO: Add test for decimal mode of illegal opcodes ARR, more throrough
+            --       tests for ISC and ADC as well
 
-            --  TODO: Add test for decimal mode of ARR, ISC and ADC
+            -- TODO: Add thorough BCD test from http://www.6502.org/tutorials/decimal_mode.html
+
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]

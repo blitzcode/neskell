@@ -237,6 +237,9 @@ detectLoopOnPC inst =
         Instruction (viewOpCode -> OpCode _ KIL _) _      -> return True
         _                                                 -> return False
 
+useBCD :: MonadEmulator m => Word8 -> m Bool
+useBCD sr = (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+
 {-# INLINE execute #-}
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
@@ -599,7 +602,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             op <- loadOperand8 inst
             a  <- load8 A
             let carry = b2W8 $ getFlag FC sr
-            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            bcd <- useBCD sr
             let (r, ncarry) = case bcd of
                                   False -> let res = a + op + carry
                                             in (res, if carry == 1 then res <= a else res < a)
@@ -630,7 +633,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             op <- loadOperand8 inst
             a  <- load8 A
             let carry = b2W8 . not $ getFlag FC sr
-            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            bcd <- useBCD sr
             let (r, ncarry) = case bcd of
                                   False -> let res = a - (op + carry) :: Word8
                                             in (res, not $ if carry == 1 then res >= a else res > a)
@@ -920,7 +923,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             sr <- load8 SR
             a  <- load8 A
             let carry = b2W8 . not $ getFlag FC sr
-            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            bcd <- useBCD sr
             let (r, ncarry) = case bcd of
                                   False -> let res = a - (m + carry) :: Word8
                                             in (res, not $ if carry == 1 then res >= a else res > a)
@@ -957,13 +960,13 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
-            rorcarry <- getFlag FC <$> load8 SR
-            let ror = (op `shiftR` 1) .|. if rorcarry then 128 else 0
-            storeOperand8 inst ror
             sr <- load8 SR
             a  <- load8 A
+            let rorcarry = getFlag FC sr
+            let ror = (op `shiftR` 1) .|. if rorcarry then 128 else 0
+            storeOperand8 inst ror
             let carry = b2W8 $ testBit op 0
-            bcd <- (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+            bcd <- useBCD sr
             let (r, ncarry) = case bcd of
                                   False -> let res = a + ror + carry
                                             in (res, if carry == 1 then res <= a else res < a)

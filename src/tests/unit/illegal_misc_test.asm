@@ -1,12 +1,12 @@
 
 ; Test ANC,ALR,ARR,XAA,AHX,TAS,SHX,SHY,LAS,AXS in all addressing modes
 ;
-; Expected Result:
+; Expected Result: SP = $D9
 ;
 ; After the test the stack should look like this:
 ;
 ;      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-; 01D0 00 00 00 00 00 00 00 00 00 00 FF B4 4C 35 A0 A0
+; 01D0                               FF B4 4C 35 A0 A0
 ; 01E0 A0 00 00 01 80 01 55 80 01 34 09 B4 80 B5 FF 36
 ; 01F0 00 75 55 F5 D5 35 7F 37 00 35 40 B5 36 B5 34 36
 ;
@@ -15,7 +15,7 @@
 ; the stack it produces looks like:
 ;
 ;      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-; 01D0 00 00 00 00 00 00 00 00 00 00 FF F4 4C 75 E0 E0
+; 01D0                               FF F4 4C 75 E0 E0
 ; 01E0 A0 00 00 01 80 01 55 80 01 75 09 F5 D5 B5 FF 35
 ; 01F0 7F 75 55 F5 D5 35 7F 35 55 35 40 B5 36 B5 B5 B5
 ;
