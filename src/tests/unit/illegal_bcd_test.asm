@@ -129,5 +129,3 @@ SBC #$00 ; Gives 9A and N=1 V=0 Z=0 C=1
 PHP ; $01DF
 PHA ; $01DE
 
-; TODO: http://www.6502.org/tutorials/decimal_mode.html
-

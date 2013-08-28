@@ -80,7 +80,7 @@ runEmulator ::
     , [Cond]                    -- ...not met
     , [Cond]                    -- Stopping conditions met
     , String                    -- Debug string of last CPU state
-    , String                    -- Last instruction
+    , String                    -- Instruction the PC is pointing at
     , B.ByteString              -- Last traceMB MB of the execution trace
     )
 runEmulator processor bins setup stopc verc traceEnable traceMB =

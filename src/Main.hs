@@ -46,7 +46,7 @@ checkEmuTestResult testName tracefn h ( condSuccess
                                       , condFailure
                                       , condStop
                                       , cpust
-                                      , lastInst
+                                      , nextInst
                                       , trace
                                       ) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
@@ -68,7 +68,7 @@ checkEmuTestResult testName tracefn h ( condSuccess
         liftIO $ do
             putStrLn $ testName ++ " " ++ resultStr ++
                 "    CPU State        "             ++ cpust    ++ "\n" ++
-                "    Last Instruction "             ++ lastInst ++ "\n" ++
+                "    Next Instruction "             ++ nextInst ++ "\n" ++
                 "    Trace            Written to '" ++ tracefn  ++ "'"
             hFlush stdout -- Show results immediately, don't wait for other tests
 
@@ -605,6 +605,25 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "Illegal BCD Test" tracefn h emures
+            -- ARR BCD test
+            {-
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/arr_bcd_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         ( [ CondLS SP $ Left 0xDD
+                                           , CondCycleR 210 210
+                                           ]
+                                           ++ makeStackCond 0xFF "00 00 00 00 00 00 00 00 00 00 00 00"
+                                         )
+                                         True
+                                         traceMB
+                checkEmuTestResult "ARR BCD Test" tracefn h emures
+            -}
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
@@ -633,8 +652,8 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "NESTest CPU ROM Test" tracefn h emures
-            {-
             -- Functional 6502 test
+            {-
             do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
                 let emures = runEmulator NMOS_6502
@@ -649,11 +668,21 @@ runTests = do
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
             -}
-
-            -- TODO: Add test for decimal mode of illegal opcodes ARR, more throrough
-            --       tests for ISC and ADC as well
-
-            -- TODO: Add thorough BCD test from http://www.6502.org/tutorials/decimal_mode.html
+            -- Full BCD test
+            {-
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/full_bcd_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondCycleR 10000 (maxBound :: Word64) ]
+                                         [ CondLS PC (Right 0x32E9) 
+                                         , CondCycleR 1000 1000
+                                         ]
+                                         False
+                                         traceMB
+                checkEmuTestResult "Full BCD Test" tracefn h emures
+            -}
 
         return $ getAll w
 

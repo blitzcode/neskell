@@ -73,7 +73,7 @@ loadOperand8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
                            Relative  ->                   return w8
                            _         -> loadAndTrace
         _    ->                         loadAndTrace
-  where  
+  where
     loadAndTrace =  do ls <- getOperandAddr8 inst
                        w8 <- load8 ls
                        case ls of
@@ -239,6 +239,81 @@ detectLoopOnPC inst =
 
 useBCD :: MonadEmulator m => Word8 -> m Bool
 useBCD sr = (\model -> getFlag FD sr && (model /= NES_2A03)) <$> getModel
+
+-- Check for signed overflow. Look at the sign of the result and operands, we
+-- have an overflow when the sign of the result matches neither operand
+-- (Also see http://forums.nesdev.com/viewtopic.php?p=60520)
+overflow :: Word8 -> Word8 -> Word8 -> Bool
+overflow op1 op2 r = (op1 `xor` r) .&. (op2 `xor` r) .&. 0x80 /= 0
+
+-- Core of the ADC/SBC instructions and the illegal ones reusing their
+-- components. Computes the result and all four flags. Decimal mode is handled
+-- as well, including invalid BCD values and the 'undocumented' three flags.
+-- This is neither the fastest nor the most compact way of doing this, but it
+-- follows the way the actual 6502 works a bit more closely and makes it easier
+-- to understand why these instructions work as they do, especially for the
+-- undocumented / edge cases
+--
+-- References:
+--
+-- http://www.6502.org/tutorials/decimal_mode.html
+-- http://en.wikipedia.org/wiki/Binary-coded_decimal#Addition_with_BCD
+-- http://www.viceteam.org/plain/64doc.txt
+-- http://sourceforge.net/p/vice-emu/code/27740/tree/trunk/vice/src/6510core.c
+adcCore :: Word8 -> Word8 -> Bool -> Bool -> (Word8, Bool, Bool, Bool, Bool)
+adcCore a op carry bcd =
+    let r = op + a + b2W8 carry
+        -- Z is computed before any BCD fixup / unaffected by decimal setting,
+        -- just check if what we got is zero
+        z = r == 0
+     in case bcd of
+            False -> let v = overflow a op r
+                         n = r .&. 0x80 /= 0
+                         c = if carry then r <= a else r < a
+                      in (r, n, v, z, c)
+            True  -> let -- Compute lower nibble
+                         nl     = (a .&. 0x0F) + (op .&. 0x0F) + b2W8 carry
+                         -- BCD fixup and carry from lower nibble
+                         nl'    = nl + if nl > 0x09 then 0x06 else 0
+                         hcarry = if nl' > 0x0F then 0x10 else 0
+                         -- Compute upper nibble
+                         nh     = (fromIntegral a .&. 0xF0) + (fromIntegral op .&. 0xF0) :: Int
+                         -- Intermediate sum with only the lower nibble having the decimal
+                         -- adjust, needed for N & V flags
+                         rFixNL = (fromIntegral nl' .&. 0x0F) + nh + hcarry :: Int
+                         -- N & V get computed after BCD fixup for lower nibble
+                         n      = rFixNL .&. 0x80 /= 0
+                         v      = overflow a op $ fromIntegral rFixNL
+                         -- Do decimal adjust for upper nibble
+                         rBCD   = rFixNL + if rFixNL .&. 0x1F0 > 0x90 then 0x60 else 0
+                         -- Carry done on fully adjusted result, only 'valid' flag in BCD
+                         -- on the NMOS 6502
+                         c      = rBCD .&. 0xFF0 > 0xF0
+                      in (fromIntegral rBCD, n, v, z, c)
+sbcCore :: Word8 -> Word8 -> Bool -> Bool -> (Word8, Bool, Bool, Bool, Bool)
+sbcCore a op carry bcd =
+    let r = a - op - (b2W8 $ not carry)
+        -- Flags are computed before any BCD fixup / unaffected by decimal setting
+        n = r .&. 0x80 /= 0
+        v = overflow a (complement op) r
+        z = r == 0
+        c = if carry then r <= a else r < a
+     in case bcd of
+            False -> (r, n, v, z, c)
+            True  -> let -- Compute lower nibble
+                         nl     = (a .&. 0x0F) - (op .&. 0x0F) - (b2W8 $ not carry)
+                         -- BCD fixup and carry from lower nibble
+                         hcarry = nl .&. 0x10 /= 0
+                         nl'    = nl - if hcarry then 0x06 else 0
+                         -- Compute upper nibble with carry
+                         nh     =  fromIntegral (a  .&. 0xF0) -
+                                   fromIntegral (op .&. 0xF0) -
+                                   if hcarry then 0x10 else 0
+                                   :: Int
+                         -- Upper nibble BCD fixup
+                         nh'    = nh - if nh .&. 0x100 /= 0 then 0x60 else 0
+                         rBCD   = (nl' .&. 0x0F) .|. fromIntegral nh'
+                      in (rBCD, n, v, z, c)
 
 {-# INLINE execute #-}
 execute :: MonadEmulator m => Instruction -> m ()
@@ -587,37 +662,24 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             store8Trace SR . clearFlag FI $ sr
             update16 PC (ilen +)
             advCycles baseC
-        -- SBC is ADC with all argument bits flipped (xor 0xFF, see
-        -- http://forums.nesdev.com/viewtopic.php?t=8703), except for the BCD
-        -- case. The BCD implementation should be correct for all documented
-        -- cases, but does not necessarily match the NMOS 6502 for illegal BCD
-        -- values and the 'undefined' NZV flags. The BCD implementation of Py65
-        -- is correct in all these cases, should a future reference be needed
         ADC -> do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
                 (if penalty /= 0 then "+1"  else "  ")
-            sr <- load8 SR
-            op <- loadOperand8 inst
-            a  <- load8 A
-            let carry = b2W8 $ getFlag FC sr
+            sr  <- load8 SR
+            op  <- loadOperand8 inst
+            a   <- load8 A
             bcd <- useBCD sr
-            let (r, ncarry) = case bcd of
-                                  False -> let res = a + op + carry
-                                            in (res, if carry == 1 then res <= a else res < a)
-                                  -- http://forum.6502.org/viewtopic.php?p=13441
-                                  True -> let n0     = carry + (a .&. 0x0F) + (op .&. 0x0F)
-                                              hcarry = n0 >= 10
-                                              n1     = b2W8 hcarry + (a `shiftR` 4) + (op `shiftR` 4)
-                                              n0'    = if hcarry then n0 - 10 else n0
-                                              carry' = n1 >= 10
-                                              n1'    = if ncarry then n1 - 10 else n1
-                                           in ((n1' `shiftL` 4) + n0', carry')
+            let carry = getFlag FC sr
+            let (r, n, v, z, c) = adcCore a op carry bcd
             store8Trace A r
-            -- http://forums.nesdev.com/viewtopic.php?p=60520
-            let overflow = (a `xor` r) .&. (op `xor` r) .&. 0x80 /= 0
-            store8Trace SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            store8Trace SR
+                . modifyFlag FN n
+                . modifyFlag FV v
+                . modifyFlag FZ z
+                . modifyFlag FC c
+                $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty
         SBC -> do
@@ -629,28 +691,19 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
                 ilen
                 baseC
                 (if penalty /= 0 then "+1"  else "  ")
-            sr <- load8 SR
-            op <- loadOperand8 inst
-            a  <- load8 A
-            let carry = b2W8 . not $ getFlag FC sr
+            sr  <- load8 SR
+            op  <- loadOperand8 inst
+            a   <- load8 A
             bcd <- useBCD sr
-            let (r, ncarry) = case bcd of
-                                  False -> let res = a - (op + carry) :: Word8
-                                            in (res, not $ if carry == 1 then res >= a else res > a)
-                                  -- http://forum.6502.org/viewtopic.php?p=13441
-                                  True -> let ix     = fromIntegral op :: Int
-                                              xdec   = ((ix `shiftR` 4) * 10) + (ix .&. 0x0F)
-                                                       + fromIntegral carry
-                                              ia     = fromIntegral a :: Int
-                                              adec   = ((ia `shiftR` 4) * 10) + (ia .&. 0x0F) - xdec
-                                              carry' = adec < 0
-                                              adec'  = if carry' then adec + 100 else adec
-                                              res    = ((adec' `div` 10) `shiftL` 4) + (adec' `mod` 10)
-                                           in (fromIntegral res :: Word8, not carry')
+            let carry = getFlag FC sr
+            let (r, n, v, z, c) = sbcCore a op carry bcd
             store8Trace A r
-            -- http://forums.nesdev.com/viewtopic.php?p=60520
-            let overflow = (a `xor` r) .&. ((complement op) `xor` r) .&. 0x80 /= 0
-            store8Trace SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            store8Trace SR
+                . modifyFlag FN n
+                . modifyFlag FV v
+                . modifyFlag FZ z
+                . modifyFlag FC c
+                $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty
         CMP -> do
@@ -917,30 +970,21 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
         ISC -> do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
-            op <- loadOperand8 inst
+            op  <- loadOperand8 inst
             let m = op + 1
             storeOperand8 inst m
-            sr <- load8 SR
-            a  <- load8 A
-            let carry = b2W8 . not $ getFlag FC sr
+            sr  <- load8 SR
+            let carry = getFlag FC sr
+            a   <- load8 A
             bcd <- useBCD sr
-            let (r, ncarry) = case bcd of
-                                  False -> let res = a - (m + carry) :: Word8
-                                            in (res, not $ if carry == 1 then res >= a else res > a)
-                                  -- http://forum.6502.org/viewtopic.php?p=13441
-                                  True -> let ix     = fromIntegral m :: Int
-                                              xdec   = ((ix `shiftR` 4) * 10) + (ix .&. 0x0F)
-                                                       + fromIntegral carry
-                                              ia     = fromIntegral a :: Int
-                                              adec   = ((ia `shiftR` 4) * 10) + (ia .&. 0x0F) - xdec
-                                              carry' = adec < 0
-                                              adec'  = if carry' then adec + 100 else adec
-                                              res    = ((adec' `div` 10) `shiftL` 4) + (adec' `mod` 10)
-                                           in (fromIntegral res :: Word8, not carry')
+            let (r, n, v, z, c) = sbcCore a m carry bcd
+            store8Trace SR
+                . modifyFlag FN n
+                . modifyFlag FV v
+                . modifyFlag FZ z
+                . modifyFlag FC c
+                $ sr
             store8Trace A r
-            -- http://forums.nesdev.com/viewtopic.php?p=60520
-            let overflow = (a `xor` r) .&. ((complement m) `xor` r) .&. 0x80 /= 0
-            store8Trace SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
             update16 PC (ilen +)
             advCycles baseC
         RLA -> do
@@ -965,23 +1009,16 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let rorcarry = getFlag FC sr
             let ror = (op `shiftR` 1) .|. if rorcarry then 128 else 0
             storeOperand8 inst ror
-            let carry = b2W8 $ testBit op 0
+            let carry = testBit op 0
             bcd <- useBCD sr
-            let (r, ncarry) = case bcd of
-                                  False -> let res = a + ror + carry
-                                            in (res, if carry == 1 then res <= a else res < a)
-                                  -- http://forum.6502.org/viewtopic.php?p=13441
-                                  True -> let n0     = carry + (a .&. 0x0F) + (ror .&. 0x0F)
-                                              hcarry = n0 >= 10
-                                              n1     = b2W8 hcarry + (a `shiftR` 4) + (ror `shiftR` 4)
-                                              n0'    = if hcarry then n0 - 10 else n0
-                                              carry' = n1 >= 10
-                                              n1'    = if ncarry then n1 - 10 else n1
-                                           in ((n1' `shiftL` 4) + n0', carry')
+            let (r, n, v, z, c) = adcCore a ror carry bcd
             store8Trace A r
-            -- http://forums.nesdev.com/viewtopic.php?p=60520
-            let overflow = (a `xor` r) .&. (ror `xor` r) .&. 0x80 /= 0
-            store8Trace SR . modifyFlag FC ncarry . modifyFlag FV overflow . setNZ r $ sr
+            store8Trace SR
+                . modifyFlag FN n
+                . modifyFlag FV v
+                . modifyFlag FZ z
+                . modifyFlag FC c
+                $ sr
             update16 PC (ilen +)
             advCycles baseC
         SLO -> do
