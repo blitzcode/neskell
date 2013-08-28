@@ -257,9 +257,10 @@ overflow op1 op2 r = (op1 `xor` r) .&. (op2 `xor` r) .&. 0x80 /= 0
 -- References:
 --
 -- http://www.6502.org/tutorials/decimal_mode.html
--- http://en.wikipedia.org/wiki/Binary-coded_decimal#Addition_with_BCD
+-- http://en.wikipedia.org/wiki/Binary-coded_decimal
 -- http://www.viceteam.org/plain/64doc.txt
 -- http://sourceforge.net/p/vice-emu/code/27740/tree/trunk/vice/src/6510core.c
+
 adcCore :: Word8 -> Word8 -> Bool -> Bool -> (Word8, Bool, Bool, Bool, Bool)
 adcCore a op carry bcd =
     let r = op + a + b2W8 carry
@@ -290,6 +291,7 @@ adcCore a op carry bcd =
                          -- on the NMOS 6502
                          c      = rBCD .&. 0xFF0 > 0xF0
                       in (fromIntegral rBCD, n, v, z, c)
+
 sbcCore :: Word8 -> Word8 -> Bool -> Bool -> (Word8, Bool, Bool, Bool, Bool)
 sbcCore a op carry bcd =
     let r = a - op - (b2W8 $ not carry)

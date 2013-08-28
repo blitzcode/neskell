@@ -675,15 +675,14 @@ runTests = do
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
-                                         [ CondCycleR 10000 (maxBound :: Word64) ]
-                                         [ CondLS PC (Right 0x32E9) 
-                                         , CondCycleR 1000 1000
+                                         [ CondOpC BRK ]
+                                         [ CondLS (Addr 0x0600) $ Left 0x00
+                                         , CondCycleR 61821255 61821255
                                          ]
                                          False
                                          traceMB
                 checkEmuTestResult "Full BCD Test" tracefn h emures
             -}
-
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
