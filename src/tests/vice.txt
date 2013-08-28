@@ -1,0 +1,25 @@
+
+Basic steps to load a binary into the VICE emulator
+
+Open the Monitor and type
+
+f $0100 $01ff 0
+
+to zero out data on the stack, just for clarity
+
+Load the program at address $0200 with
+
+fill $0200 $0300 aa bb cc 11 22 433 ...
+
+Set the program counter to the starting address
+
+r pc=0200
+
+and then step with 'z', use 'r' to inspect registers
+
+Finally, type
+
+m $0100 $01ff
+
+to inspect the stack.
+
