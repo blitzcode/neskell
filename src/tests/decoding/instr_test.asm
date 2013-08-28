@@ -1412,12 +1412,14 @@ DCB $00
 ; C and V differently.
 ;
 ; In decimal mode, this instruction has some rather strange behavior,
-; explained in detail in http://www.viceteam.org/plain/64doc.txt
+; explained in detail in http://www.viceteam.org/plain/64doc.txt and
+; http://sourceforge.net/p/vice-emu/code/27740/tree/trunk/vice/src/
+; 6510core.c#l678
 ;
 ;                                     N Z C I D V
 ;                                     + + + - - +
 ; Z Zero Flag         Set if A = 0
-; N Negative Flag     Set if bit 7 of the result is set
+; N Negative Flag     Set if bit 7 of the result is set (carry in)
 ; C Carry Flag        Set if bit 6 of the result is set
 ; V Overflow Flag     Set to Bit5 ^ Bit6
 ;

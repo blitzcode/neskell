@@ -606,7 +606,6 @@ runTests = do
                                          traceMB
                 checkEmuTestResult "Illegal BCD Test" tracefn h emures
             -- ARR BCD test
-            {-
             do
                 bin <- liftIO $ B.readFile "./tests/unit/arr_bcd_test.bin"
                 let emures = runEmulator NMOS_6502
@@ -615,15 +614,17 @@ runTests = do
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         ( [ CondLS SP $ Left 0xDD
-                                           , CondCycleR 210 210
+                                         ( [ CondLS SP $ Left 0xE7
+                                           , CondCycleR 150 150
                                            ]
-                                           ++ makeStackCond 0xFF "00 00 00 00 00 00 00 00 00 00 00 00"
+                                           ++ ( makeStackCond 0xFF $
+                                                    "                        3C 0D 3D D8 3D D5 7D 80 " ++
+                                                    "3E 00 3D D5 BC 8D BD 58 BD 55 FD 00 BC 80 BD 55 "
+                                              )
                                          )
                                          True
                                          traceMB
                 checkEmuTestResult "ARR BCD Test" tracefn h emures
-            -}
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"

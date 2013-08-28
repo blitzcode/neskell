@@ -1,5 +1,5 @@
 
-{-# LANGUAGE OverloadedStrings, ViewPatterns  #-}
+{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 
 module Emulator ( runEmulator
                 , Cond(..)

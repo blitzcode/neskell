@@ -214,7 +214,7 @@ getStorePageCrossPenalty = \case IndIdx    -> 1
 
 -- Two's complement to signed integer conversion
 makeSigned :: Word8 -> Int
-makeSigned a = if (a .&. 128 /= 0) then -(fromIntegral $ complement a + 1) else fromIntegral a
+makeSigned a = if (a .&. 0x80 /= 0) then -(fromIntegral $ complement a + 1) else fromIntegral a
 
 samePage :: Word16 -> Word16 -> Bool
 samePage a b = (a .&. 0xFF00) == (b .&. 0xFF00)
@@ -260,38 +260,39 @@ overflow op1 op2 r = (op1 `xor` r) .&. (op2 `xor` r) .&. 0x80 /= 0
 -- http://en.wikipedia.org/wiki/Binary-coded_decimal
 -- http://www.viceteam.org/plain/64doc.txt
 -- http://sourceforge.net/p/vice-emu/code/27740/tree/trunk/vice/src/6510core.c
-
+--
+--                                            result N     V     Z     C
 adcCore :: Word8 -> Word8 -> Bool -> Bool -> (Word8, Bool, Bool, Bool, Bool)
 adcCore a op carry bcd =
     let r = op + a + b2W8 carry
         -- Z is computed before any BCD fixup / unaffected by decimal setting,
         -- just check if what we got is zero
         z = r == 0
-     in case bcd of
-            False -> let v = overflow a op r
-                         n = r .&. 0x80 /= 0
-                         c = if carry then r <= a else r < a
-                      in (r, n, v, z, c)
-            True  -> let -- Compute lower nibble
-                         nl     = (a .&. 0x0F) + (op .&. 0x0F) + b2W8 carry
-                         -- BCD fixup and carry from lower nibble
-                         nl'    = nl + if nl > 0x09 then 0x06 else 0
-                         hcarry = if nl' > 0x0F then 0x10 else 0
-                         -- Compute upper nibble
-                         nh     = (fromIntegral a .&. 0xF0) + (fromIntegral op .&. 0xF0) :: Int
-                         -- Intermediate sum with only the lower nibble having the decimal
-                         -- adjust, needed for N & V flags
-                         rFixNL = (fromIntegral nl' .&. 0x0F) + nh + hcarry :: Int
-                         -- N & V get computed after BCD fixup for lower nibble
-                         n      = rFixNL .&. 0x80 /= 0
-                         v      = overflow a op $ fromIntegral rFixNL
-                         -- Do decimal adjust for upper nibble
-                         rBCD   = rFixNL + if rFixNL .&. 0x1F0 > 0x90 then 0x60 else 0
-                         -- Carry done on fully adjusted result, only 'valid' flag in BCD
-                         -- on the NMOS 6502
-                         c      = rBCD .&. 0xFF0 > 0xF0
-                      in (fromIntegral rBCD, n, v, z, c)
-
+     in if bcd
+            then let -- Compute lower nibble
+                     nl     = (a .&. 0x0F) + (op .&. 0x0F) + b2W8 carry
+                     -- BCD fixup and carry from lower nibble
+                     nl'    = nl + if nl > 0x09 then 0x06 else 0
+                     hcarry = if nl' > 0x0F then 0x10 else 0
+                     -- Compute upper nibble
+                     nh     = (fromIntegral a .&. 0xF0) + (fromIntegral op .&. 0xF0) :: Int
+                     -- Intermediate sum with only the lower nibble having the decimal
+                     -- adjust, needed for N & V flags
+                     rFixNL = (fromIntegral nl' .&. 0x0F) + nh + hcarry :: Int
+                     -- N & V get computed after BCD fixup for lower nibble
+                     n      = rFixNL .&. 0x80 /= 0
+                     v      = overflow a op $ fromIntegral rFixNL
+                     -- Do decimal adjust for upper nibble
+                     rBCD   = rFixNL + if rFixNL .&. 0x1F0 > 0x90 then 0x60 else 0
+                     -- Carry done on fully adjusted result, only 'valid' flag in BCD
+                     -- on the NMOS 6502
+                     c      = rBCD .&. 0xFF0 > 0xF0
+                  in (fromIntegral rBCD, n, v, z, c)
+            else let v = overflow a op r
+                     n = r .&. 0x80 /= 0
+                     c = if carry then r <= a else r < a
+                  in (r, n, v, z, c)
+--                                            result N     V     Z     C
 sbcCore :: Word8 -> Word8 -> Bool -> Bool -> (Word8, Bool, Bool, Bool, Bool)
 sbcCore a op carry bcd =
     let r = a - op - (b2W8 $ not carry)
@@ -300,22 +301,22 @@ sbcCore a op carry bcd =
         v = overflow a (complement op) r
         z = r == 0
         c = if carry then r <= a else r < a
-     in case bcd of
-            False -> (r, n, v, z, c)
-            True  -> let -- Compute lower nibble
-                         nl     = (a .&. 0x0F) - (op .&. 0x0F) - (b2W8 $ not carry)
-                         -- BCD fixup and carry from lower nibble
-                         hcarry = nl .&. 0x10 /= 0
-                         nl'    = nl - if hcarry then 0x06 else 0
-                         -- Compute upper nibble with carry
-                         nh     =  fromIntegral (a  .&. 0xF0) -
-                                   fromIntegral (op .&. 0xF0) -
-                                   if hcarry then 0x10 else 0
-                                   :: Int
-                         -- Upper nibble BCD fixup
-                         nh'    = nh - if nh .&. 0x100 /= 0 then 0x60 else 0
-                         rBCD   = (nl' .&. 0x0F) .|. fromIntegral nh'
-                      in (rBCD, n, v, z, c)
+     in if bcd
+            then let -- Compute lower nibble
+                     nl     = (a .&. 0x0F) - (op .&. 0x0F) - (b2W8 $ not carry)
+                     -- BCD fixup and carry from lower nibble
+                     hcarry = nl .&. 0x10 /= 0
+                     nl'    = nl - if hcarry then 0x06 else 0
+                     -- Compute upper nibble with carry
+                     nh     =  fromIntegral (a  .&. 0xF0) -
+                               fromIntegral (op .&. 0xF0) -
+                               if hcarry then 0x10 else 0
+                               :: Int
+                     -- Upper nibble BCD fixup
+                     nh'    = nh - if nh .&. 0x100 /= 0 then 0x60 else 0
+                     rBCD   = (nl' .&. 0x0F) .|. fromIntegral nh'
+                  in (rBCD, n, v, z, c)
+            else (r, n, v, z, c)
 
 {-# INLINE execute #-}
 execute :: MonadEmulator m => Instruction -> m ()
@@ -468,7 +469,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             x <- loadOperand8 inst
             carry <- getFlag FC <$> load8 SR
-            let r = (x `shiftR` 1) .|. if carry then 128 else 0
+            let r = (x `shiftR` 1) .|. if carry then 0x80 else 0
             updateNZC r $ testBit x 0
             storeOperand8 inst r
             update16 PC (ilen +)
@@ -1009,7 +1010,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             sr <- load8 SR
             a  <- load8 A
             let rorcarry = getFlag FC sr
-            let ror = (op `shiftR` 1) .|. if rorcarry then 128 else 0
+            let ror = (op `shiftR` 1) .|. if rorcarry then 0x80 else 0
             storeOperand8 inst ror
             let carry = testBit op 0
             bcd <- useBCD sr
@@ -1070,19 +1071,48 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             update16 PC (ilen +)
             advCycles baseC
         ARR -> do
-            -- TODO: This instruction should behave very different in decimal mode
             let baseC = 2 :: Word64
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
-            op <- loadOperand8 inst
-            sr <- load8 SR
-            a  <- load8 A
-            let and'   = op .&. a
-                carry  = getFlag FC sr
-                r      = (and' `shiftR` 1) .|. if carry then 128 else 0
-                ncarry = testBit and' 0
-                over   = (testBit r 5) /= (testBit r 6) -- Bit5 ^ Bit6
-            store8Trace SR . modifyFlag FV over . setNZC r ncarry $ sr
+            op  <- loadOperand8 inst
+            sr  <- load8 SR
+            a   <- load8 A
+            bcd <- useBCD sr
+            let and'      = op .&. a
+                carry     = getFlag FC sr
+                ror       = (and' `shiftR` 1) .|. if carry then 0x80 else 0
+                z         = ror == 0
+                n         = carry -- 7th bit (sign) is always the carry
+                (r, v, c) =
+                      if bcd
+                    then let -- If the lower nibble of the AND result plus its lowest bit is greater than
+                             -- 5, add 6 to the lower nibble in the ROR result. The BCD fixup may overflow,
+                             -- but the high nibble won't get a carry
+                             fixNL  =   if (and' .&. 0x0F) + (and' .&. 0x01) > 0x05
+                                      then (ror .&. 0xF0) .|. ((ror + 0x06) .&. 0x0F)
+                                      else ror
+                             -- If the upper nibble of the AND result plus its lowest bit is greater than
+                             -- 5, add 6 to the upper nibble in the ROR result and set the carry
+                             ncarry = (fromIntegral and' .&. 0xF0 :: Int) +
+                                      (fromIntegral and' .&. 0x10 :: Int) > 0x50
+                             fixNH  =    if ncarry
+                                       then (fromIntegral fixNL .&. 0x0F) .|.
+                                            ((fromIntegral fixNL + 0x60) .&. 0xF0) :: Int
+                                       else fromIntegral fixNL
+                          in ( {- r -} fromIntegral fixNH
+                             , {- v -} (ror `xor` a) .&. 0x40 /= 0 -- XOR Bit6
+                             , {- c -} ncarry
+                             )
+                    else ( {- r -} ror
+                         , {- v -} (testBit ror 5) /= (testBit ror 6) -- Bit5 ^ Bit6
+                         , {- c -} testBit and' 0
+                         )
             store8Trace A r
+            store8Trace SR
+                . modifyFlag FN n
+                . modifyFlag FV v
+                . modifyFlag FZ z
+                . modifyFlag FC c
+                $ sr
             update16 PC (ilen +)
             advCycles baseC
         XAA -> do

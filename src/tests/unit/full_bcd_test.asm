@@ -13,11 +13,11 @@
 
 ; Little hack because 6502js doesn't support variables, just use labels with
 ; padding behind them to allocate the 17b of storage with symbol names
+ERROR: NOP
 AR:    NOP
 CF:    NOP
 DA:    NOP
 DNVZC: NOP
-ERROR: NOP
 HA:    NOP
 HNVZC: NOP
 N1:    NOP
