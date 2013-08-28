@@ -50,9 +50,11 @@ checkEmuTestResult testName tracefn h ( condSuccess
                                       , trace
                                       ) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
-                    "    Stop Reason      " ++ showCond condStop         ++ "\n"  ++
-                    "    Unmet Conditions " ++ showCond condFailure      ++ "\n"  ++
-                    "    Met Conditions   " ++ showCond condSuccess      ++ "\n"
+                    "    Stop Reason      " ++ showCond condStop         ++  "\n" ++
+                    "    Unmet Conditions " ++ showCond condFailure      ++  "\n" ++
+                    "    Met Conditions   " ++ showCond condSuccess      ++  "\n" ++
+                    "    CPU State        " ++ cpust                     ++  "\n" ++
+                    "    Next Instruction " ++ nextInst                  ++  "\n"
         showCond []     = "[ ]"
         showCond (x:[]) = "[ " ++ show x ++ " ]"
         showCond (x:xs) = "[ " ++ show x ++ "\n"
@@ -67,8 +69,6 @@ checkEmuTestResult testName tracefn h ( condSuccess
         tell $ All False
         liftIO $ do
             putStrLn $ testName ++ " " ++ resultStr ++
-                "    CPU State        "             ++ cpust    ++ "\n" ++
-                "    Next Instruction "             ++ nextInst ++ "\n" ++
                 "    Trace            Written to '" ++ tracefn  ++ "'"
             hFlush stdout -- Show results immediately, don't wait for other tests
 
@@ -643,7 +643,7 @@ runTests = do
                                          , CondLS Y  $ Left 0x15
                                          , CondLS SP $ Left 0xFF
                                          , CondLS SR (Left $ srFromString "--1--IZC")
-                                         -- TODO: Verify cycles against Visual 2A03. Not sure if that's 
+                                         -- TODO: Verify cycles against Visual 2A03. Not sure if that's
                                          --       possible, though. IIRC it has a full 6502 with BCD,
                                          --       and this code does not work correctly if the BCD flag
                                          --       is obeyed
@@ -660,7 +660,7 @@ runTests = do
                                          [ (bin, 0x0400) ]
                                          [ (PC, Right 0x0400) ]
                                          [ CondLoopPC ]
-                                         [ CondLS PC (Right 0x32E9) 
+                                         [ CondLS PC (Right 0x32E9)
                                          -- TODO: Verify cycle count
                                          , CondCycleR 92608051 92608051
                                          ]

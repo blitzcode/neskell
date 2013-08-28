@@ -84,7 +84,7 @@ runEmulator ::
     , B.ByteString              -- Last traceMB MB of the execution trace
     )
 runEmulator processor bins setup stopc verc traceEnable traceMB =
-    runSTEmulator traceEnable traceMB processor $ do
+    runSTEmulator True traceMB processor $ do
         trace "Load Binary:\n\n"
         mapM_ (\(bin, offs) -> do loadBinary bin offs
                                   traceMemory offs . fromIntegral . B.length $ bin) bins
@@ -107,7 +107,9 @@ runEmulator processor bins setup stopc verc traceEnable traceMB =
                     execute inst
                     loop
          in do
-                loop
+                if traceEnable
+                    then loop
+                    else trace "\n(Execution trace disabled)" >> runNoTrace loop
                 -- Done, trace the first 512 bytes of memory and return other diagnostic information
                 trace "\n\nZero Page:\n\n"
                 traceMemory 0x0000 256
