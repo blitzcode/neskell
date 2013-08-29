@@ -72,7 +72,7 @@ bne3:
 STA $43
 LDX $43
 ORA #$24
-CMP ($40,X)
+CMP ($40,X) ; TODO: Reads from $9D19, which is uninitialized...
 BEQ beq4 ; not taken
 ORA #$7F
 beq4:

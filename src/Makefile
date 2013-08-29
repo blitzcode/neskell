@@ -9,6 +9,11 @@ GHC_FLAGS = $(PROF_FLAGS) $(WARN_FLAGS) $(LLVM_FLAGS) -rtsopts -O2 -H512m
 .PHONY : all
 all: build test
 
+# Syntax only, no binary output
+.PHONY : check
+check:
+	ghc $(GHC_FLAGS) -fno-code --make Main
+
 # Build the full program
 .PHONY : build
 build:
@@ -17,7 +22,7 @@ build:
 # Run the internal test suite, measure runtime and memory performance
 .PHONY : test
 test: build
-	time ./out --test +RTS -s
+	time ./out --quick-test +RTS -s
 
 HSSRC = $(wildcard *.hs)
 .PHONY : clean

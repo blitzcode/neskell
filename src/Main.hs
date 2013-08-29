@@ -1,5 +1,5 @@
 
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
 
 module Main (main) where
 
@@ -10,10 +10,12 @@ import Util (srFromString)
 
 import Data.Monoid (All(..), getAll)
 import Data.Word (Word8, Word64)
-import Control.Monad (when, unless)
-import Control.Monad.Writer (execWriterT, tell, WriterT)
+import Control.Monad (when, unless, guard)
+import Control.Monad.Writer (execWriterT, tell)
+import Control.Monad.Writer.Class (MonadWriter)
 import Control.Monad.Error (throwError)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B8
 import qualified Data.Vector.Unboxed as VU
@@ -37,11 +39,12 @@ decodingTest bin ref = do
      in loop refl dasm
 
 checkEmuTestResult ::
+    (MonadIO m, MonadWriter All m) =>
     String ->
     String ->
     Handle ->
     ([Cond], [Cond], [Cond], String, String, B.ByteString) ->
-    WriterT All IO ()
+    m ()
 checkEmuTestResult testName tracefn h ( condSuccess
                                       , condFailure
                                       , condStop
@@ -94,15 +97,17 @@ makeStackCond initialSP stackstr =
         addr   = [spAddr - fromIntegral (length val) + 1 .. spAddr]
      in zipWith (\v sp -> CondLS (Addr sp) (Left v)) val addr
 
-runTests :: IO Bool
-runTests = do
+runTests :: Bool -> IO Bool
+runTests onlyQuickTests = do
     let tracefn = "./trace.log"
     let traceMB = 64
     withFile tracefn WriteMode $ \h -> do
         time <- getZonedTime
         hPutStrLn h $ "Trace Log " ++ show time ++ "\n"
-        -- We use a writer with an All monoid so we can return False if any test fails
-        w <- execWriterT $ do -- WriterT All IO ()
+        -- We use a writer with an All monoid so we can return False if any test
+        -- fails, we also wrap a Maybe monad inside the writer so we can exit
+        -- early through MonadPlus
+        w <- execWriterT . runMaybeT $ do -- MaybeT (WriterT All IO) ()
             -- Decoding test
             do
                 bin <- liftIO $ B.readFile "./tests/decoding/instr_test.bin"
@@ -653,8 +658,12 @@ runTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "NESTest CPU ROM Test" tracefn h emures
+
+            -- Tests below here take a long time to run. We try to keep the
+            -- quick test suite under one second
+            guard $ not onlyQuickTests
+
             -- Functional 6502 test
-            {-
             do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
                 let emures = runEmulator NMOS_6502
@@ -668,9 +677,7 @@ runTests = do
                                          False
                                          traceMB
                 checkEmuTestResult "Functional 6502 Test" tracefn h emures
-            -}
             -- Full BCD test
-            {-
             do
                 bin <- liftIO $ B.readFile "./tests/unit/full_bcd_test.bin"
                 let emures = runEmulator NMOS_6502
@@ -683,7 +690,7 @@ runTests = do
                                          False
                                          traceMB
                 checkEmuTestResult "Full BCD Test" tracefn h emures
-            -}
+
         return $ getAll w
 
 disassemble :: B.ByteString -> [B.ByteString]
@@ -703,11 +710,15 @@ main :: IO ()
 main = do
     name <- getProgName
     args <- getArgs
-    when (null args) . putStrLn $ "Usage: " ++ name ++ " [--test] [--dasm file]"
+    when (null args) . putStrLn $ "Usage: " ++ name ++ " --[test|quick-test] [--dasm file]"
     when ("--test" `elem` args) $ do
-        success <- runTests
+        success <- runTests False
         unless success exitFailure
         putStrLn "All Tests OK"
+    when ("--quick-test" `elem` args) $ do
+        success <- runTests True
+        unless success exitFailure
+        putStrLn "All Quick Tests OK"
     case dropWhile (\x -> x /= "--dasm") args of
         (_:fn:_) -> B.readFile fn >>= mapM_ (B8.putStrLn) . disassemble
         (_:_)    -> putStrLn "Missing file argument to --dasm" >> exitFailure
