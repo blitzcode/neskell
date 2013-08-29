@@ -89,13 +89,15 @@ runEmulator processor bins setup stopc verc traceEnable traceMB =
         mapM_ (\(bin, offs) -> do loadBinary bin offs
                                   traceMemory offs . fromIntegral . B.length $ bin) bins
         trace "\nSetup: "
+        rvec <- load16 $ Addr 0xFFFC
         mapM_ (\(ls, w) ->
             case w of
                 Left  w8  -> store8Trace  ls w8
                 Right w16 -> store16Trace ls w16)
             $ (SP, Left 0xFF)
             : (SR, Left . setFlag FI . setFlag F1 $ 0)
-            : setup
+            : (PC, Right rvec)
+            : setup -- Run user setup code after the default one to allow overrides
         trace $ "\n\nCycles  PC   AC IX IY Status Reg. SP Instr. Operand ILnCycl Op. Load  Stores"    ++
                   "\nElapsed $PC  $A $X $Y $P:NV1BDIZC $S $I:Mne Data    [OIU]bC $Adr→$Val $Val→$Dst" ++
                 "\n----------------------------------------------------------------------------------------"
