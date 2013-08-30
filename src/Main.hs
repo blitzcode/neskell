@@ -9,7 +9,7 @@ import MonadEmulator (LoadStore(..), Processor(..))
 import Util (srFromString)
 
 import Data.Monoid (All(..), getAll)
-import Data.Word (Word8, Word64)
+import Data.Word (Word8, Word16, Word64)
 import Control.Monad (when, unless, guard)
 import Control.Monad.Writer (execWriterT, tell)
 import Control.Monad.Writer.Class (MonadWriter)
@@ -87,7 +87,9 @@ checkEmuTestResult testName tracefn h ( condSuccess
     -- multiple vectors to be used and would eventually cause an out-of-memory
     -- error. Even then the RTS would not collect. Forcing collection after
     -- leaving ST and evaluating all return values seems to solve the problem
-    -- entirely.
+    -- entirely. This seems like a bug in the GC, running out of OS memory
+    -- instead of garbage collecting allocations it (demonstrably) knows how to
+    -- free, while all RTS memory profiles confirm it is indeed not referenced.
     liftIO performGC
 
 makeStackCond :: Word8 -> String -> [Cond]
@@ -96,6 +98,10 @@ makeStackCond initialSP stackstr =
         spAddr = 0x0100 + fromIntegral initialSP
         addr   = [spAddr - fromIntegral (length val) + 1 .. spAddr]
      in zipWith (\v sp -> CondLS (Addr sp) (Left v)) val addr
+
+makeStringCond :: Word16 -> String -> [Cond]
+makeStringCond addr str =
+    zipWith (\a c -> CondLS (Addr a) (Left . fromIntegral . fromEnum $ c)) [addr..] str
 
 runTests :: Bool -> IO Bool
 runTests onlyQuickTests = do
@@ -108,6 +114,10 @@ runTests onlyQuickTests = do
         -- fails, we also wrap a Maybe monad inside the writer so we can exit
         -- early through MonadPlus
         w <- execWriterT . runMaybeT $ do -- MaybeT (WriterT All IO) ()
+            -- TODO: We should be running tests in parallel, only problem is
+            --       memory consumption / trace writing. We don't want an
+            --       arbitrary amount of trace data to pile up in memory, and we
+            --       likely want the trace to have tests in the same order
             -- Decoding test
             do
                 bin <- liftIO $ B.readFile "./tests/decoding/instr_test.bin"
@@ -660,9 +670,58 @@ runTests onlyQuickTests = do
                 checkEmuTestResult "NESTest CPU ROM Test" tracefn h emures
 
             -- Tests below here take a long time to run. We try to keep the
-            -- quick test suite under one second
+            -- quick test suite under one second, this will run for minutes
             guard $ not onlyQuickTests
 
+            -- Blargg's test ROMs
+            mapM_ (\(file, cycles) ->
+                do
+                    bin <- liftIO . B.readFile $ "./tests/instr_test-v4/rom_singles/" ++ file
+                    let emures = runEmulator NES_2A03
+                                             [ (bin, 0x8000) ]
+                                             [ (SP, Left 0xFD)
+                                               -- Don't accidentally trigger stop condition right at startup
+                                             , (Addr 0x6000, Left 0xFF)
+                                             ]
+                                             [ -- The test will eventually do an endless 'BEQ $FE' loop,
+                                               -- but we can abort as soon as the result code is written
+                                               -- and skip a lot of cycles used for audio/video result
+                                               -- reporting
+                                               --
+                                               -- TODO: This only aborts early on success...
+                                               CondLS (Addr 0x6000) $ Left 0x00
+                                             , CondCycleR (cycles * 2) (maxBound :: Word64)
+                                             ]
+                                             ( [ CondLS (Addr 0x6000) $ Left 0x00 -- Success
+                                               , CondLS (Addr 0x6001) $ Left 0xDE -- Magic
+                                               , CondLS (Addr 0x6002) $ Left 0xB0
+                                               , CondLS (Addr 0x6003) $ Left 0x61
+                                               , CondCycleR cycles cycles 
+                                               ] ++
+                                               makeStringCond
+                                                    0x6004
+                                                    ("\n" ++ takeWhile (/= '.') file ++ "\n\nPassed\n")
+                                             )
+                                             False
+                                             traceMB
+                    checkEmuTestResult ("Blargg's " ++ file ++ " Test") tracefn h emures)
+                [ ( "01-basics.bin"   , 330200   )
+                , ( "02-implied.bin"  , 2687506  )
+                , ( "03-immediate.bin", 2388550  )
+                , ( "04-zero_page.bin", 3273464  )
+                , ( "05-zp_xy.bin"    , 7558100  )
+                , ( "06-absolute.bin" , 3093993  )
+                , ( "07-abs_xy.bin"   , 10675054 )
+                , ( "08-ind_x.bin"    , 4145448  )
+                , ( "09-ind_y.bin"    , 3888212  )
+                , ( "10-branches.bin" , 1033363  )
+                , ( "11-stack.bin"    , 4682762  )
+                , ( "12-jmp_jsr.bin"  , 322698   )
+                , ( "13-rts.bin"      , 223119   )
+                , ( "14-rti.bin"      , 225084   )
+                , ( "15-brk.bin"      , 540320   )
+                , ( "16-special.bin"  , 157793   )
+                ]
             -- Functional 6502 test
             do
                 bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
