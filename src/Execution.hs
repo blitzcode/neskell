@@ -1154,20 +1154,6 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
-            {-
-            let baseC = getAMCycles am + getStorePageCrossPenalty am
-            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
-            traceNoOpLoad
-            a <- load8 A
-            x <- load8 X
-            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
-                            _         -> trace "AM Err" >> return 0
-                      =<< getOperandAddr8 inst
-            let r = a .&. x .&. (addrHI + 1);
-            storeOperand8 inst r
-            update16 PC (ilen +)
-            advCycles baseC
-            -}
         TAS -> do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC

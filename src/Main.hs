@@ -668,12 +668,16 @@ runTests onlyQuickTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "NESTest CPU ROM Test" tracefn h emures
+            -- TODO: Add test for pagecrossing behavior of AHX/TAS/SHX/SHY
+            -- TODO: Add test for non-decimal carry of ARR
+            -- TODO: Add test for ANC accumulator result
+            -- TODO: Add more tests from Blargg's test suite
 
             -- Tests below here take a long time to run. We try to keep the
             -- quick test suite under one second, this will run for minutes
             guard $ not onlyQuickTests
 
-            -- Blargg's test ROMs
+            -- Blargg's instruction test ROMs
             mapM_ (\(file, cycles) ->
                 do
                     bin <- liftIO . B.readFile $ "./tests/instr_test-v4/rom_singles/" ++ file
@@ -705,6 +709,7 @@ runTests onlyQuickTests = do
                                              False
                                              traceMB
                     checkEmuTestResult ("Blargg's " ++ file ++ " Test") tracefn h emures)
+                -- TODO: Verify those cycle counts against a reference
                 [ ( "01-basics.bin"   , 330200   )
                 , ( "02-implied.bin"  , 2687506  )
                 , ( "03-immediate.bin", 2388550  )
