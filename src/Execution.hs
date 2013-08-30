@@ -1105,7 +1105,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
                              )
                     else ( {- r -} ror
                          , {- v -} (testBit ror 5) /= (testBit ror 6) -- Bit5 ^ Bit6
-                         , {- c -} testBit and' 0
+                         , {- c -} testBit ror 6
                          )
             store8Trace A r
             store8Trace SR
