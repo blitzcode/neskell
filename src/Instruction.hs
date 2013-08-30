@@ -9,10 +9,9 @@ module Instruction ( AddressMode(..)
                    , viewOpCode
                    , decodeOpCode
                    , Instruction(..)
-                   , showInstructionDisambiguate
                    , instructionLen
-                   , decodeInstruction
                    , decodeInstructionM
+                   , disassemble
                    ) where
 
 -- This module contains types and function for representing and decoding all instructions of the 6502
@@ -24,6 +23,8 @@ import Data.Word (Word8)
 import Text.Printf
 import Control.Applicative ((<$>))
 import qualified Data.Vector.Unboxed as VU
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.Char8 as B8
 
 data AddressMode =
       Implied
@@ -239,4 +240,17 @@ decodeInstructionM = do
             1 -> mapM (load8 . Addr) [ pc + 1         ]
             2 -> mapM (load8 . Addr) [ pc + 1, pc + 2 ]
             _ -> return              [                ]
+
+disassemble :: B.ByteString -> [B.ByteString]
+disassemble bin = do
+    let vec = VU.fromList $ B.unpack bin
+        disassemble' pc =
+            case decodeInstruction vec pc of
+                Just instr -> let newPC   = pc + instructionLen instr
+                                  showI   = B8.pack . showInstructionDisambiguate $ instr
+                                  validPC = newPC < VU.length vec
+                                  -- Build result using : instead of ++, no stack overflow etc.
+                               in if validPC then showI : disassemble' newPC else [showI]
+                Nothing -> []
+     in disassemble' 0
 
