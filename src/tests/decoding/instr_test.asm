@@ -1371,9 +1371,9 @@ DCB $00
 ; ANC - Sets SR based on A AND M
 ;
 ; Does A AND M, setting N and Z flags based on the result. Then it copies N
-; (bit 7) to C. A and M are not modified.
+; (bit 7) to C. Stores result in A.
 ;
-;    A AND M                          N Z C I D V
+;    A = A AND M                      N Z C I D V
 ;                                     + + + - - -
 ;
 ; Z Zero Flag         Set if A = 0

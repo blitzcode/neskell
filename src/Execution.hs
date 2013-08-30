@@ -69,8 +69,8 @@ traceNoOpLoad = trace "-         "
 loadOperand8 :: MonadEmulator m => Instruction -> m Word8
 loadOperand8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
-        [w8] -> case am of Immediate ->  traceNoOpLoad >> return w8
-                           Relative  ->                   return w8
+        [w8] -> case am of Immediate -> traceNoOpLoad >> return w8
+                           Relative  ->                  return w8
                            _         -> loadAndTrace
         _    ->                         loadAndTrace
   where
@@ -190,10 +190,10 @@ getAMCycles =
 getOperandPageCross :: MonadEmulator m => Instruction -> m Bool
 getOperandPageCross (Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
-        [w8]      -> case am of IndIdx -> do l <- load8 . Addr . fromIntegral $ w8
-                                             y <- load8 Y
-                                             return    $ l + y < l
-                                _      -> return False
+        [w8]       -> case am of IndIdx -> do l <- load8 . Addr . fromIntegral $ w8
+                                              y <- load8 Y
+                                              return    $ l + y < l
+                                 _      -> return False
         (opl:_:[]) -> case am of AbsoluteX -> do x <- load8 X
                                                  return $ opl + x < opl
                                  AbsoluteY -> do y <- load8 Y
@@ -1056,6 +1056,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             sr <- load8 SR
             let r = op .&. a
             store8Trace SR . modifyFlag FC (testBit r 7) . setNZ r $ sr
+            store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
         ALR -> do
