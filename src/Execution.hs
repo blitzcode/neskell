@@ -1133,7 +1133,29 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             update16 PC (ilen +)
             advCycles baseC
         AHX -> do
-            let baseC = 1 + getAMCycles am
+            let baseC = getAMCycles am + getStorePageCrossPenalty am
+            trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
+            traceNoOpLoad
+            a <- load8 A
+            x <- load8 X
+            y <- load8 Y
+            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ AHX AbsoluteY) (l:h:[]) -> return (l, h)
+                             Instruction (viewOpCode -> OpCode _ AHX IndIdx)    (zp:[])  -> do
+                                indL <- load8 . Addr . fromIntegral $ zp
+                                indH <- load8 . Addr . fromIntegral $ zp + 1
+                                return (indL, indH)
+                             _ -> trace ("AHX: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                      ) inst
+            let r = a .&. x .&. (h + 1)
+            -- The result to be written is used as MSB of the
+            -- storage address if we cross a page boundary
+            let hiaddr = if l + y < y then r else h
+                addr   = fromIntegral (l + y) .|. (fromIntegral hiaddr `shiftL` 8)
+            store8Trace (Addr addr) r
+            update16 PC (ilen +)
+            advCycles baseC
+            {-
+            let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
             a <- load8 A
@@ -1145,40 +1167,59 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             storeOperand8 inst r
             update16 PC (ilen +)
             advCycles baseC
+            -}
         TAS -> do
-            let baseC = 1 + getAMCycles am
+            let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
             a <- load8 A
             x <- load8 X
+            y <- load8 Y
             let sp = x .&. a
             store8Trace SP sp
-            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
-                            _         -> trace "AM Err" >> return 0
-                      =<< getOperandAddr8 inst
-            storeOperand8 inst $ sp .&. (addrHI + 1)
+            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ TAS AbsoluteY) (l:h:[]) -> return (l, h)
+                             _ -> trace ("TAS: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                      ) inst
+            let r = sp .&. (h + 1)
+            -- The result to be written is used as MSB of the
+            -- storage address if we cross a page boundary
+            let hiaddr = if l + y < y then r else h
+                addr   = fromIntegral (l + y) .|. (fromIntegral hiaddr `shiftL` 8)
+            store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
         SHX -> do
-            let baseC = 1 + getAMCycles am
+            let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
             x <- load8 X
-            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
-                            _         -> trace "AM Err" >> return 0
-                      =<< getOperandAddr8 inst
-            storeOperand8 inst $ x .&. (addrHI + 1)
+            y <- load8 Y
+            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ SHX AbsoluteY) (l:h:[]) -> return (l, h)
+                             _ -> trace ("SHX: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                      ) inst
+            let r = x .&. (h + 1)
+            -- The result to be written is used as MSB of the
+            -- storage address if we cross a page boundary
+            let hiaddr = if l + y < y then r else h
+                addr   = fromIntegral (l + y) .|. (fromIntegral hiaddr `shiftL` 8)
+            store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
         SHY -> do
-            let baseC = 1 + getAMCycles am
+            let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
+            x <- load8 X
             y <- load8 Y
-            addrHI <- \case Addr addr -> return . snd . splitW16 $ addr
-                            _         -> trace "AM Err" >> return 0
-                      =<< getOperandAddr8 inst
-            storeOperand8 inst $ y .&. (addrHI + 1)
+            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ SHY AbsoluteX) (l:h:[]) -> return (l, h)
+                             _ -> trace ("SHY: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                      ) inst
+            let r = y .&. (h + 1)
+            -- The result to be written is used as MSB of the
+            -- storage address if we cross a page boundary
+            let hiaddr = if l + x < x then r else h
+                addr   = fromIntegral (l + x) .|. (fromIntegral hiaddr `shiftL` 8)
+            store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
         LAS -> do

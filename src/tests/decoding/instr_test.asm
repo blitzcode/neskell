@@ -1451,7 +1451,8 @@ DCB $00
 ; AHX - Store A & X & (ADDR_HI + 1) into M
 ;
 ; There are some conflicting description of what this opcode does, but this
-; version seems to match the reference best.
+; version seems to match the reference best. The result to be written is used
+; as MSB of the storage address if we cross a page boundary.
 ;
 ;  A & X & (ADDR_HI + 1) -> M         N Z C I D V
 ;                                     - - - - - -
@@ -1470,7 +1471,8 @@ DCB $00
 ;
 ; AND X register with accumulator and store result in stack pointer, then AND
 ; stack pointer with the high byte of the target address of the argument + 1.
-; Store result in memory.
+; Store result in memory. The result to be written is used as MSB of the
+; storage address if we cross a page boundary.
 ;
 ;  X AND A -> SP                      N Z C I D V
 ;  SP AND (ADDR_HI + 1) -> M          - - - - - -
@@ -1485,7 +1487,8 @@ DCB $00
 ; SHX - X AND ADDR_HI
 ;
 ; AND X register with the high byte of the target address of the argument + 1.
-; Store the result in memory.
+; Store the result in memory. The result to be written is used as MSB of the
+; storage address if we cross a page boundary.
 ;
 ;  X AND (ADDR_HI + 1) -> M           N Z C I D V
 ;                                     - - - - - -
@@ -1500,7 +1503,8 @@ DCB $00
 ; SHY - Y AND ADDR_HI
 ;
 ; AND Y register with the high byte of the target address of the argument + 1.
-; Store the result in memory.
+; Store the result in memory. The result to be written is used as MSB of the
+; storage address if we cross a page boundary.
 ;
 ;  Y AND (ADDR_HI + 1) -> M           N Z C I D V
 ;                                     - - - - - -

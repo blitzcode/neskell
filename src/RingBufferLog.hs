@@ -28,6 +28,7 @@ makeRingBuffer sizeMB = do
     return RingBuffer { rbRing = initRing
                       , rbPtr  = initPtr
                       }
+
 writeRingBuffer :: RingBuffer s -> String -> ST s ()
 writeRingBuffer rb s = do
     ptr <- readSTRef $ rbPtr rb
