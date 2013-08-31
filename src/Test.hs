@@ -573,29 +573,29 @@ runTests onlyQuickTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "Illegal RMW Test" tracefn h emures
-            -- Illegal misc. test
+            -- Illegal XB test
             do
-                bin <- liftIO $ B.readFile "./tests/unit/illegal_misc_test.bin"
+                bin <- liftIO $ B.readFile "./tests/unit/illegal_xb_test.bin"
                 let emures = runEmulator NMOS_6502
                                          [ (bin, 0x0600) ]
                                          [ (PC, Right 0x0600) ]
                                          [ CondOpC BRK
                                          , CondCycleR 1000 (maxBound :: Word64)
                                          ]
-                                         ( [ CondLS SP $ Left 0xD9
+                                         ( [ CondLS SP $ Left 0xDE
                                            -- TODO: Cycle count from Visual 6502,
                                            --       also check against VICE
-                                           , CondCycleR 381 381
+                                           , CondCycleR 267 267
                                            ]
                                            ++ ( makeStackCond 0xFF $
-                                                    "                              FF B4 4C 35 A0 A0 " ++
-                                                    "A0 00 00 01 80 01 55 80 01 34 09 B4 80 B5 FF 36 " ++
-                                                    "00 75 55 F5 D5 35 7F 37 00 35 40 B5 36 B5 34 36 "
+                                                    "                                             FF " ++
+                                                    "B4 4C 35 A0 A0 A0 B4 80 B5 FF 36 00 75 55 F5 D5 " ++
+                                                    "35 7F 37 00 35 40 B5 CD 36 00 B5 AA 34 01 36 00 "
                                               )
                                          )
                                          True
                                          traceMB
-                checkEmuTestResult "Illegal Misc. Test" tracefn h emures
+                checkEmuTestResult "Illegal XB Test" tracefn h emures
             -- Illegal BCD test
             do
                 bin <- liftIO $ B.readFile "./tests/unit/illegal_bcd_test.bin"
@@ -637,6 +637,23 @@ runTests onlyQuickTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "ARR BCD Test" tracefn h emures
+            -- AHX/TAS/SHX/SHY test
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/ahx_tas_shx_shy_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         ( [ CondLS SP $ Left 0xF2
+                                           , CondCycleR 232 232
+                                           ]
+                                           ++ makeStackCond 0xFF "01 C9 01 80 C0 E0 01 55 80 80 01 34 10"
+                                         )
+                                         True
+                                         traceMB
+                checkEmuTestResult "AHX/TAS/SHX/SHY Test" tracefn h emures
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
@@ -665,9 +682,6 @@ runTests onlyQuickTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "NESTest CPU ROM Test" tracefn h emures
-            -- TODO: Add test for pagecrossing behavior of AHX/TAS/SHX/SHY
-            -- TODO: Add test for non-decimal carry of ARR
-            -- TODO: Add test for ANC accumulator result
             -- TODO: Add more tests from Blargg's test suite
 
             -- Tests below here take a long time to run. We try to keep the

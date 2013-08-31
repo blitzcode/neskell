@@ -1368,7 +1368,7 @@ DCB $00
 DCB $53
 DCB $00
 
-; ANC - Sets SR based on A AND M
+; ANC - A AND M
 ;
 ; Does A AND M, setting N and Z flags based on the result. Then it copies N
 ; (bit 7) to C. Stores result in A.
