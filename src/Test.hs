@@ -654,6 +654,23 @@ runTests onlyQuickTests = do
                                          True
                                          traceMB
                 checkEmuTestResult "AHX/TAS/SHX/SHY Test" tracefn h emures
+            -- AHX/TAS/SHX/SHY pagecrossing test
+            do
+                bin <- liftIO $ B.readFile "./tests/unit/ahx_tas_shx_shy_pagecross_test.bin"
+                let emures = runEmulator NMOS_6502
+                                         [ (bin, 0x0600) ]
+                                         [ (PC, Right 0x0600) ]
+                                         [ CondOpC BRK
+                                         , CondCycleR 1000 (maxBound :: Word64)
+                                         ]
+                                         ( [ CondLS SP $ Left 0xF5
+                                           , CondCycleR 212 212
+                                           ]
+                                           ++ makeStackCond 0xFF "42 42 41 41 00 01 CE CF C0 D0"
+                                         )
+                                         True
+                                         traceMB
+                checkEmuTestResult "AHX/TAS/SHX/SHY Pagecrossing Test" tracefn h emures
             -- NESTest CPU ROM test
             do
                 bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"

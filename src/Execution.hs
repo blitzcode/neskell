@@ -1149,7 +1149,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let r = a .&. x .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary
-            let hiaddr = if l + y < y then r else h
+            let hiaddr = if l + y < l then r else h
                 addr   = fromIntegral (l + y) .|. (fromIntegral hiaddr `shiftL` 8)
             store8Trace (Addr addr) r
             update16 PC (ilen +)
@@ -1169,7 +1169,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let r = sp .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary
-            let hiaddr = if l + y < y then r else h
+            let hiaddr = if l + y < l then r else h
                 addr   = fromIntegral (l + y) .|. (fromIntegral hiaddr `shiftL` 8)
             store8Trace (Addr addr) r
             update16 PC (ilen +)
@@ -1186,7 +1186,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let r = x .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary
-            let hiaddr = if l + y < y then r else h
+            let hiaddr = if l + y < l then r else h
                 addr   = fromIntegral (l + y) .|. (fromIntegral hiaddr `shiftL` 8)
             store8Trace (Addr addr) r
             update16 PC (ilen +)
@@ -1203,7 +1203,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             let r = y .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary
-            let hiaddr = if l + x < x then r else h
+            let hiaddr = if l + x < l then r else h
                 addr   = fromIntegral (l + x) .|. (fromIntegral hiaddr `shiftL` 8)
             store8Trace (Addr addr) r
             update16 PC (ilen +)
