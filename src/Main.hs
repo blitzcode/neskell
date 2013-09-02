@@ -18,11 +18,9 @@ main = do
     when ("--test" `elem` args) $ do
         success <- runTests False
         unless success exitFailure
-        putStrLn "All Tests OK"
     when ("--quick-test" `elem` args) $ do
         success <- runTests True
         unless success exitFailure
-        putStrLn "All Quick Tests OK"
     case dropWhile (/= "--dasm") args of
         (_:fn:_) -> B.readFile fn >>= mapM_ (B8.putStrLn) . disassemble
         (_:_)    -> putStrLn "Missing file argument to --dasm" >> exitFailure

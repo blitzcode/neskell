@@ -109,36 +109,36 @@ runEmulator processor bins setup stopc verc traceEnable traceMB =
                     execute inst
                     loop
          in do
-                if traceEnable
+            if traceEnable
                 then loop
                 else trace "\n(Execution trace disabled)" >> runNoTrace loop
-                -- Detect Blargg's test ROMs, trace results
-                magic <- mapM (load8 . Addr) [0x6001, 0x6002, 0x6003]
-                when (magic == [0xDE, 0xB0, 0x61]) $ do
-                    trace "\n\nBlargg Test:\n"
-                    trace          "    Memory at 0x6001 indicates we are running one of Blargg's test ROMs\n"
-                    trace . printf "    Result Code: 0x%02X\n" =<< (load8 $ Addr 0x6000)
-                    statusTxt <-     concatMap (++ "\\n") . lines
-                                 .   map (toEnum . fromIntegral :: Word8 -> Char)
-                                 .   takeWhile (/= 0)
-                                 <$> mapM (load8 . Addr) [0x6004..]
-                    trace $ "    Status Text: " ++ statusTxt
-                -- Done, trace the first 512 bytes of memory and return other diagnostic information
-                trace "\n\nZero Page:\n\n"
-                traceMemory 0x0000 256
-                trace "\nStack:\n\n"
-                traceMemory 0x0100 256
-                inst        <- decodeInstructionM
-                condSuccess <- filterM               (checkCond inst  ) verc
-                condFailure <- filterM (\x -> not <$> checkCond inst x) verc
-                condStop    <- filterM               (checkCond inst  ) stopc
-                cpust       <- showCPUState True
-                cputrace    <- getTrace
-                return ( condSuccess
-                       , condFailure
-                       , condStop
-                       , cpust
-                       , show inst
-                       , cputrace
-                       )
+            -- Detect Blargg's test ROMs, trace results
+            magic <- mapM (load8 . Addr) [0x6001, 0x6002, 0x6003]
+            when (magic == [0xDE, 0xB0, 0x61]) $ do
+                trace "\n\nBlargg Test:\n"
+                trace          "    Memory at 0x6001 indicates we are running one of Blargg's test ROMs\n"
+                trace . printf "    Result Code: 0x%02X\n" =<< (load8 $ Addr 0x6000)
+                statusTxt <-     concatMap (++ "\\n") . lines
+                             .   map (toEnum . fromIntegral :: Word8 -> Char)
+                             .   takeWhile (/= 0)
+                             <$> mapM (load8 . Addr) [0x6004..]
+                trace $ "    Status Text: " ++ statusTxt
+            -- Done, trace the first 512 bytes of memory and return other diagnostic information
+            trace "\n\nZero Page:\n\n"
+            traceMemory 0x0000 256
+            trace "\nStack:\n\n"
+            traceMemory 0x0100 256
+            inst        <- decodeInstructionM
+            condSuccess <- filterM               (checkCond inst  ) verc
+            condFailure <- filterM (\x -> not <$> checkCond inst x) verc
+            condStop    <- filterM               (checkCond inst  ) stopc
+            cpust       <- showCPUState True
+            cputrace    <- getTrace
+            return ( condSuccess
+                   , condFailure
+                   , condStop
+                   , cpust
+                   , show inst
+                   , cputrace
+                   )
 

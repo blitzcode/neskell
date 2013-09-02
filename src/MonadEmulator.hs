@@ -151,6 +151,7 @@ runSTEmulator traceEnable traceMB processor f =
     runST $ do
         initState   <- VUM.replicate (65536 + 7) (0 :: Word8)
         initCycles  <- newSTRef 0
+        -- TODO: Maybe we can allocate a smaller buffer when execution tracing is disabled
         initTraceRB <- makeRingBuffer traceMB
         let cpu = CPUState
                   { cpuState        = initState
