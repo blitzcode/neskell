@@ -12,6 +12,7 @@ import System.Exit (exitSuccess, exitFailure)
 
 main :: IO ()
 main = do
+    -- TODO: This is a rather poor argument parser...
     name <- getProgName
     args <- getArgs
     when (null args) . putStrLn $ "Usage: " ++ name ++ " --[test|quick-test] [--dasm file]"

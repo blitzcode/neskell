@@ -6,7 +6,7 @@ module Emulator ( runEmulator
                 ) where
 
 -- Emulator main loop. Load a binary, set up the CPU and then run until a
--- termination criterea has been met
+-- termination criteria has been met
 
 import Util
 import MonadEmulator
@@ -82,7 +82,7 @@ runEmulator ::
     , String                    -- Debug string of last CPU state
     , String                    -- Instruction the PC is pointing at
     , B.ByteString              -- Last traceMB MB of the execution trace
-    )
+    ) -- TODO: Use a type synonym or a record
 runEmulator processor bins setup stopc verc traceEnable traceMB =
     runSTEmulator True traceMB processor $ do
         trace "Load Binary:\n\n"

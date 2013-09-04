@@ -3,57 +3,32 @@
 
 module Test (runTests) where
 
+-- Unit test suite for the emulator
+
 import Instruction (Mnemonic(..), disassemble)
 import Emulator (runEmulator, Cond(..))
 import MonadEmulator (LoadStore(..), Processor(..))
 import Util (srFromString)
 
-import Data.Monoid (All(..), getAll)
 import Data.Word (Word8, Word16, Word64)
 import Control.Monad (when, unless, guard, void)
-import Control.Monad.Writer (execWriterT, tell)
-import Control.Monad.Writer.Class (MonadWriter)
 import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Time (getZonedTime)
-import System.IO (withFile, IOMode(..), hPutStrLn, Handle, hFlush, stdout)
+import System.IO (withFile, IOMode(..), hPutStrLn, hFlush, stdout)
 import System.Mem (performGC)
 import Numeric (readHex)
 import Control.Concurrent.Async (Async, async, wait)
-import Control.Applicative ((<$>), (<*>))
 import GHC.Conc (getNumProcessors)
-import Control.Concurrent (getNumCapabilities, setNumCapabilities)
---import Control.Concurrent.STM.TSem
+import Control.Concurrent.STM.TSem
 import Control.Concurrent.STM (TQueue, atomically, newTQueueIO, readTQueue, writeTQueue)
-import Control.Monad.State (execStateT, get, put, modify)
---     Control.Monad.State.Strict
+import Control.Monad.State (execStateT, get, put)
 import qualified System.Console.ANSI as A
 import Text.Printf
-import qualified Control.Concurrent.SSem as SS
-
--- TODO: Try running the listen thread not in the main thread (see parallel
---       Haskell book)
--- TODO: Run queue and sempahore operations in the same transaction, see if that
---       helps
--- TODO: Profile with ThreadScope
--- TODO: Have listen thread print out number of running tests every 100ms
--- TODO: Read TQueue documentation, compare with other channel variants
--- TODO: If semaphore + Async impl. can't be fixed, consider just using a forkIO
---       per core and read test tasks from a queue
--- TODO: Investigate if irregular runtime for the quick test suite is due to the
---       file IO or the ring buffer tracing itself
--- TODO: The GC bug is back, and this time it seems performGC can only lessen
---       its impact, not fix it
--- TODO: Double check if any of the memory / performance issues happen when
---       using only a single OS thread / no -threaded
--- TODO: Use traceEventIO & labelThread functions and enable the event log,
---       analyze behavior of threads, why are there stalls and such large run
---       time variations? (ghc-events tool, build -eventlog & run +RTS -l)
--- TODO: Play around with GC & Thread RTS options (see GHC docs and parallel
---       Haskell book)
+import Control.Concurrent (getNumCapabilities)
 
 data TestEvent = TestRunning | TestSucceess | TestFailure String String
 data TestStatus = TestStatus { tsRunning   :: Int
@@ -67,9 +42,8 @@ runTests onlyQuickTests = do
     cores      <- getNumProcessors
     osThreads  <- getNumCapabilities
     eventQueue <- newTQueueIO :: IO (TQueue (Int, TestEvent))
-    --sem        <- atomically $ newTSem osThreads
-    sem        <- SS.new osThreads
-    -- Run testsuite
+    sem        <- atomically $ newTSem osThreads
+    -- Run test suite
     tests      <- testSuite onlyQuickTests eventQueue sem
     let numTests = length tests
     -- Header and initial all-pending status bar
@@ -123,6 +97,9 @@ runTests onlyQuickTests = do
                 (invColored A.Red   ) (tsFailed    ts') (A.setSGRCode [])
                 (numTests - (tsRunning ts' + tsSucceeded ts' + tsFailed ts'))
             -- Failures
+            -- TODO: This is slow (should probably reverse the order and only
+            --       echo new lines) and also completely breaks if one of those
+            --       failure lines is too wide for the terminal
             if null $ tsFailures ts'
                 then printf "%s(No Failures)%s" (invColored A.Green) (A.setSGRCode [])
                 else mapM_ (\x -> putStr $ A.clearLineCode ++ x) $ tsFailures ts'
@@ -179,15 +156,15 @@ makeStringCond :: Word16 -> String -> [Cond]
 makeStringCond addr str =
     zipWith (\a c -> CondLS (Addr a) (Left . fromIntegral . fromEnum $ c)) [addr..] str
 
---withSemaphore :: TSem -> IO () -> IO ()
---withSemaphore sem f = (atomically $ waitTSem sem) >> f >> (atomically $ signalTSem sem)
+withSemaphore :: TSem -> IO () -> IO ()
+withSemaphore sem f = (atomically $ waitTSem sem) >> f >> (atomically $ signalTSem sem)
 
 binToLogFn :: String -> String
 binToLogFn fn = takeWhile (/= '.') fn ++ ".log"
 
 -- Run the testsuite, communicate completion and success / failure status
 -- through the queue. The TSem is used to limit concurrency
-testSuite :: Bool -> TQueue (Int, TestEvent) -> {-TSem-} SS.SSem -> IO [(Async ())]
+testSuite :: Bool -> TQueue (Int, TestEvent) -> TSem -> IO [(Async ())]
 testSuite onlyQuickTests eventQueue sem = do
     -- All later tests are actual emulator tests, but start with the decoding test
     do
@@ -200,12 +177,12 @@ testSuite onlyQuickTests eventQueue sem = do
     -- early exit in case we only want to run a subset of the test suite
     let traceMB   = 64
         tracePath = "./trace/"
-    flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [(Async ())]) ()
+    flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [Async ()] IO) ()
         let runTestAsync testName logFile test = do
             s <- get
             -- Limit concurrency through semaphore (memory consumption for
             -- tracing would otherwise explode)
-            t <- liftIO . async . {-withSemaphore-}SS.withSem sem $ do
+            t <- liftIO . async . withSemaphore sem $ do
                 let testID = length s -- Just a unique ID based on the list position
                 atomically $ writeTQueue eventQueue (testID, TestRunning)
                 success <- checkEmuTestResult testName logFile =<< test
@@ -215,23 +192,23 @@ testSuite onlyQuickTests eventQueue sem = do
                       then TestSucceess
                       else TestFailure testName logFile
                     )
-                -- After days of debugging an out-of-memory error, it became clear that the
-                -- GC just isn't collecting. If I allocate some memory with an unboxed
-                -- mutable vector inside the ST monad in the emulator (ring buffer trace
-                -- log), the memory seemed to be retained sometimes. There's no reference to
-                -- the vector outside of ST. Even if I never do anything but create the
-                -- vector and put it inside the Reader record, and then only return a single
-                -- Int from ST, which I immediately evaluate, the memory was retained
-                -- (sometimes...). All memory profiles always showed I never allocate more
-                -- than one vector at a time, yet multiple runs would cause OS memory for
-                -- multiple vectors to be used and would eventually cause an out-of-memory
-                -- error. Even then the RTS would not collect. Forcing collection after
-                -- leaving ST and evaluating all return values seems to solve the problem
-                -- entirely. This seems like a bug in the GC, running out of OS memory
-                -- instead of garbage collecting allocations it (demonstrably) knows how to
-                -- free, while all RTS memory profiles confirm it is indeed not referenced.
-                -- This is also not related to any concurrency, happened already in the
-                -- single threaded version.
+                -- Workaround for a GC bug. Without this, the GC just isn't collecting. If we
+                -- allocate some memory with an unboxed mutable vector inside the ST monad in
+                -- the emulator (ring buffer trace log), the memory seems to be retained
+                -- sometimes. There's no reference to the vector outside of ST. Even if we
+                -- never do anything but create the vector and put it inside the Reader record,
+                -- and then only return a single Int from ST, which is immediately evaluated,
+                -- the memory is retained (sometimes...). All memory profiles always show we
+                -- never allocate more than one vector at a time, yet multiple runs would cause
+                -- OS memory for multiple vectors to be used and would eventually cause an
+                -- out-of-memory error. Even then the RTS would not collect. Forcing collection
+                -- after leaving ST and evaluating all return values seems to solve the problem
+                -- entirely. This seems like a bug in the GC, running out of OS memory instead
+                -- of garbage collecting allocations it (demonstrably) knows how to free, while
+                -- all RTS memory profiles confirm it is indeed not referenced. In the parallel
+                -- case this only alleviates the situation, not fixing it entirely like for the
+                -- serial version before. Unfortunately, the bug is rather hard to reduce to a
+                -- simple reproduction case
                 liftIO performGC
             put $ t : s -- Put Async into State
 
@@ -239,7 +216,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Load / Store Test" (tracePath ++ "load_store_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/load_store_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -256,7 +233,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "AND / OR / XOR Test" (tracePath ++ "and_or_xor_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/and_or_xor_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -274,7 +251,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "INC / DEC Test" (tracePath ++ "inc_dec_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/inc_dec_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -289,7 +266,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Bitshift Test" (tracePath ++ "bitshift_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/bitshift_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -305,7 +282,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "JMP/JSR/RTS Test" (tracePath ++ "jump_ret_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/jump_ret_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -323,7 +300,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Jump Bug Test" (tracePath ++ "jump_bug_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/jump_bug_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -338,7 +315,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Register Transfer Test" (tracePath ++ "reg_transf_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/reg_transf_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -356,7 +333,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Add / Sub Test" (tracePath ++ "add_sub_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/add_sub_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -374,7 +351,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "CMP/BEQ/BNE Test" (tracePath ++ "cmp_beq_bne_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/cmp_beq_bne_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -390,7 +367,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "CPX/CPY/BIT Test" (tracePath ++ "cpx_cpy_bit_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/cpx_cpy_bit_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -406,7 +383,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Misc. Branch Test" (tracePath ++ "misc_branch_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/misc_branch_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -424,7 +401,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Branch Backwards Test" (tracePath ++ "branch_backwards_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/branch_backwards_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -438,7 +415,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Branch Pagecrossing Test" (tracePath ++ "branch_pagecross_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/branch_pagecross_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x02F9) ]
                                   [ (PC, Right 0x02F9) ]
                                   [ CondOpC BRK
@@ -452,7 +429,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Flag Test" (tracePath ++ "flag_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/flag_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -467,7 +444,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Special Flag Test" (tracePath ++ "special_flag_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/special_flag_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -484,7 +461,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Stack Test" (tracePath ++ "stack_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/stack_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -500,7 +477,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "BCD Add / Sub Test" (tracePath ++ "bcd_add_sub_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/bcd_add_sub_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -517,7 +494,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Add / Sub CVZN Flag Test" (tracePath ++ "add_sub_cvzn_flag_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/add_sub_cvzn_flag_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -548,7 +525,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "RTI Test" (tracePath ++ "rti_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/rti_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -564,7 +541,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "BRK Test" (tracePath ++ "brk_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/brk_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC NOP
@@ -580,7 +557,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "KIL Test" (tracePath ++ "kil_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/kil_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondLoopPC ]
@@ -590,7 +567,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Illegal NOP Test" (tracePath ++ "nop_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/nop_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -604,7 +581,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "LAX Test" (tracePath ++ "lax_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/lax_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -621,7 +598,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "SAX Test" (tracePath ++ "sax_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/sax_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -639,7 +616,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Illegal RMW Test" (tracePath ++ "illegal_rmw_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/illegal_rmw_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600)
                                   ]
@@ -665,7 +642,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Illegal XB Test" (tracePath ++ "illegal_xb_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/illegal_xb_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -687,7 +664,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Illegal BCD Test" (tracePath ++ "illegal_bcd_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/illegal_bcd_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -707,7 +684,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "ARR BCD Test" (tracePath ++ "arr_bcd_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/arr_bcd_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -726,7 +703,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "AHX/TAS/SHX/SHY Test" (tracePath ++ "ahx_tas_shx_shy_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/ahx_tas_shx_shy_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -743,7 +720,7 @@ testSuite onlyQuickTests eventQueue sem = do
         runTestAsync "AHX/TAS/SHX/SHY Pagecrossing Test"
           (tracePath ++ "ahx_tas_shx_shy_pagecross_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/ahx_tas_shx_shy_pagecross_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK
@@ -759,7 +736,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "NESTest CPU ROM Test" (tracePath ++ "nestest.log") $ do
             bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
-            return $! runEmulator NES_2A03
+            return $ runEmulator NES_2A03
                                   [ (bin, 0xC000) ]
                                   [ (PC, Right 0xC000)
                                   , (SP, Left 0xFD)
@@ -791,7 +768,7 @@ testSuite onlyQuickTests eventQueue sem = do
         mapM_ (\(file, cycles) ->
             runTestAsync ("Blargg's " ++ file ++ " Test") (tracePath ++ binToLogFn file) $ do
                 bin <- liftIO . B.readFile $ "./tests/instr_test-v4/rom_singles/" ++ file
-                return $! runEmulator NES_2A03
+                return $ runEmulator NES_2A03
                                       [ (bin, 0x8000) ]
                                       [ (SP, Left 0xFD)
                                         -- Don't accidentally trigger stop condition right at startup
@@ -810,7 +787,7 @@ testSuite onlyQuickTests eventQueue sem = do
                                         , CondLS (Addr 0x6001) $ Left 0xDE -- Magic
                                         , CondLS (Addr 0x6002) $ Left 0xB0
                                         , CondLS (Addr 0x6003) $ Left 0x61
-                                        , CondCycleR cycles cycles 
+                                        , CondCycleR cycles cycles
                                         ] ++
                                         makeStringCond
                                              0x6004
@@ -840,7 +817,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Functional 6502 Test" (tracePath ++ "6502_functional_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0400) ]
                                   [ (PC, Right 0x0400) ]
                                   [ CondLoopPC ]
@@ -853,7 +830,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         runTestAsync "Full BCD Test" (tracePath ++ "full_bcd_test.log") $ do
             bin <- liftIO $ B.readFile "./tests/unit/full_bcd_test.bin"
-            return $! runEmulator NMOS_6502
+            return $ runEmulator NMOS_6502
                                   [ (bin, 0x0600) ]
                                   [ (PC, Right 0x0600) ]
                                   [ CondOpC BRK ]
