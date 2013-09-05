@@ -29,34 +29,41 @@ import Control.Monad.State (execStateT, get, put)
 import qualified System.Console.ANSI as A
 import Text.Printf
 import Control.Concurrent (getNumCapabilities)
+import qualified Data.IntMap.Strict as IM
+import Control.Applicative ((<$>))
+import Data.List (delete)
 
-data TestEvent = TestRunning Bool | TestSucceess | TestFailure String String
-data TestStatus = TestStatus { tsRunning   :: Int
+data TestEvent = TestRunning | TestSucceess | TestFailure
+
+data TestStatus = TestStatus { tsRunning   :: [Int]
                              , tsSucceeded :: Int
-                             , tsFailed    :: Int
-                             , tsFailures  :: [String]
+                             , tsFailed    :: [Int]
                              }
 
 runTests :: Bool -> IO Bool
 runTests onlyQuickTests = do
     cores      <- getNumProcessors
     osThreads  <- getNumCapabilities
-    eventQueue <- newTQueueIO :: IO (TQueue (Int, TestEvent))
+    eventQueue <- newTQueueIO :: IO (TQueue (Int, TestEvent)) -- Test ID / Event pair
     sem        <- atomically $ newTSem osThreads
     -- Run test suite
     tests      <- testSuite onlyQuickTests eventQueue sem
     let numTests = length tests
-    -- Header and initial all-pending / no execution tracing status bar
+    let mtests = IM.fromList . map (\x -> (taID x, x)) $ tests
+    -- Header and initial all-pending status bar
     void $ printf "\nChecking %2i test cases on %2i core(s) with %2i thread(s)\n"
         numTests cores osThreads
     putStr "------------------------------------------------------\n\n"
     putStr $ "[" ++ replicate numTests '·' ++ "] 0%\n"
-    putStr $ " " ++ replicate numTests ' ' ++ "  ExeTrc?\n\n\n\n"
+    -- Execution tracing status
+    putStr $ " " ++ map (\x -> case taTraceE <$> IM.lookup x mtests of Just True -> '+'; _ -> ' ')
+                        [0..numTests - 1]
+                 ++ "  ExeTrc?\n"
+    putStr $ replicate (6 + osThreads) '\n'
     -- Process events from test threads
-    let status = TestStatus { tsRunning   = 0
+    let status = TestStatus { tsRunning   = []
                             , tsSucceeded = 0
-                            , tsFailed    = 0
-                            , tsFailures  = []
+                            , tsFailed    = []
                             }
     overallRes <-
         let processEvents ts = do
@@ -65,61 +72,70 @@ runTests onlyQuickTests = do
                                                 , A.SetColor A.Foreground A.Vivid color
                                                 ]
             -- Update test status and status bar
-            A.cursorUp $ 5 + (length $ tsFailures ts)
+            A.cursorUp $ 8
+                + max 0 ((length $ tsFailed ts) - 1)
+                + osThreads
             A.setCursorColumn $ 1 + testID
             ts' <- case e of
-                TestRunning traceE -> do putStr $ invColored A.Yellow ++ "R" ++
-                                                  -- When the test runs it also notifies us if
-                                                  -- execution tracing is enabled
-                                                  if   traceE
-                                                  then A.setSGRCode []        ++
-                                                       A.cursorDownCode 1     ++
-                                                       A.cursorBackwardCode 1 ++
-                                                       "+"                    ++
-                                                       A.cursorUpCode 1
-                                                  else ""
-                                         return ts { tsRunning = tsRunning ts + 1 }
-                TestSucceess       -> do putStr $ invColored A.Green  ++ "S"
-                                         return ts { tsRunning   = tsRunning   ts - 1
-                                                   , tsSucceeded = tsSucceeded ts + 1
-                                                   }
-                TestFailure tn tfn -> do putStr $ invColored A.Red    ++ "F"
-                                         return ts { tsRunning  = tsRunning ts - 1
-                                                   , tsFailed   = tsFailed  ts + 1
-                                                   , tsFailures =
-                                                         printf "%s%s Failed, see %s%s\n"
-                                                            (invColored A.Red) tn tfn (A.setSGRCode [])
-                                                         : tsFailures ts
-                                                   }
+                TestRunning  -> do putStr $ invColored A.Yellow ++ "R"
+                                   return ts { tsRunning = testID : tsRunning ts }
+                TestSucceess -> do putStr $ invColored A.Green  ++ "S"
+                                   return ts { tsRunning   = delete testID $ tsRunning ts
+                                             , tsSucceeded = tsSucceeded ts + 1
+                                             }
+                TestFailure  -> do putStr $ invColored A.Red    ++ "F"
+                                   return ts { tsRunning = delete testID $ tsRunning ts
+                                             , tsFailed  = testID : tsFailed ts
+                                             }
             A.setSGR []
             A.setCursorColumn $ 3 + numTests
             A.clearFromCursorToLineEnd
             void $ printf "%.2f%%"
-                (fromIntegral (tsSucceeded ts' + tsFailed ts') /
+                (fromIntegral (tsSucceeded ts' + length (tsFailed ts')) /
                  fromIntegral numTests * 100.0 :: Float)
             A.cursorDown 3
             A.setCursorColumn 0
             -- Summary
             A.clearLine
             void $ printf "Running: %s%2i%s | Succeeded: %s%2i%s | Failed: %s%2i%s | Pending: %i\n\n"
-                (invColored A.Yellow) (tsRunning   ts') (A.setSGRCode [])
-                (invColored A.Green ) (tsSucceeded ts') (A.setSGRCode [])
-                (invColored A.Red   ) (tsFailed    ts') (A.setSGRCode [])
-                (numTests - (tsRunning ts' + tsSucceeded ts' + tsFailed ts'))
+                (invColored A.Yellow) (length $ tsRunning   ts') (A.setSGRCode [])
+                (invColored A.Green ) (         tsSucceeded ts') (A.setSGRCode [])
+                (invColored A.Red   ) (length $ tsFailed    ts') (A.setSGRCode [])
+                (numTests - (length (tsRunning ts') + tsSucceeded ts' + length (tsFailed ts')))
+            -- TODO: The next two completely break if any lines are too wide for the terminal
+            -- Running
+            mapM_ (\(i, x) -> putStr $
+                                  A.clearLineCode ++ (invColored A.Yellow) ++ printf "Thread %i:" i
+                                  ++ (A.setSGRCode []) ++ " "
+                                  ++ case taName <$> IM.lookup x mtests of Just n -> n; _ -> "(Idle)"
+                                  ++ "\n")
+                  $ zip [1..osThreads] (tsRunning ts' ++ repeat (maxBound :: Int))
+            putStr "\n"
             -- Failures
-            -- TODO: This is slow (should probably reverse the order and only
-            --       echo new lines) and also completely breaks if one of those
-            --       failure lines is too wide for the terminal
-            if null $ tsFailures ts'
-                then printf "%s(No Failures)%s" (invColored A.Green) (A.setSGRCode [])
-                else mapM_ (\x -> putStr $ A.clearLineCode ++ x) $ tsFailures ts'
+            if   null $ tsFailed ts'
+            then putStrLn $
+                     A.clearLineCode                                     ++
+                     (A.setSGRCode [A.SetSwapForegroundBackground True]) ++
+                     "(No Failures)"                                     ++
+                     (A.setSGRCode [])
+            else mapM_ (\x -> putStr $ A.clearLineCode ++ (invColored A.Red) ++
+                                       (case taName <$> IM.lookup x mtests of
+                                            Just n -> n
+                                            _      -> "") ++
+                                       " Failed:" ++ (A.setSGRCode []) ++ " " ++
+                                       (case taLogFn <$> IM.lookup x mtests of
+                                            Just n -> n
+                                            _      -> "") ++
+                                       "\n")
+                       $ tsFailed ts'
+            putStr "\n"
             -- Done?
             hFlush stdout
-            if (tsSucceeded ts' + tsFailed ts' < numTests)
+            if (tsSucceeded ts' + length (tsFailed ts') < numTests)
                 then processEvents ts'
-                else putStr "\n\n" >> (return $ tsFailed ts' == 0)
+                else putStr "\n\n" >> (return . null . tsFailed $ ts')
          in processEvents status
-    mapM_ wait tests
+    mapM_ (wait . taAsync) tests
     return overallRes
 
 -- Trace emulator run results into log file, return success / failure of test
@@ -172,9 +188,17 @@ withSemaphore sem f = (atomically $ waitTSem sem) >> f >> (atomically $ signalTS
 binToLogFn :: String -> String
 binToLogFn fn = takeWhile (/= '.') fn ++ ".log"
 
+data TestAsync = TestAsync { taID     :: Int
+                           , taName   :: String
+                           , taLogFn  :: String
+                           , taTraceE :: Bool
+                           , taAsync  :: Async ()
+                           }
+
 -- Run the test suite, communicate completion and success / failure status
--- through the queue. The TSem is used to limit concurrency
-testSuite :: Bool -> TQueue (Int, TestEvent) -> TSem -> IO [(Async ())]
+-- through the queue. The TSem is used to limit concurrency. Return a list of
+-- tests with their async action and some information about them for display
+testSuite :: Bool -> TQueue (Int, TestEvent) -> TSem -> IO [TestAsync]
 testSuite onlyQuickTests eventQueue sem = do
     -- All later tests are actual emulator tests, but start with the decoding test
     do
@@ -187,20 +211,20 @@ testSuite onlyQuickTests eventQueue sem = do
     -- early exit in case we only want to run a subset of the test suite
     let traceMB   = 64
         tracePath = "./trace/"
-    flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [Async ()] IO) ()
+    flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [TestAsync] IO) ()
         let runTestAsync testName logFile traceEnable test = do
             s <- get
+            let testID = length s -- Just a unique ID based on the list position
             -- Limit concurrency through semaphore (memory consumption for
             -- tracing would otherwise explode)
             t <- liftIO . async . withSemaphore sem $ do
-                let testID = length s -- Just a unique ID based on the list position
-                atomically $ writeTQueue eventQueue (testID, TestRunning traceEnable)
+                atomically $ writeTQueue eventQueue (testID, TestRunning)
                 success <- checkEmuTestResult testName logFile =<< test traceEnable
                 atomically $ writeTQueue eventQueue
                     ( testID
                     ,   if success
                       then TestSucceess
-                      else TestFailure testName logFile
+                      else TestFailure
                     )
                 -- Workaround for a GC bug. Without this, the GC just isn't collecting. If we
                 -- allocate some memory with an unboxed mutable vector inside the ST monad in
@@ -220,7 +244,12 @@ testSuite onlyQuickTests eventQueue sem = do
                 -- serial version before. Unfortunately, the bug is rather hard to reduce to a
                 -- simple reproduction case
                 liftIO performGC
-            put $ t : s -- Put Async into State
+            put $ TestAsync { taID     = testID
+                            , taName   = testName
+                            , taLogFn  = logFile
+                            , taTraceE = traceEnable
+                            , taAsync  = t
+                            } : s -- Put test into State
 
         -- Tests follow
 
