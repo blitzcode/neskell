@@ -32,6 +32,7 @@ import Control.Concurrent (getNumCapabilities)
 import qualified Data.IntMap.Strict as IM
 import Control.Applicative ((<$>))
 import Data.List (delete)
+import System.FilePath (splitFileName, dropExtension)
 
 data TestEvent = TestRunning | TestSucceess | TestFailure
 
@@ -798,11 +799,13 @@ testSuite onlyQuickTests eventQueue sem = do
         -- quick test suite under one second, this will run for minutes
         guard $ not onlyQuickTests
 
+        let instrv4   = "./tests/instr_test-v4/rom_singles/"
+            instrmisc = "./tests/instr_misc/"
         mapM_ (\(file, cycles) -> do
-            let binToLogFn fn = takeWhile (/= '.') fn ++ ".log"
+            let filenm = dropExtension . snd . splitFileName $ file
             runTestAsync
-              ("Blargg's " ++ file ++ " Test") (tracePath ++ binToLogFn file) False $ \traceE -> do
-                bin <- liftIO . B.readFile $ "./tests/instr_test-v4/rom_singles/" ++ file
+              ("Blargg's " ++ filenm ++ " Test") (tracePath ++ filenm ++ ".log") False $ \traceE -> do
+                bin <- liftIO $ B.readFile file
                 return $ runEmulator NES_2A03
                                      [ (bin, 0x8000) ]
                                      [ (SP, Left 0xFD)
@@ -826,27 +829,31 @@ testSuite onlyQuickTests eventQueue sem = do
                                        ] ++
                                        makeStringCond
                                            0x6004
-                                           ("\n" ++ takeWhile (/= '.') file ++ "\n\nPassed\n")
+                                           ("\n" ++ filenm ++ "\n\nPassed\n")
                                      )
                                      traceE
                                      traceMB)
             -- TODO: Verify those cycle counts against a reference
-            [ ( "01-basics.bin"   , 330200   )
-            , ( "02-implied.bin"  , 2687506  )
-            , ( "03-immediate.bin", 2388550  )
-            , ( "04-zero_page.bin", 3273464  )
-            , ( "05-zp_xy.bin"    , 7558100  )
-            , ( "06-absolute.bin" , 3093993  )
-            , ( "07-abs_xy.bin"   , 10675054 )
-            , ( "08-ind_x.bin"    , 4145448  )
-            , ( "09-ind_y.bin"    , 3888212  )
-            , ( "10-branches.bin" , 1033363  )
-            , ( "11-stack.bin"    , 4682762  )
-            , ( "12-jmp_jsr.bin"  , 322698   )
-            , ( "13-rts.bin"      , 223119   )
-            , ( "14-rti.bin"      , 225084   )
-            , ( "15-brk.bin"      , 540320   )
-            , ( "16-special.bin"  , 157793   )
+            [ ( instrv4   ++ "01-basics.bin"         , 330200   )
+            , ( instrv4   ++ "02-implied.bin"        , 2687506  )
+            , ( instrv4   ++ "03-immediate.bin"      , 2388550  )
+            , ( instrv4   ++ "04-zero_page.bin"      , 3273464  )
+            , ( instrv4   ++ "05-zp_xy.bin"          , 7558100  )
+            , ( instrv4   ++ "06-absolute.bin"       , 3093993  )
+            , ( instrv4   ++ "07-abs_xy.bin"         , 10675054 )
+            , ( instrv4   ++ "08-ind_x.bin"          , 4145448  )
+            , ( instrv4   ++ "09-ind_y.bin"          , 3888212  )
+            , ( instrv4   ++ "10-branches.bin"       , 1033363  )
+            , ( instrv4   ++ "11-stack.bin"          , 4682762  )
+            , ( instrv4   ++ "12-jmp_jsr.bin"        , 322698   )
+            , ( instrv4   ++ "13-rts.bin"            , 223119   )
+            , ( instrv4   ++ "14-rti.bin"            , 225084   )
+            , ( instrv4   ++ "15-brk.bin"            , 540320   )
+            , ( instrv4   ++ "16-special.bin"        , 157793   )
+            , ( instrmisc ++ "01-abs_x_wrap.bin"     , 159184   )
+            , ( instrmisc ++ "02-branch_wrap.bin"    , 159794   )
+         -- , ( instrmisc ++ "03-dummy_reads.bin"    , 1000000  )
+         -- , ( instrmisc ++ "04-dummy_reads_apu.bin", 1000000  )
             ]
         -- TODO: Add more tests from Blargg's test suite
 

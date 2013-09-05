@@ -237,9 +237,9 @@ decodeInstructionM = do
     pc <- load16 PC
     opc@(viewOpCode -> OpCode _ _ am) <- decodeOpCode <$> (load8 $ Addr pc)
     Instruction opc <$> case operandLen am of
-            1 -> mapM (load8 . Addr) [ pc + 1         ]
-            2 -> mapM (load8 . Addr) [ pc + 1, pc + 2 ]
-            _ -> return              [                ]
+        1 -> mapM (load8 . Addr) [ pc + 1         ]
+        2 -> mapM (load8 . Addr) [ pc + 1, pc + 2 ]
+        _ -> return              [                ]
 
 disassemble :: B.ByteString -> [B.ByteString]
 disassemble bin = do
@@ -251,6 +251,6 @@ disassemble bin = do
                                   validPC = newPC < VU.length vec
                                   -- Build result using : instead of ++, no stack overflow etc.
                                in if validPC then showI : disassemble' newPC else [showI]
-                Nothing -> []
+                Nothing    -> []
      in disassemble' 0
 
