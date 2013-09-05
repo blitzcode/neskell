@@ -22,6 +22,8 @@ main = do
     when ("--quick-test" `elem` args) $ do
         success <- runTests True
         unless success exitFailure
+    -- TODO: Add option to only run tests matching a given regex, option to list
+    --       all tests by name
     case dropWhile (/= "--dasm") args of
         (_:fn:_) -> B.readFile fn >>= mapM_ (B8.putStrLn) . disassemble
         (_:_)    -> putStrLn "Missing file argument to --dasm" >> exitFailure

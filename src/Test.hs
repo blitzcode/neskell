@@ -6,11 +6,12 @@ module Test (runTests) where
 -- Unit test suite for the emulator
 
 import Instruction (Mnemonic(..), disassemble)
-import Emulator (runEmulator, Cond(..))
+import Emulator (runEmulator)
 import MonadEmulator (LoadStore(..), Processor(..))
 import Util (srFromString)
+import Condition (Cond(..), makeStackCond, makeStringCond)
 
-import Data.Word (Word8, Word16, Word64)
+import Data.Word (Word64)
 import Control.Monad (when, unless, guard, void)
 import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -20,7 +21,6 @@ import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Time (getZonedTime)
 import System.IO (withFile, IOMode(..), hPutStrLn, hFlush, stdout)
 import System.Mem (performGC)
-import Numeric (readHex)
 import Control.Concurrent.Async (Async, async, wait)
 import GHC.Conc (getNumProcessors)
 import Control.Concurrent.STM.TSem
@@ -162,6 +162,9 @@ checkEmuTestResult testName logFile ( condSuccess
         showCond (x:xs) = "[ " ++ show x ++ "\n"
                           ++ concatMap (\c -> "                     , " ++ show c ++ "\n") xs
                           ++                  "                     ]"
+    -- Note that on OS X the Spotlight indexing service can cause huge slowdown
+    -- when writing many small log files. When in doubt, disable it for the
+    -- trace output directory
     liftIO $ withFile logFile WriteMode $ \h -> do
         time <- getZonedTime
         hPutStrLn h $ "Trace Log " ++ show time ++ "\n"
@@ -170,17 +173,6 @@ checkEmuTestResult testName logFile ( condSuccess
         hPutStrLn h ""
         hPutStrLn h resultStr
     return $ null condFailure
-
--- Helpers for building emulator success / stop conditions
-makeStackCond :: Word8 -> String -> [Cond]
-makeStackCond initialSP stackstr =
-    let val    = map (fst . head . readHex) . words $ stackstr
-        spAddr = 0x0100 + fromIntegral initialSP
-        addr   = [spAddr - fromIntegral (length val) + 1 .. spAddr]
-     in zipWith (\v sp -> CondLS (Addr sp) (Left v)) val addr
-makeStringCond :: Word16 -> String -> [Cond]
-makeStringCond addr str =
-    zipWith (\a c -> CondLS (Addr a) (Left . fromIntegral . fromEnum $ c)) [addr..] str
 
 withSemaphore :: TSem -> IO () -> IO ()
 withSemaphore sem f = (atomically $ waitTSem sem) >> f >> (atomically $ signalTSem sem)

@@ -1,9 +1,7 @@
 
 {-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 
-module Emulator ( runEmulator
-                , Cond(..)
-                ) where
+module Emulator (runEmulator) where
 
 -- Emulator main loop. Load a binary, set up the CPU and then run until a
 -- termination criteria has been met
@@ -12,43 +10,14 @@ import Util
 import MonadEmulator
 import Execution
 import Instruction
+import Condition
 
 import qualified Data.ByteString.Lazy as B
-import Data.Word (Word8, Word16, Word64)
+import Data.Word (Word8, Word16)
 import Data.Monoid (getAll, All(..), mempty, (<>))
 import Control.Monad (when, unless, filterM)
 import Control.Applicative ((<$>))
 import Text.Printf
-
-data Cond =
-      CondLS     LoadStore L8R16 -- Compare any memory address / CPU state to
-    | CondOpC    Mnemonic        -- PC pointing to a specific instruction type
-    | CondCycleR Word64 Word64   -- Cycle count in the specified closed interval
-    | CondLoopPC                 -- PC at an instruction jumping to its own address
-
-instance Show Cond where
-    show (CondLS SR w   ) = case w of
-                                Left  w8  -> printf "SR == $%02X:%s" w8 (makeSRString w8)
-                                _         -> error "Can't compare SR to 16 bit value"
-    show (CondLS ls w   ) = case w of
-                                Left  w8  -> printf "%s == $%02X" showLS w8
-                                Right w16 -> printf "%s == $%04X" showLS w16
-                              where
-                                showLS = case ls of Addr _ -> "$"; _ -> ""; ++ show ls
-    show (CondOpC mn    ) = "OpCode(PC) == " ++ show mn
-    show (CondCycleR l h) = unwords ["Cycle ∈ [", show l, ",", show h, "]"]
-    show CondLoopPC       = "CondLoopPC"
-
-{-# INLINE checkCond #-}
--- Instruction is passed just to avoid decoding 2x
-checkCond :: MonadEmulator m => Instruction -> Cond -> m Bool
-checkCond inst@(Instruction (viewOpCode -> OpCode _ decMn _) _) cond =
-    case cond of
-        CondLS     ls w -> case w of Left w8 -> (== w8) <$> load8 ls; Right w16 -> (== w16) <$> load16 ls
-        CondOpC    mn   -> return $ decMn == mn
-        CondCycleR l h  -> do c <- getCycles
-                              return $ (c >= l) && (c <= h)
-        CondLoopPC      -> detectLoopOnPC inst
 
 traceMemory :: MonadEmulator m => Word16 -> Word16 -> m ()
 traceMemory offs len =
@@ -74,7 +43,7 @@ runEmulator ::
     [(LoadStore, L8R16)]     -> -- Store operations to set up simulator state
     [Cond]                   -> -- The simulator will stop when any of these conditions are met
     [Cond]                   -> -- Success conditions to verify once stopped
-    Bool                     -> -- Enable execution tracing
+    Bool                     -> -- Enable execution tracing (TODO: Replace with a trace-begin cond.?)
     Int                      -> -- MB of trace log ring buffer space
     ( [Cond]                    -- Success conditions which were met
     , [Cond]                    -- ...not met
