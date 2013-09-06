@@ -146,7 +146,8 @@ getTrace = do
     list <- lift $ unsafeFreezeRingBuffer rb
     return $ B.pack list
 
-runSTEmulator :: Bool -> Int -> Processor -> (forall s. RSTEmu s a) -> a -- Need RankNTypes for the ST type
+-- Need RankNTypes for the ST type
+runSTEmulator :: Bool -> Int -> Processor -> (forall s. RSTEmu s a) -> a
 runSTEmulator traceEnable traceMB processor f = 
     runST $ do
         initState   <- VUM.replicate (65536 + 7) (0 :: Word8)

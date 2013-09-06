@@ -43,7 +43,9 @@ instance Show Cond where
 checkCond :: MonadEmulator m => Instruction -> Cond -> m Bool
 checkCond inst@(Instruction (viewOpCode -> OpCode _ decMn _) _) cond =
     case cond of
-        CondLS     ls w -> case w of Left w8 -> (== w8) <$> load8 ls; Right w16 -> (== w16) <$> load16 ls
+        CondLS     ls w -> case w of
+                               Left w8 -> (== w8) <$> load8 ls
+                               Right w16 -> (== w16) <$> load16 ls
         CondOpC    mn   -> return $ decMn == mn
         CondCycleR l h  -> do c <- getCycles
                               return $ (c >= l) && (c <= h)

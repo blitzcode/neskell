@@ -27,11 +27,10 @@ store16Trace ls val = do
     trace $ printf "%04X→%s " val (show ls)
     store16 ls val
 
--- Functions for loading and storing 8 bit operands for any instruction.
--- Illegal instructions (writing to an Immediate operand, reading using the
--- Indirect mode, having no operand data for anything but
--- Immediate/Accumulator, etc.) will result in an error trace and a dummy
--- return value
+-- Functions for loading and storing 8 bit operands for any instruction. Illegal
+-- instructions (writing to an Immediate operand, reading using the Indirect
+-- mode, having no operand data for anything but Immediate/Accumulator, etc.)
+-- will result in an error trace and a dummy return value
 
 getOperandAddr8 :: MonadEmulator m => Instruction -> m LoadStore
 getOperandAddr8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
@@ -201,7 +200,8 @@ getOperandPageCross (Instruction (viewOpCode -> OpCode _ _ am) oper) =
                                  _         -> return False
         _          -> return False
 getOperandPageCrossPenalty :: MonadEmulator m => Instruction -> m Word64
-getOperandPageCrossPenalty inst = (\pagec -> return $ if pagec then 1 else 0) =<< getOperandPageCross inst
+getOperandPageCrossPenalty inst =
+    (\pagec -> return $ if pagec then 1 else 0) =<< getOperandPageCross inst
 
 -- Determine penalty for page crossing in store instructions. The penalty always
 -- occurs for the three modes with 16 bit address computations, regardless of
@@ -1085,14 +1085,16 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
                 n         = carry -- 7th bit (sign) is always the carry
                 (r, v, c) =
                       if bcd
-                    then let -- If the lower nibble of the AND result plus its lowest bit is greater than
-                             -- 5, add 6 to the lower nibble in the ROR result. The BCD fixup may overflow,
-                             -- but the high nibble won't get a carry
+                    then let -- If the lower nibble of the AND result plus its
+                             -- lowest bit is greater than 5, add 6 to the lower
+                             -- nibble in the ROR result. The BCD fixup may
+                             -- overflow, but the high nibble won't get a carry
                              fixNL  =   if (and' .&. 0x0F) + (and' .&. 0x01) > 0x05
                                       then (ror .&. 0xF0) .|. ((ror + 0x06) .&. 0x0F)
                                       else ror
-                             -- If the upper nibble of the AND result plus its lowest bit is greater than
-                             -- 5, add 6 to the upper nibble in the ROR result and set the carry
+                             -- If the upper nibble of the AND result plus its
+                             -- lowest bit is greater than 5, add 6 to the upper
+                             -- nibble in the ROR result and set the carry
                              ncarry = (fromIntegral and' .&. 0xF0 :: Int) +
                                       (fromIntegral and' .&. 0x10 :: Int) > 0x50
                              fixNH  =    if ncarry
@@ -1139,13 +1141,14 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             a <- load8 A
             x <- load8 X
             y <- load8 Y
-            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ AHX AbsoluteY) (l:h:[]) -> return (l, h)
-                             Instruction (viewOpCode -> OpCode _ AHX IndIdx)    (zp:[])  -> do
-                                indL <- load8 . Addr . fromIntegral $ zp
-                                indH <- load8 . Addr . fromIntegral $ zp + 1
-                                return (indL, indH)
-                             _ -> trace ("AHX: AM/OpLen Error: " ++ show inst) >> return (0, 0)
-                      ) inst
+            (l, h) <-
+                (\case Instruction (viewOpCode -> OpCode _ AHX AbsoluteY) (l:h:[]) -> return (l, h)
+                       Instruction (viewOpCode -> OpCode _ AHX IndIdx)    (zp:[])  -> do
+                          indL <- load8 . Addr . fromIntegral $ zp
+                          indH <- load8 . Addr . fromIntegral $ zp + 1
+                          return (indL, indH)
+                       _ -> trace ("AHX: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                ) inst
             let r = a .&. x .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary
@@ -1163,9 +1166,10 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             y <- load8 Y
             let sp = x .&. a
             store8Trace SP sp
-            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ TAS AbsoluteY) (l:h:[]) -> return (l, h)
-                             _ -> trace ("TAS: AM/OpLen Error: " ++ show inst) >> return (0, 0)
-                      ) inst
+            (l, h) <-
+                (\case Instruction (viewOpCode -> OpCode _ TAS AbsoluteY) (l:h:[]) -> return (l, h)
+                       _ -> trace ("TAS: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                ) inst
             let r = sp .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary
@@ -1180,9 +1184,10 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             traceNoOpLoad
             x <- load8 X
             y <- load8 Y
-            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ SHX AbsoluteY) (l:h:[]) -> return (l, h)
-                             _ -> trace ("SHX: AM/OpLen Error: " ++ show inst) >> return (0, 0)
-                      ) inst
+            (l, h) <-
+                (\case Instruction (viewOpCode -> OpCode _ SHX AbsoluteY) (l:h:[]) -> return (l, h)
+                       _ -> trace ("SHX: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                ) inst
             let r = x .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary
@@ -1197,9 +1202,10 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
             traceNoOpLoad
             x <- load8 X
             y <- load8 Y
-            (l, h) <- (\case Instruction (viewOpCode -> OpCode _ SHY AbsoluteX) (l:h:[]) -> return (l, h)
-                             _ -> trace ("SHY: AM/OpLen Error: " ++ show inst) >> return (0, 0)
-                      ) inst
+            (l, h) <-
+                (\case Instruction (viewOpCode -> OpCode _ SHY AbsoluteX) (l:h:[]) -> return (l, h)
+                       _ -> trace ("SHY: AM/OpLen Error: " ++ show inst) >> return (0, 0)
+                ) inst
             let r = y .&. (h + 1)
             -- The result to be written is used as MSB of the
             -- storage address if we cross a page boundary

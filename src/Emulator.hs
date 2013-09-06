@@ -43,7 +43,7 @@ runEmulator ::
     [(LoadStore, L8R16)]     -> -- Store operations to set up simulator state
     [Cond]                   -> -- The simulator will stop when any of these conditions are met
     [Cond]                   -> -- Success conditions to verify once stopped
-    Bool                     -> -- Enable execution tracing (TODO: Replace with a trace-begin cond.?)
+    Bool                     -> -- Enable execution tracing (TODO: Replace with trace-begin cond.?)
     Int                      -> -- MB of trace log ring buffer space
     ( [Cond]                    -- Success conditions which were met
     , [Cond]                    -- ...not met
@@ -67,10 +67,12 @@ runEmulator processor bins setup stopc verc traceEnable traceMB =
             : (SR, Left . setFlag FI . setFlag F1 $ 0)
             : (PC, Right rvec)
             : setup -- Run user setup code after the default one to allow overrides
-        trace $ "\n\nCycles  PC   AC IX IY Status Reg. SP Instr. Operand ILnCycl Op. Load  Stores"    ++
-                  "\nElapsed $PC  $A $X $Y $P:NV1BDIZC $S $I:Mne Data    [OIU]bC $Adr→$Val $Val→$Dst" ++
-                "\n----------------------------------------------------------------------------------------"
-        -- Inlining everything (check, decode, execute...) in this main loop makes a huge difference 
+        trace $
+            "\n\n" ++
+            "Cycles  PC   AC IX IY Status Reg. SP Instr. Operand ILnCycl Op. Load  Stores\n"    ++
+            "Elapsed $PC  $A $X $Y $P:NV1BDIZC $S $I:Mne Data    [OIU]bC $Adr→$Val $Val→$Dst\n" ++
+            "-------------------------------------------------------------------------------"
+        -- Inlining everything (check, decode, execute) in this main loop makes a huge difference 
         let loop = do
                 inst <- decodeInstructionM
                 stop <- or <$> mapM (checkCond inst) stopc
@@ -85,7 +87,7 @@ runEmulator processor bins setup stopc verc traceEnable traceMB =
             magic <- mapM (load8 . Addr) [0x6001, 0x6002, 0x6003]
             when (magic == [0xDE, 0xB0, 0x61]) $ do
                 trace "\n\nBlargg Test:\n"
-                trace          "    Memory at 0x6001 indicates we are running one of Blargg's test ROMs\n"
+                trace "    Memory at 0x6001 indicates we are running one of Blargg's test ROMs\n"
                 trace . printf "    Result Code: 0x%02X\n" =<< (load8 $ Addr 0x6000)
                 statusTxt <-     concatMap (++ "\\n") . lines
                              .   map (toEnum . fromIntegral :: Word8 -> Char)
