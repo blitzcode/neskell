@@ -45,8 +45,8 @@ data TestStatus = TestStatus { tsRunning   :: [Int]
                              , tsFailed    :: [Int]
                              }
 
-runTests :: TestMode -> IO Bool
-runTests tm = do
+runTests :: TestMode -> Bool -> IO Bool
+runTests tm lowVerbosity = do
     cores      <- getNumProcessors
     osThreads  <- getNumCapabilities
     eventQueue <- newTQueueIO :: IO (TQueue (Int, TestEvent)) -- Test ID / Event pair
@@ -59,22 +59,23 @@ runTests tm = do
     then mapM_ (putStrLn . taName) tests >> return True
     else if   null tests
          then putStrLn "No matching tests found" >> return False
-         else showTestResults tests eventQueue cores osThreads
+         else showTestResults tests eventQueue cores osThreads lowVerbosity
 
-showTestResults :: [TestAsync] -> TQueue (Int, TestEvent) -> Int -> Int -> IO Bool
-showTestResults tests eventQueue cores osThreads = do
+showTestResults :: [TestAsync] -> TQueue (Int, TestEvent) -> Int -> Int -> Bool -> IO Bool
+showTestResults tests eventQueue cores osThreads lowVerbosity = do
     let numTests = length tests
         mtests   = IM.fromList . map (\x -> (taID x, x)) $ tests
+        psANSI   = if lowVerbosity then void . return else putStr
     -- Header and initial all-pending status bar
-    void $ printf "\nChecking %2i test cases on %2i core(s) with %2i thread(s)\n"
+    psANSI $ printf "\nChecking %2i test cases on %2i core(s) with %2i thread(s)\n"
         numTests cores osThreads
-    putStr "------------------------------------------------------\n\n"
-    putStr $ "[" ++ replicate numTests '·' ++ "] 0%\n"
+    psANSI "------------------------------------------------------\n\n"
+    psANSI $ "[" ++ replicate numTests '·' ++ "] 0%\n"
     -- Execution tracing status
-    putStr $ " " ++ map (\x -> case taTraceE <$> IM.lookup x mtests of Just True -> '+'; _ -> ' ')
+    psANSI $ " " ++ map (\x -> case taTraceE <$> IM.lookup x mtests of Just True -> '+'; _ -> ' ')
                         [0..numTests - 1]
                  ++ "  ExeTrc?\n"
-    putStr $ replicate (6 + osThreads) '\n'
+    psANSI $ replicate (6 + osThreads) '\n'
     -- Process events from test threads
     overallRes <-
         let processEvents ts = do
@@ -83,32 +84,34 @@ showTestResults tests eventQueue cores osThreads = do
                                                 , A.SetColor A.Foreground A.Vivid color
                                                 ]
             -- Update test status and status bar
-            A.cursorUp $ 8
-                + max 0 ((length $ tsFailed ts) - 1)
-                + osThreads
-            A.setCursorColumn $ 1 + testID
+            psANSI $ A.cursorUpCode (8 + max 0 ((length $ tsFailed ts) - 1) + osThreads)
+                     ++ A.setCursorColumnCode (1 + testID)
             ts' <- case e of
-                TestRunning  -> do putStr $ invColored A.Yellow ++ "R"
+                TestRunning  -> do psANSI $ invColored A.Yellow ++ "R"
                                    return ts { tsRunning = testID : tsRunning ts }
-                TestSucceess -> do putStr $ invColored A.Green  ++ "S"
+                TestSucceess -> do psANSI $ invColored A.Green  ++ "S"
                                    return ts { tsRunning   = delete testID $ tsRunning ts
                                              , tsSucceeded = tsSucceeded ts + 1
                                              }
-                TestFailure  -> do putStr $ invColored A.Red    ++ "F"
+                TestFailure  -> do psANSI $ invColored A.Red    ++ "F"
+                                   when lowVerbosity . putStrLn $ "Test Failed: " ++
+                                       case taName <$> IM.lookup testID mtests of
+                                           Just n -> n
+                                           _      -> ""
                                    return ts { tsRunning = delete testID $ tsRunning ts
                                              , tsFailed  = testID : tsFailed ts
                                              }
-            A.setSGR []
-            A.setCursorColumn $ 3 + numTests
-            A.clearFromCursorToLineEnd
-            void $ printf "%.2f%%"
-                (fromIntegral (tsSucceeded ts' + length (tsFailed ts')) /
-                 fromIntegral numTests * 100.0 :: Float)
-            A.cursorDown 3
-            A.setCursorColumn 0
+            psANSI $ A.setSGRCode []
+                     ++ A.setCursorColumnCode (3 + numTests)
+                     ++ A.clearFromCursorToLineEndCode
+                     ++ printf "%.2f%%"
+                            (fromIntegral (tsSucceeded ts' + length (tsFailed ts')) /
+                            fromIntegral numTests * 100.0 :: Float)
+                     ++ A.cursorDownCode 3
+                     ++ A.setCursorColumnCode 0
             -- Summary
-            A.clearLine
-            void $ printf
+            psANSI A.clearLineCode
+            psANSI $ printf
                 "Running: %s%2i%s | Succeeded: %s%2i%s | Failed: %s%2i%s | Pending: %i\n\n"
                 (invColored A.Yellow) (length $ tsRunning   ts') (A.setSGRCode [])
                 (invColored A.Green ) (         tsSucceeded ts') (A.setSGRCode [])
@@ -117,42 +120,44 @@ showTestResults tests eventQueue cores osThreads = do
             -- TODO: The next two completely break if any lines are too wide for the terminal
             -- Running
             mapM_ (\(i, x) ->
-                       putStr $
-                           A.clearLineCode ++ (invColored A.Yellow) ++ printf "Thread %i:" i
-                           ++ (A.setSGRCode []) ++ " "
-                           ++ case taName <$> IM.lookup x mtests of Just n -> n; _ -> "(Idle)"
-                           ++ "\n")
+                       psANSI $ A.clearLineCode ++ (invColored A.Yellow) ++ printf "Thread %i:" i
+                                ++ (A.setSGRCode []) ++ " "
+                                ++ case taName <$> IM.lookup x mtests of Just n -> n; _ -> "(Idle)"
+                                ++ "\n")
                   $ zip [1..osThreads] (tsRunning ts' ++ repeat (maxBound :: Int))
-            putStr "\n"
+            psANSI "\n"
             -- Failures
             if   null $ tsFailed ts'
-            then putStrLn $
-                     A.clearLineCode                                     ++
-                     (A.setSGRCode [A.SetSwapForegroundBackground True]) ++
-                     "(No Failures)"                                     ++
-                     (A.setSGRCode [])
-            else mapM_ (\x -> putStr $ A.clearLineCode ++ (invColored A.Red) ++
-                                       (case taName <$> IM.lookup x mtests of
-                                            Just n -> n
-                                            _      -> "") ++
-                                       " Failed:" ++ (A.setSGRCode []) ++ " " ++
-                                       (case taLogFn <$> IM.lookup x mtests of
-                                            Just n -> n
-                                            _      -> "") ++
-                                       "\n")
+            then psANSI $ A.clearLineCode
+                          ++ (A.setSGRCode [A.SetSwapForegroundBackground True])
+                          ++ "(No Failures)"
+                          ++ (A.setSGRCode [])
+                          ++ "\n"
+            else mapM_ (\x -> psANSI $ A.clearLineCode ++ (invColored A.Red) ++
+                                    (case taName <$> IM.lookup x mtests of
+                                         Just n -> n
+                                         _      -> "") ++
+                                    " Failed:" ++ (A.setSGRCode []) ++ " " ++
+                                    (case taLogFn <$> IM.lookup x mtests of
+                                         Just n -> n
+                                         _      -> "") ++
+                                    "\n")
                        $ tsFailed ts'
-            putStr "\n"
+            psANSI "\n"
             -- Done?
             hFlush stdout
-            if (tsSucceeded ts' + length (tsFailed ts') < numTests)
-                then processEvents ts'
-                else putStr "\n\n" >> (return . null . tsFailed $ ts')
+            if   (tsSucceeded ts' + length (tsFailed ts') < numTests)
+            then processEvents ts'
+            else do let success = null $ tsFailed ts'
+                    psANSI "\n\n"
+                    when (lowVerbosity && success) $
+                        printf "All %i tests OK\n" (tsSucceeded ts')
+                    return success
          in let status = TestStatus { tsRunning   = []
                                     , tsSucceeded = 0
                                     , tsFailed    = []
                                     }
              in processEvents status
-            
     mapM_ (wait . taAsync) tests
     return overallRes
 

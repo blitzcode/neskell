@@ -5,9 +5,9 @@ WARN_FLAGS = -Wall
 # PROF_FLAGS = -prof -fprof-auto
 GHC_FLAGS = $(PROF_FLAGS) $(WARN_FLAGS) $(LLVM_FLAGS) -rtsopts -O2 -H512m -threaded
 
-# By default, we build
+# By default, we build and test
 .PHONY : all
-all: build
+all: build test
 
 # Syntax only, no binary output
 .PHONY : check
@@ -19,10 +19,10 @@ check:
 build:
 	ghc $(GHC_FLAGS) -o out --make Main
 
-# Run the internal test suite, measure runtime and memory performance
+# Run the quick version of the internal test suite
 .PHONY : test
 test: build
-	time ./out --quick-test +RTS -s -N
+	time ./out --quick-test --no-verbose +RTS -N -s
 
 HSSRC = $(wildcard *.hs)
 .PHONY : clean
