@@ -1,7 +1,8 @@
 
 {-# LANGUAGE OverloadedStrings, FlexibleContexts, LambdaCase #-}
 
-module Test (runTests) where
+module Test ( runTests
+            , TestMode(..)) where
 
 -- Unit test suite for the emulator
 
@@ -34,6 +35,8 @@ import Control.Applicative ((<$>))
 import Data.List (delete)
 import System.FilePath (splitFileName, dropExtension)
 
+data TestMode = TMAll | TMQuick | TMList deriving Eq
+
 data TestEvent = TestRunning | TestSucceess | TestFailure
 
 data TestStatus = TestStatus { tsRunning   :: [Int]
@@ -41,14 +44,21 @@ data TestStatus = TestStatus { tsRunning   :: [Int]
                              , tsFailed    :: [Int]
                              }
 
-runTests :: Bool -> IO Bool
-runTests onlyQuickTests = do
+runTests :: TestMode -> IO Bool
+runTests tm = do
     cores      <- getNumProcessors
     osThreads  <- getNumCapabilities
     eventQueue <- newTQueueIO :: IO (TQueue (Int, TestEvent)) -- Test ID / Event pair
     sem        <- atomically $ newTSem osThreads
     -- Run test suite
-    tests      <- testSuite onlyQuickTests eventQueue sem
+    tests      <- testSuite tm eventQueue sem
+    -- If we're just listing tests, echo them and we're done
+    if tm == TMList
+        then mapM_ (putStrLn . taName) tests >> return True
+        else showTestResults tests eventQueue cores osThreads
+
+showTestResults :: [TestAsync] -> TQueue (Int, TestEvent) -> Int -> Int -> IO Bool
+showTestResults tests eventQueue cores osThreads = do
     let numTests = length tests
         mtests   = IM.fromList . map (\x -> (taID x, x)) $ tests
     -- Header and initial all-pending status bar
@@ -62,10 +72,6 @@ runTests onlyQuickTests = do
                  ++ "  ExeTrc?\n"
     putStr $ replicate (6 + osThreads) '\n'
     -- Process events from test threads
-    let status = TestStatus { tsRunning   = []
-                            , tsSucceeded = 0
-                            , tsFailed    = []
-                            }
     overallRes <-
         let processEvents ts = do
             (testID, e) <- atomically $ readTQueue eventQueue
@@ -137,7 +143,12 @@ runTests onlyQuickTests = do
             if (tsSucceeded ts' + length (tsFailed ts') < numTests)
                 then processEvents ts'
                 else putStr "\n\n" >> (return . null . tsFailed $ ts')
-         in processEvents status
+         in let status = TestStatus { tsRunning   = []
+                                    , tsSucceeded = 0
+                                    , tsFailed    = []
+                                    }
+             in processEvents status
+            
     mapM_ (wait . taAsync) tests
     return overallRes
 
@@ -190,10 +201,10 @@ data TestAsync = TestAsync { taID     :: Int
 -- Run the test suite, communicate completion and success / failure status
 -- through the queue. The TSem is used to limit concurrency. Return a list of
 -- tests with their async action and some information about them for display
-testSuite :: Bool -> TQueue (Int, TestEvent) -> TSem -> IO [TestAsync]
-testSuite onlyQuickTests eventQueue sem = do
+testSuite :: TestMode -> TQueue (Int, TestEvent) -> TSem -> IO [TestAsync]
+testSuite tm eventQueue sem = do
     -- All later tests are actual emulator tests, but start with the decoding test
-    do
+    when (tm /= TMList) $ do
         bin <- B.readFile "./tests/decoding/instr_test.bin"
         ref <- B.readFile "./tests/decoding/instr_test_ref_disasm.asm"
         case decodingTest bin ref of
@@ -208,8 +219,9 @@ testSuite onlyQuickTests eventQueue sem = do
             s <- get
             let testID = length s -- Just a unique ID based on the list position
             -- Limit concurrency through semaphore (memory consumption for
-            -- tracing would otherwise explode)
-            t <- liftIO . async . withSemaphore sem $ do
+            -- tracing would otherwise explode). Also note that we're not
+            -- actually executing the test when we're just listing them
+            t <- liftIO . async . when (tm /= TMList) . withSemaphore sem $ do
                 atomically $ writeTQueue eventQueue (testID, TestRunning)
                 success <- checkEmuTestResult testName logFile =<< test traceEnable
                 atomically $ writeTQueue eventQueue
@@ -801,7 +813,7 @@ testSuite onlyQuickTests eventQueue sem = do
 
         -- Tests below here take a long time to run. We try to keep the
         -- quick test suite under one second, this will run for minutes
-        guard $ not onlyQuickTests
+        guard $ tm /= TMQuick
 
         let instrv4   = "./tests/instr_test-v4/rom_singles/"
             instrmisc = "./tests/instr_misc/"

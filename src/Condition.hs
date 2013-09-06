@@ -44,7 +44,7 @@ checkCond :: MonadEmulator m => Instruction -> Cond -> m Bool
 checkCond inst@(Instruction (viewOpCode -> OpCode _ decMn _) _) cond =
     case cond of
         CondLS     ls w -> case w of
-                               Left w8 -> (== w8) <$> load8 ls
+                               Left  w8  -> (== w8 ) <$> load8  ls
                                Right w16 -> (== w16) <$> load16 ls
         CondOpC    mn   -> return $ decMn == mn
         CondCycleR l h  -> do c <- getCycles
