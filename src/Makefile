@@ -5,9 +5,9 @@ WARN_FLAGS = -Wall
 # PROF_FLAGS = -prof -fprof-auto
 GHC_FLAGS = $(PROF_FLAGS) $(WARN_FLAGS) $(LLVM_FLAGS) -rtsopts -O2 -H512m -threaded
 
-# By default, we build & test
+# By default, we build
 .PHONY : all
-all: build test
+all: build
 
 # Syntax only, no binary output
 .PHONY : check
