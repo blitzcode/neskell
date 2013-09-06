@@ -32,10 +32,11 @@ import Text.Printf
 import Control.Concurrent (getNumCapabilities)
 import qualified Data.IntMap.Strict as IM
 import Control.Applicative ((<$>))
-import Data.List (delete)
+import Data.List (delete, isInfixOf)
 import System.FilePath (splitFileName, dropExtension)
 
-data TestMode = TMAll | TMQuick | TMList deriving Eq
+-- TMAll's parameter can be used to only run tests containing a particular string
+data TestMode = TMAll String | TMQuick | TMList deriving Eq
 
 data TestEvent = TestRunning | TestSucceess | TestFailure
 
@@ -52,10 +53,13 @@ runTests tm = do
     sem        <- atomically $ newTSem osThreads
     -- Run test suite
     tests      <- testSuite tm eventQueue sem
-    -- If we're just listing tests, echo them and we're done
-    if tm == TMList
-        then mapM_ (putStrLn . taName) tests >> return True
-        else showTestResults tests eventQueue cores osThreads
+    -- If we're just listing tests, echo them and we're done, otherwise, wait
+    -- for results from the test thread(s) we just launched
+    if   tm == TMList
+    then mapM_ (putStrLn . taName) tests >> return True
+    else if   null tests
+         then putStrLn "No matching tests found" >> return False
+         else showTestResults tests eventQueue cores osThreads
 
 showTestResults :: [TestAsync] -> TQueue (Int, TestEvent) -> Int -> Int -> IO Bool
 showTestResults tests eventQueue cores osThreads = do
@@ -216,44 +220,47 @@ testSuite tm eventQueue sem = do
         tracePath = "./trace/"
     flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [TestAsync] IO) ()
         let runTestAsync testName logFile traceEnable test = do
-            s <- get
-            let testID = length s -- Just a unique ID based on the list position
-            -- Limit concurrency through semaphore (memory consumption for
-            -- tracing would otherwise explode). Also note that we're not
-            -- actually executing the test when we're just listing them
-            t <- liftIO . async . when (tm /= TMList) . withSemaphore sem $ do
-                atomically $ writeTQueue eventQueue (testID, TestRunning)
-                success <- checkEmuTestResult testName logFile =<< test traceEnable
-                atomically $ writeTQueue eventQueue
-                    ( testID
-                    ,   if success
-                      then TestSucceess
-                      else TestFailure
-                    )
-                -- Workaround for a GC bug. Without this, the GC just isn't collecting. If we
-                -- allocate some memory with an unboxed mutable vector inside the ST monad in
-                -- the emulator (ring buffer trace log), the memory seems to be retained
-                -- sometimes. There's no reference to the vector outside of ST. Even if we
-                -- never do anything but create the vector and put it inside the Reader record,
-                -- and then only return a single Int from ST, which is immediately evaluated,
-                -- the memory is retained (sometimes...). All memory profiles always show we
-                -- never allocate more than one vector at a time, yet multiple runs would cause
-                -- OS memory for multiple vectors to be used and would eventually cause an
-                -- out-of-memory error. Even then the RTS would not collect. Forcing collection
-                -- after leaving ST and evaluating all return values seems to solve the problem
-                -- entirely. This seems like a bug in the GC, running out of OS memory instead
-                -- of garbage collecting allocations it (demonstrably) knows how to free, while
-                -- all RTS memory profiles confirm it is indeed not referenced. In the parallel
-                -- case this only alleviates the situation, not fixing it entirely like for the
-                -- serial version before. Unfortunately, the bug is rather hard to reduce to a
-                -- simple reproduction case
-                liftIO performGC
-            put $ TestAsync { taID     = testID
-                            , taName   = testName
-                            , taLogFn  = logFile
-                            , taTraceE = traceEnable
-                            , taAsync  = t
-                            } : s -- Put test into State
+            -- Skip tests that do not match if we got a match string
+            let match = case tm of TMAll tnSearch -> isInfixOf tnSearch testName; _ -> True
+            when match $ do
+                s <- get
+                let testID = length s -- Just a unique ID based on the list position
+                -- Limit concurrency through semaphore (memory consumption for
+                -- tracing would otherwise explode). Also note that we're not
+                -- actually executing the test when we're just listing them
+                t <- liftIO . async . when (tm /= TMList) . withSemaphore sem $ do
+                    atomically $ writeTQueue eventQueue (testID, TestRunning)
+                    success <- checkEmuTestResult testName logFile =<< test traceEnable
+                    atomically $ writeTQueue eventQueue
+                        ( testID
+                        ,   if success
+                          then TestSucceess
+                          else TestFailure
+                        )
+                    -- Workaround for a GC bug. Without this, the GC just isn't collecting. If we
+                    -- allocate some memory with an unboxed mutable vector inside the ST monad in
+                    -- the emulator (ring buffer trace log), the memory seems to be retained
+                    -- sometimes. There's no reference to the vector outside of ST. Even if we
+                    -- never do anything but create the vector and put it inside the Reader record,
+                    -- and then only return a single Int from ST, which is immediately evaluated,
+                    -- the memory is retained (sometimes...). All memory profiles always show we
+                    -- never allocate more than one vector at a time, yet multiple runs would cause
+                    -- OS memory for multiple vectors to be used and would eventually cause an
+                    -- out-of-memory error. Even then the RTS would not collect. Forcing collection
+                    -- after leaving ST and evaluating all return values seems to solve the problem
+                    -- entirely. This seems like a bug in the GC, running out of OS memory instead
+                    -- of garbage collecting allocations it (demonstrably) knows how to free, while
+                    -- all RTS memory profiles confirm it is indeed not referenced. In the parallel
+                    -- case this only alleviates the situation, not fixing it entirely like for the
+                    -- serial version before. Unfortunately, the bug is rather hard to reduce to a
+                    -- simple reproduction case
+                    liftIO performGC
+                put $ TestAsync { taID     = testID
+                                , taName   = testName
+                                , taLogFn  = logFile
+                                , taTraceE = traceEnable
+                                , taAsync  = t
+                                } : s -- Put test into State
 
         -- Tests follow
 
