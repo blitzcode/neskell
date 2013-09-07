@@ -1,5 +1,5 @@
 
-{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Emulator ( runEmulator
                 , TraceMode(..)) where

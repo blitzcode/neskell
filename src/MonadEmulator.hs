@@ -118,8 +118,7 @@ instance MonadEmulator (RSTEmu s) where
                            VUM.write state (i + 1) h
     trace s = do
         cpu <- ask
-        when (cpuTraceEnable cpu) $ do
-            lift $ writeRingBuffer (cpuTraceRB cpu) s
+        when (cpuTraceEnable cpu) . lift $ writeRingBuffer (cpuTraceRB cpu) s
     -- The monadic version can be useful if we do a lot of MonadEmulator calls
     -- (load8 etc.) to produce the trace and would like to avoid those in case
     -- tracing is disabled

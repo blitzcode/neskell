@@ -39,8 +39,7 @@ modifyFlag f b w = if b then setFlag f w else clearFlag f w
 
 makeSRString :: Word8 -> String
 makeSRString w =
-    map (\(f, s) -> if getFlag f w then s else '·') $ zip
-        [FN .. FC] ['N', 'V', '1', 'B', 'D', 'I', 'Z', 'C']
+    map (\(f, s) -> if getFlag f w then s else '·') $ zip [FN .. FC] "NV1BDIZC"
 
 srFromString :: String -> Word8
 srFromString s = foldr (\(c, f) sr -> modifyFlag f (c /= '-' && c /= '·') sr) 0 $ zip s [FN .. FC]
