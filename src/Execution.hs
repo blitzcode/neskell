@@ -308,10 +308,10 @@ sbcCore a op carry bcd =
                      hcarry = nl .&. 0x10 /= 0
                      nl'    = nl - if hcarry then 0x06 else 0
                      -- Compute upper nibble with carry
-                     nh     =  fromIntegral (a  .&. 0xF0) -
-                               fromIntegral (op .&. 0xF0) -
-                               if hcarry then 0x10 else 0
-                               :: Int
+                     nh     = fromIntegral (a  .&. 0xF0) -
+                              fromIntegral (op .&. 0xF0) -
+                              if hcarry then 0x10 else 0
+                              :: Int
                      -- Upper nibble BCD fixup
                      nh'    = nh - if nh .&. 0x100 /= 0 then 0x60 else 0
                      rBCD   = (nl' .&. 0x0F) .|. fromIntegral nh'

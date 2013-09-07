@@ -1,7 +1,8 @@
 
 {-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 
-module Emulator (runEmulator) where
+module Emulator ( runEmulator
+                , TraceMode(..)) where
 
 -- Emulator main loop. Load a binary, set up the CPU and then run until a
 -- termination criteria has been met
@@ -37,13 +38,15 @@ loadBinary bin offs =
                   in store8 (Addr addr) w8)
           [0..B.length bin - 1]
 
+data TraceMode = TraceNone | TraceBasic | TraceFullExe deriving Eq
+
 runEmulator ::
     Processor                -> -- Model of the processor to be emulated
     [(B.ByteString, Word16)] -> -- List of program binaries and their offsets
     [(LoadStore, L8R16)]     -> -- Store operations to set up simulator state
     [Cond]                   -> -- The simulator will stop when any of these conditions are met
     [Cond]                   -> -- Success conditions to verify once stopped
-    Bool                     -> -- Enable execution tracing (TODO: Replace with trace-begin cond.?)
+    TraceMode                -> -- Level of tracing (TODO: Replace with trace-begin cond.?)
     Int                      -> -- MB of trace log ring buffer space
     ( [Cond]                    -- Success conditions which were met
     , [Cond]                    -- ...not met
@@ -52,8 +55,8 @@ runEmulator ::
     , String                    -- Instruction the PC is pointing at
     , B.ByteString              -- Last traceMB MB of the execution trace
     ) -- TODO: Use a type synonym or a record
-runEmulator processor bins setup stopc verc traceEnable traceMB =
-    runSTEmulator True traceMB processor $ do
+runEmulator processor bins setup stopc verc trMode traceMB =
+    runSTEmulator (trMode /= TraceNone) traceMB processor $ do
         trace "Load Binary:\n\n"
         mapM_ (\(bin, offs) -> do loadBinary bin offs
                                   traceMemory offs . fromIntegral . B.length $ bin) bins
@@ -80,9 +83,9 @@ runEmulator processor bins setup stopc verc traceEnable traceMB =
                     execute inst
                     loop
          in do
-            if traceEnable
-                then loop
-                else trace "\n(Execution trace disabled)" >> runNoTrace loop
+            if trMode /= TraceFullExe
+                then trace "\n(Execution trace disabled)" >> runNoTrace loop
+                else loop
             -- Detect Blargg's test ROMs, trace results
             magic <- mapM (load8 . Addr) [0x6001, 0x6002, 0x6003]
             when (magic == [0xDE, 0xB0, 0x61]) $ do

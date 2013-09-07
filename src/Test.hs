@@ -7,7 +7,7 @@ module Test ( runTests
 -- Unit test suite for the emulator
 
 import Instruction (Mnemonic(..), disassemble)
-import Emulator (runEmulator)
+import Emulator (runEmulator, TraceMode(..))
 import MonadEmulator (LoadStore(..), Processor(..))
 import Util (srFromString)
 import Condition (Cond(..), makeStackCond, makeStringCond)
@@ -17,6 +17,7 @@ import Control.Monad (when, unless, guard, void)
 import Control.Monad.Error (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
+import Data.Maybe (fromMaybe)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B8
 import Data.Time (getZonedTime)
@@ -42,14 +43,14 @@ data TestStatus = TestStatus { tsRunning   :: [Int]
                              , tsFailed    :: [Int]
                              }
 
-runTests :: TestMode -> String -> Bool -> IO Bool
-runTests tm tnMatch lowVerbosity = do
+runTests :: TestMode -> String -> Bool -> Maybe TraceMode -> IO Bool
+runTests tm tnMatch lowVerbosity trOvrM = do
     cores      <- getNumProcessors
     osThreads  <- getNumCapabilities
     eventQueue <- newTQueueIO :: IO (TQueue (Int, TestEvent)) -- Test ID / Event pair
     sem        <- atomically $ newTSem osThreads
     -- Run test suite
-    tests      <- testSuite tm tnMatch eventQueue sem
+    tests      <- testSuite tm tnMatch eventQueue sem trOvrM
     -- If we're just listing tests, echo them and we're done, otherwise, wait
     -- for results from the test thread(s) we just launched
     if   null tests
@@ -71,9 +72,12 @@ showTestResults tests eventQueue cores osThreads lowVerbosity = do
     psANSI "------------------------------------------------------\n\n"
     psANSI $ "[" ++ replicate numTests '·' ++ "] 0%\n"
     -- Execution tracing status
-    psANSI $ " " ++ map (\x -> case taTraceE <$> IM.lookup x mtests of Just True -> '+'; _ -> ' ')
+    psANSI $ " " ++ map (\x -> case taTrMode <$> IM.lookup x mtests of
+                                   Just TraceFullExe -> '+'
+                                   Just TraceBasic   -> '·'
+                                   _                 -> ' ')
                         [0..numTests - 1]
-                 ++ "  ExeTrc?\n"
+                 ++ "   Trace?\n"
     psANSI $ replicate (6 + osThreads) '\n'
     -- Process events from test threads
     overallRes <-
@@ -164,15 +168,16 @@ showTestResults tests eventQueue cores osThreads lowVerbosity = do
 checkEmuTestResult ::
     String ->
     String ->
+    TraceMode ->
     ([Cond], [Cond], [Cond], String, String, B.ByteString) ->
     IO Bool
-checkEmuTestResult testName logFile ( condSuccess
-                                    , condFailure
-                                    , condStop
-                                    , cpust
-                                    , nextInst
-                                    , trace
-                                    ) = do
+checkEmuTestResult testName logFile trMode ( condSuccess
+                                           , condFailure
+                                           , condStop
+                                           , cpust
+                                           , nextInst
+                                           , trace
+                                           ) = do
     let resultStr = (if null condFailure then "Succeeded" else "Failed") ++ ":\n" ++
                     "    Stop Reason      " ++ showCond condStop         ++  "\n" ++
                     "    Unmet Conditions " ++ showCond condFailure      ++  "\n" ++
@@ -187,7 +192,7 @@ checkEmuTestResult testName logFile ( condSuccess
     -- Note that on OS X the Spotlight indexing service can cause huge slowdown
     -- when writing many small log files. When in doubt, disable it for the
     -- trace output directory
-    liftIO $ withFile logFile WriteMode $ \h -> do
+    when (trMode /= TraceNone) . liftIO . withFile logFile WriteMode $ \h -> do
         time <- getZonedTime
         hPutStrLn h $ "Trace Log " ++ show time ++ "\n"
         hPutStrLn h $ "--- " ++ testName ++ " ---\n"
@@ -202,15 +207,21 @@ withSemaphore sem f = (atomically $ waitTSem sem) >> f >> (atomically $ signalTS
 data TestAsync = TestAsync { taID     :: Int
                            , taName   :: String
                            , taLogFn  :: String
-                           , taTraceE :: Bool
+                           , taTrMode :: TraceMode
                            , taAsync  :: Async ()
                            }
 
 -- Run the test suite, communicate completion and success / failure status
 -- through the queue. The TSem is used to limit concurrency. Return a list of
 -- tests with their async action and some information about them for display
-testSuite :: TestMode -> String -> TQueue (Int, TestEvent) -> TSem -> IO [TestAsync]
-testSuite tm tnMatch eventQueue sem = do
+testSuite ::
+    TestMode ->
+    String ->
+    TQueue (Int, TestEvent) ->
+    TSem ->
+    Maybe TraceMode ->
+    IO [TestAsync]
+testSuite tm tnMatch eventQueue sem trOvrM = do
     -- All later tests are actual emulator tests, but start with the decoding test
     when (tm /= TMList) $ do
         bin <- B.readFile "./tests/decoding/instr_test.bin"
@@ -223,17 +234,18 @@ testSuite tm tnMatch eventQueue sem = do
     let traceMB   = 64
         tracePath = "./trace/"
     flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [TestAsync] IO) ()
-        let runTestAsync testName logFile traceEnable test = do
+        let runTestAsync testName logFile trMode test = do
             -- Skip tests that do not match
             when (isInfixOf tnMatch testName) $ do
                 s <- get
-                let testID = length s -- Just a unique ID based on the list position
+                let testID  = length s -- Just a unique ID based on the list position
+                    trMode' = fromMaybe trMode trOvrM 
                 -- Limit concurrency through semaphore (memory consumption for
                 -- tracing would otherwise explode). Also note that we're not
                 -- actually executing the test when we're just listing them
                 t <- liftIO . async . when (tm /= TMList) . withSemaphore sem $ do
                     atomically $ writeTQueue eventQueue (testID, TestRunning)
-                    success <- checkEmuTestResult testName logFile =<< test traceEnable
+                    success <- checkEmuTestResult testName logFile trMode' =<< test trMode'
                     atomically $ writeTQueue eventQueue
                         ( testID
                         ,   if success
@@ -261,13 +273,14 @@ testSuite tm tnMatch eventQueue sem = do
                 put $ TestAsync { taID     = testID
                                 , taName   = testName
                                 , taLogFn  = logFile
-                                , taTraceE = traceEnable
+                                , taTrMode = trMode'
                                 , taAsync  = t
                                 } : s -- Put test into State
 
         -- Tests follow
 
-        runTestAsync "Load / Store Test" (tracePath ++ "load_store_test.log") True $ \traceE -> do
+        runTestAsync "Load / Store Test"
+          (tracePath ++ "load_store_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/load_store_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -281,11 +294,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS Y (Left 0x73)
                                  , CondCycleR 161 161
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "AND / OR / XOR Test"
-          (tracePath ++ "and_or_xor_test.log") True $ \traceE -> do
+          (tracePath ++ "and_or_xor_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/and_or_xor_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -300,10 +313,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS Y (Left 0xF0)
                                  , CondCycleR 332 332
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "INC / DEC Test" (tracePath ++ "inc_dec_test.log") True $ \traceE -> do
+        runTestAsync "INC / DEC Test"
+          (tracePath ++ "inc_dec_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/inc_dec_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -315,10 +329,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SR (Left $ srFromString "N-1--I--")
                                  , CondCycleR 149 149
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Bitshift Test" (tracePath ++ "bitshift_test.log") True $ \traceE -> do
+        runTestAsync "Bitshift Test"
+          (tracePath ++ "bitshift_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/bitshift_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -331,10 +346,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS X (Left 0xDD)
                                  , CondCycleR 253 253
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "JMP/JSR/RTS Test" (tracePath ++ "jump_ret_test.log") True $ \traceE -> do
+        runTestAsync "JMP/JSR/RTS Test"
+          (tracePath ++ "jump_ret_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/jump_ret_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -349,10 +365,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SP (Left 0xFF)
                                  , CondCycleR 50 50
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Jump Bug Test" (tracePath ++ "jump_bug_test.log") True $ \traceE -> do
+        runTestAsync "Jump Bug Test"
+          (tracePath ++ "jump_bug_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/jump_bug_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -364,11 +381,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS PC (Right 0x061a)
                                  , CondCycleR 33 33
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync
-          "Register Transfer Test" (tracePath ++ "reg_transf_test.log") True $ \traceE -> do
+        runTestAsync "Register Transfer Test"
+          (tracePath ++ "reg_transf_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/reg_transf_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -383,10 +400,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SP (Left 0x33)
                                  , CondCycleR 37 37
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Add / Sub Test" (tracePath ++ "add_sub_test.log") True $ \traceE -> do
+        runTestAsync "Add / Sub Test"
+          (tracePath ++ "add_sub_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/add_sub_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -401,10 +419,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS Y (Left 0x01)
                                  , CondCycleR 205 205
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "CMP/BEQ/BNE Test" (tracePath ++ "cmp_beq_bne_test.log") True $ \traceE -> do
+        runTestAsync "CMP/BEQ/BNE Test"
+          (tracePath ++ "cmp_beq_bne_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/cmp_beq_bne_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -417,10 +436,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS Y (Left 0x7F)
                                  , CondCycleR 152 152
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "CPX/CPY/BIT Test" (tracePath ++ "cpx_cpy_bit_test.log") True $ \traceE -> do
+        runTestAsync "CPX/CPY/BIT Test"
+          (tracePath ++ "cpx_cpy_bit_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/cpx_cpy_bit_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -433,10 +453,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SR (Left $ srFromString "-V1--IZC")
                                  , CondCycleR 85 85
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Misc. Branch Test" (tracePath ++ "misc_branch_test.log") True $ \traceE -> do
+        runTestAsync "Misc. Branch Test"
+          (tracePath ++ "misc_branch_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/misc_branch_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -451,11 +472,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SR (Left $ srFromString "-V1--I-C-")
                                  , CondCycleR 109 109
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "Branch Backwards Test"
-          (tracePath ++ "branch_backwards_test.log") True $ \traceE -> do
+          (tracePath ++ "branch_backwards_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/branch_backwards_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -466,11 +487,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  [ CondLS X (Left 0xFF)
                                  , CondCycleR 31 31
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "Branch Pagecrossing Test"
-          (tracePath ++ "branch_pagecross_test.log") True $ \traceE -> do
+          (tracePath ++ "branch_pagecross_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/branch_pagecross_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x02F9) ]
@@ -481,10 +502,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  [ CondLS A (Left 0xFF)
                                  , CondCycleR 14 14
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Flag Test" (tracePath ++ "flag_test.log") True $ \traceE -> do
+        runTestAsync "Flag Test"
+          (tracePath ++ "flag_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/flag_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -496,11 +518,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SR (Left $ srFromString "N-1--I--")
                                  , CondCycleR 29 29
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "Special Flag Test"
-          (tracePath ++ "special_flag_test.log") True $ \traceE -> do
+          (tracePath ++ "special_flag_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/special_flag_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -514,10 +536,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SP (Left $ 0xFF)
                                  , CondCycleR 31 31
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Stack Test" (tracePath ++ "stack_test.log") True $ \traceE -> do
+        runTestAsync "Stack Test"
+          (tracePath ++ "stack_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/stack_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -530,11 +553,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SP (Left $ 0xFF)
                                  , CondCycleR 29 29
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "BCD Add / Sub Test"
-          (tracePath ++ "bcd_add_sub_test.log") True $ \traceE -> do
+          (tracePath ++ "bcd_add_sub_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/bcd_add_sub_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -548,11 +571,11 @@ testSuite tm tnMatch eventQueue sem = do
                                    ]
                                    ++ makeStackCond 0xFF "87 91 29 27 34 73 41 46 05"
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "Add / Sub CVZN Flag Test"
-          (tracePath ++ "add_sub_cvzn_flag_test.log") True $ \traceE -> do
+          (tracePath ++ "add_sub_cvzn_flag_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/add_sub_cvzn_flag_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -580,10 +603,11 @@ testSuite tm tnMatch eventQueue sem = do
                                               ]
                                               (reverse [0x01F4..0x01FF])
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "RTI Test" (tracePath ++ "rti_test.log") True $ \traceE -> do
+        runTestAsync "RTI Test"
+          (tracePath ++ "rti_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/hmc-6502/rti_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -596,10 +620,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SP (Left $ 0xFF)
                                  , CondCycleR 40 40
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "BRK Test" (tracePath ++ "brk_test.log") True $ \traceE -> do
+        runTestAsync "BRK Test"
+          (tracePath ++ "brk_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/brk_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -612,20 +637,22 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SP (Left $ 0xFF)
                                  , CondCycleR 89 89
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "KIL Test" (tracePath ++ "kil_test.log") True $ \traceE -> do
+        runTestAsync "KIL Test"
+          (tracePath ++ "kil_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/kil_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
                                  [ (PC, Right 0x0600) ]
                                  [ CondLoopPC ]
                                  [ CondLS PC (Right $ 0x0600) ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Illegal NOP Test" (tracePath ++ "nop_test.log") True $ \traceE -> do
+        runTestAsync "Illegal NOP Test"
+          (tracePath ++ "nop_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/nop_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -636,10 +663,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  [ CondLS PC (Right $ 0x0639)
                                  , CondCycleR 86 86
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "LAX Test" (tracePath ++ "lax_test.log") True $ \traceE -> do
+        runTestAsync "LAX Test"
+          (tracePath ++ "lax_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/lax_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -653,10 +681,11 @@ testSuite tm tnMatch eventQueue sem = do
                                    ]
                                    ++ makeStackCond 0xFF "DB DB 55 55 FF FF 11 11 C3 C3 21 21"
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "SAX Test" (tracePath ++ "sax_test.log") True $ \traceE -> do
+        runTestAsync "SAX Test"
+          (tracePath ++ "sax_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/sax_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -671,10 +700,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  , CondLS SR (Left $ srFromString "--1--I--")
                                  , CondCycleR 33 33
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Illegal RMW Test" (tracePath ++ "illegal_rmw_test.log") True $ \traceE -> do
+        runTestAsync "Illegal RMW Test"
+          (tracePath ++ "illegal_rmw_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/illegal_rmw_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -696,10 +726,11 @@ testSuite tm tnMatch eventQueue sem = do
                                             "99 33 37 33 EF 35 F0 39 35 3A F1 B4 F0 36 35 37 "
                                       )
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Illegal XB Test" (tracePath ++ "illegal_xb_test.log") True $ \traceE -> do
+        runTestAsync "Illegal XB Test"
+          (tracePath ++ "illegal_xb_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/illegal_xb_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -718,10 +749,11 @@ testSuite tm tnMatch eventQueue sem = do
                                             "35 7F 37 00 35 40 B5 CD 36 00 B5 AA 34 01 36 00 "
                                       )
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Illegal BCD Test" (tracePath ++ "illegal_bcd_test.log") True $ \traceE -> do
+        runTestAsync "Illegal BCD Test"
+          (tracePath ++ "illegal_bcd_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/illegal_bcd_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -738,10 +770,11 @@ testSuite tm tnMatch eventQueue sem = do
                                             "E0 BD D0 7D 66 3F 65 3D 75 7D 80 FC 80 FC 00 3E "
                                       )
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "ARR BCD Test" (tracePath ++ "arr_bcd_test.log") True $ \traceE -> do
+        runTestAsync "ARR BCD Test"
+          (tracePath ++ "arr_bcd_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/arr_bcd_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -757,11 +790,11 @@ testSuite tm tnMatch eventQueue sem = do
                                             "3E 00 3D D5 BC 8D BD 58 BD 55 FD 00 BC 80 BD 55 "
                                       )
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "AHX/TAS/SHX/SHY Test"
-          (tracePath ++ "ahx_tas_shx_shy_test.log") True $ \traceE -> do
+          (tracePath ++ "ahx_tas_shx_shy_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/ahx_tas_shx_shy_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -774,11 +807,11 @@ testSuite tm tnMatch eventQueue sem = do
                                    ]
                                    ++ makeStackCond 0xFF "01 C9 01 80 C0 E0 01 55 80 80 01 34 10"
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
         runTestAsync "AHX/TAS/SHX/SHY Pagecrossing Test"
-          (tracePath ++ "ahx_tas_shx_shy_pagecross_test.log") True $ \traceE -> do
+          (tracePath ++ "ahx_tas_shx_shy_pagecross_test.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/ahx_tas_shx_shy_pagecross_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -791,10 +824,11 @@ testSuite tm tnMatch eventQueue sem = do
                                    ]
                                    ++ makeStackCond 0xFF "42 42 41 41 00 01 CE CF C0 D0"
                                  )
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "NESTest CPU ROM Test" (tracePath ++ "nestest.log") True $ \traceE -> do
+        runTestAsync "NESTest CPU ROM Test"
+          (tracePath ++ "nestest.log") TraceFullExe $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/nestest/nestest.bin"
             return $ runEmulator NES_2A03
                                   [ (bin, 0xC000) ]
@@ -818,7 +852,7 @@ testSuite tm tnMatch eventQueue sem = do
                                   --       is obeyed
                                   , CondCycleR 26553 26553
                                   ]
-                                  traceE
+                                  trMode
                                   traceMB
 
         -- Tests below here take a long time to run. We try to keep the
@@ -830,7 +864,7 @@ testSuite tm tnMatch eventQueue sem = do
         mapM_ (\(file, cycles) -> do
             let filenm = dropExtension . snd . splitFileName $ file
             runTestAsync ("Blargg's " ++ filenm ++ " Test")
-              (tracePath ++ filenm ++ ".log") False $ \traceE -> do
+              (tracePath ++ filenm ++ ".log") TraceBasic $ \trMode -> do
                 bin <- liftIO $ B.readFile file
                 return $ runEmulator NES_2A03
                                      [ (bin, 0x8000) ]
@@ -857,7 +891,7 @@ testSuite tm tnMatch eventQueue sem = do
                                            0x6004
                                            ("\n" ++ filenm ++ "\n\nPassed\n")
                                      )
-                                     traceE
+                                     trMode
                                      traceMB)
             -- TODO: Verify those cycle counts against a reference
             [ ( instrv4   ++ "01-basics.bin"         , 330200   )
@@ -883,8 +917,8 @@ testSuite tm tnMatch eventQueue sem = do
             ]
         -- TODO: Add more tests from Blargg's test suite
 
-        runTestAsync
-          "Functional 6502 Test" (tracePath ++ "6502_functional_test.log") False $ \traceE -> do
+        runTestAsync "Functional 6502 Test"
+          (tracePath ++ "6502_functional_test.log") TraceBasic $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/6502_functional_tests/6502_functional_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0400) ]
@@ -894,10 +928,11 @@ testSuite tm tnMatch eventQueue sem = do
                                  -- TODO: Verify cycle count
                                  , CondCycleR 92608051 92608051
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
-        runTestAsync "Full BCD Test" (tracePath ++ "full_bcd_test.log") False $ \traceE -> do
+        runTestAsync "Full BCD Test"
+          (tracePath ++ "full_bcd_test.log") TraceBasic $ \trMode -> do
             bin <- liftIO $ B.readFile "./tests/unit/full_bcd_test.bin"
             return $ runEmulator NMOS_6502
                                  [ (bin, 0x0600) ]
@@ -906,7 +941,7 @@ testSuite tm tnMatch eventQueue sem = do
                                  [ CondLS (Addr 0x0600) $ Left 0x00
                                  , CondCycleR 61821255 61821255
                                  ]
-                                 traceE
+                                 trMode
                                  traceMB
 
 decodingTest :: B.ByteString -> B.ByteString -> Either String ()
