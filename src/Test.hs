@@ -35,37 +35,36 @@ import Control.Applicative ((<$>))
 import Data.List (delete, isInfixOf)
 import System.FilePath (splitFileName, dropExtension)
 
--- TMAll's parameter can be used to only run tests containing a particular string
-data TestMode = TMAll String | TMQuick | TMList deriving Eq
-
-data TestEvent = TestRunning | TestSucceess | TestFailure
-
+data TestMode   = TMAll | TMQuick | TMList deriving Eq
+data TestEvent  = TestRunning | TestSucceess | TestFailure
 data TestStatus = TestStatus { tsRunning   :: [Int]
                              , tsSucceeded :: Int
                              , tsFailed    :: [Int]
                              }
 
-runTests :: TestMode -> Bool -> IO Bool
-runTests tm lowVerbosity = do
+runTests :: TestMode -> String -> Bool -> IO Bool
+runTests tm tnMatch lowVerbosity = do
     cores      <- getNumProcessors
     osThreads  <- getNumCapabilities
     eventQueue <- newTQueueIO :: IO (TQueue (Int, TestEvent)) -- Test ID / Event pair
     sem        <- atomically $ newTSem osThreads
     -- Run test suite
-    tests      <- testSuite tm eventQueue sem
+    tests      <- testSuite tm tnMatch eventQueue sem
     -- If we're just listing tests, echo them and we're done, otherwise, wait
     -- for results from the test thread(s) we just launched
-    if   tm == TMList
-    then mapM_ (putStrLn . taName) tests >> return True
-    else if   null tests
-         then putStrLn "No matching tests found" >> return False
+    if   null tests
+    then putStrLn "No matching tests found" >> return False
+    else if   tm == TMList
+         then mapM_ (putStrLn . taName) tests >> return True
          else showTestResults tests eventQueue cores osThreads lowVerbosity
 
 showTestResults :: [TestAsync] -> TQueue (Int, TestEvent) -> Int -> Int -> Bool -> IO Bool
 showTestResults tests eventQueue cores osThreads lowVerbosity = do
     let numTests = length tests
         mtests   = IM.fromList . map (\x -> (taID x, x)) $ tests
-        psANSI   = if lowVerbosity then void . return else putStr
+        psANSI   = if   lowVerbosity -- Skip ANSI progress output?
+                   then void . return
+                   else putStr
     -- Header and initial all-pending status bar
     psANSI $ printf "\nChecking %2i test cases on %2i core(s) with %2i thread(s)\n"
         numTests cores osThreads
@@ -210,8 +209,8 @@ data TestAsync = TestAsync { taID     :: Int
 -- Run the test suite, communicate completion and success / failure status
 -- through the queue. The TSem is used to limit concurrency. Return a list of
 -- tests with their async action and some information about them for display
-testSuite :: TestMode -> TQueue (Int, TestEvent) -> TSem -> IO [TestAsync]
-testSuite tm eventQueue sem = do
+testSuite :: TestMode -> String -> TQueue (Int, TestEvent) -> TSem -> IO [TestAsync]
+testSuite tm tnMatch eventQueue sem = do
     -- All later tests are actual emulator tests, but start with the decoding test
     when (tm /= TMList) $ do
         bin <- B.readFile "./tests/decoding/instr_test.bin"
@@ -225,9 +224,8 @@ testSuite tm eventQueue sem = do
         tracePath = "./trace/"
     flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [TestAsync] IO) ()
         let runTestAsync testName logFile traceEnable test = do
-            -- Skip tests that do not match if we got a match string
-            let match = case tm of TMAll tnSearch -> isInfixOf tnSearch testName; _ -> True
-            when match $ do
+            -- Skip tests that do not match
+            when (isInfixOf tnMatch testName) $ do
                 s <- get
                 let testID = length s -- Just a unique ID based on the list position
                 -- Limit concurrency through semaphore (memory consumption for

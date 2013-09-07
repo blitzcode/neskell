@@ -14,16 +14,34 @@ import System.Exit (exitSuccess, exitFailure)
 import System.Console.GetOpt
 import Data.Maybe (fromMaybe)
 
-data Flag = FlagTest String | FlagQuickTest | FlagDAsm String | FlagListTests | FlagNoVerbose
+data Flag = FlagTest String
+          | FlagQuickTest
+          | FlagDAsm String
+          | FlagListTests String
+          | FlagNoVerbose
             deriving Eq
 
 options :: [OptDescr Flag]
-options = [ Option ['t'] ["test"      ] (OptArg (FlagTest . fromMaybe "") "NAME")
+options = [ Option ['t']
+                   ["test"]
+                   (OptArg (FlagTest . fromMaybe "") "NAME")
                    "run full test suite / all tests containing NAME"
-          , Option ['q'] ["quick-test"] (NoArg FlagQuickTest   ) "run quick (<1s) test suite"
-          , Option ['d'] ["dasm"      ] (ReqArg FlagDAsm "FILE") "disassemble binary FILE"
-          , Option ['l'] ["list-tests"] (NoArg FlagListTests   ) "list all tests by name"
-          , Option ['s'] ["no-verbose"] (NoArg FlagNoVerbose   ) "less flashy test result display"
+          , Option ['q']
+                   ["quick-test"]
+                   (NoArg FlagQuickTest)
+                   "run quick (<1s) test suite"
+          , Option ['d']
+                   ["dasm"]
+                   (ReqArg FlagDAsm "FILE")
+                   "disassemble binary FILE"
+          , Option ['l']
+                   ["list-tests"]
+                   (OptArg (FlagListTests . fromMaybe "") "NAME")
+                   "list all tests / all tests containing NAME"
+          , Option ['s']
+                   ["no-verbose"]
+                   (NoArg FlagNoVerbose)
+                   "less flashy test result display"
           ]
 
 main :: IO ()
@@ -32,7 +50,8 @@ main = do
     args <- getArgs
     -- Parse command line arguments
     let header = "Usage: " ++ name ++ " [OPTION...]"
-        usage  = usageInfo header options
+        usage  = usageInfo header options ++
+                 "+RTS -? runtime system help, +RTS -N2 use two cores, +RTS -N use all cores\n"
     flags <- case getOpt Permute options args of
                  ([], [], [] ) -> putStrLn usage >> return []
                  (f , [], [] ) -> return f
@@ -40,13 +59,13 @@ main = do
     -- Process arguments
     let lowVerbosity = FlagNoVerbose `elem` flags
     forM_ flags $ \case
-        FlagTest tname -> do success <- runTests (TMAll tname) lowVerbosity
-                             unless success exitFailure
-        FlagQuickTest  -> do success <- runTests TMQuick lowVerbosity
-                             unless success exitFailure
-        FlagDAsm fn    -> mapM_ B8.putStrLn . disassemble =<< B.readFile fn
-        FlagListTests  -> void $ runTests TMList lowVerbosity
-        FlagNoVerbose  -> return ()
+        FlagTest tname      -> do success <- runTests TMAll tname lowVerbosity
+                                  unless success exitFailure
+        FlagQuickTest       -> do success <- runTests TMQuick "" lowVerbosity
+                                  unless success exitFailure
+        FlagDAsm fn         -> mapM_ B8.putStrLn . disassemble =<< B.readFile fn
+        FlagListTests tname -> void $ runTests TMList tname lowVerbosity
+        FlagNoVerbose       -> return ()
     exitSuccess
 
 -- TODO: Add option to set tracing to none / basic / execution
