@@ -18,7 +18,7 @@ import Text.Printf
 import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR, complement)
 import Control.Applicative ((<$>), (<*>))
 
-store8Trace :: MonadEmulator m => LoadStore -> Word8  -> m ()
+store8Trace :: MonadEmulator m => LoadStore -> Word8 -> m ()
 store8Trace ls val = do
     trace $ printf "%02X→%s " val (show ls)
     store8 ls val
@@ -73,14 +73,14 @@ loadOperand8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
                            _         -> loadAndTrace
         _    ->                         loadAndTrace
   where
-    loadAndTrace =  do ls <- getOperandAddr8 inst
-                       w8 <- load8 ls
-                       case ls of
-                           -- Trace operands where value / address might not be
-                           -- immediately obvious from the instruction
-                           Addr addr -> trace $ printf "%04X→%02X   " addr w8
-                           _         -> traceNoOpLoad
-                       return w8
+    loadAndTrace = do ls <- getOperandAddr8 inst
+                      w8 <- load8 ls
+                      case ls of
+                          -- Trace operands where value / address might not be
+                          -- immediately obvious from the instruction
+                          Addr addr -> trace $ printf "%04X→%02X   " addr w8
+                          _         -> traceNoOpLoad
+                      return w8
 
 storeOperand8 :: MonadEmulator m => Instruction -> Word8 -> m ()
 storeOperand8 inst val = (\ls -> store8Trace ls val) =<< getOperandAddr8 inst
@@ -200,8 +200,7 @@ getOperandPageCross (Instruction (viewOpCode -> OpCode _ _ am) oper) =
                                  _         -> return False
         _          -> return False
 getOperandPageCrossPenalty :: MonadEmulator m => Instruction -> m Word64
-getOperandPageCrossPenalty inst =
-    (\pagec -> return $ if pagec then 1 else 0) =<< getOperandPageCross inst
+getOperandPageCrossPenalty inst = fromIntegral . fromEnum <$> getOperandPageCross inst
 
 -- Determine penalty for page crossing in store instructions. The penalty always
 -- occurs for the three modes with 16 bit address computations, regardless of
@@ -320,11 +319,12 @@ sbcCore a op carry bcd =
 
 {-# INLINE execute #-}
 execute :: MonadEmulator m => Instruction -> m ()
-execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
+execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-} do
     traceM $ do
         cpustate <- showCPUState False
         return $ "\n" ++ cpustate ++ " "
     let ilen = fromIntegral $ instructionLen inst :: Word16
+    -- TODO: Put SCC annotations at the start of each Instruction
     case mn of
         LDA -> do
             penalty <- getOperandPageCrossPenalty inst

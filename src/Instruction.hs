@@ -235,7 +235,7 @@ decodeInstruction mem pc = do
 
 {-# INLINE decodeInstructionM #-}
 decodeInstructionM :: MonadEmulator m => m Instruction
-decodeInstructionM = do
+decodeInstructionM = {-# SCC decodeInstructionM #-} do
     pc <- load16 PC
     opc@(viewOpCode -> OpCode _ _ am) <- decodeOpCode <$> (load8 $ Addr pc)
     Instruction opc <$> case operandLen am of

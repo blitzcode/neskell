@@ -1,5 +1,5 @@
 
-{-# LANGUAGE OverloadedStrings, FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, FlexibleContexts, LambdaCase, MultiWayIf #-}
 
 module Test ( runTests
             , TestMode(..)) where
@@ -53,19 +53,16 @@ runTests tm tnMatch lowVerbosity trOvrM = do
     tests      <- testSuite tm tnMatch eventQueue sem trOvrM
     -- If we're just listing tests, echo them and we're done, otherwise, wait
     -- for results from the test thread(s) we just launched
-    if   null tests
-    then putStrLn "No matching tests found" >> return False
-    else if   tm == TMList
-         then mapM_ (putStrLn . taName) tests >> return True
-         else showTestResults tests eventQueue cores osThreads lowVerbosity
+    case () of _ | null tests   -> putStrLn "No matching tests found" >> return False
+                 | tm == TMList -> mapM_ (putStrLn . taName) tests >> return True
+                 | otherwise    -> showTestResults tests eventQueue cores osThreads lowVerbosity
 
 showTestResults :: [TestAsync] -> TQueue (Int, TestEvent) -> Int -> Int -> Bool -> IO Bool
 showTestResults tests eventQueue cores osThreads lowVerbosity = do
     let numTests = length tests
         mtests   = IM.fromList . map (\x -> (taID x, x)) $ tests
-        psANSI   = if   lowVerbosity -- Skip ANSI progress output?
-                   then void . return
-                   else putStr
+        psANSI   | lowVerbosity = void . return -- Skip ANSI progress output?
+                 | otherwise    = putStr
     -- Header and initial all-pending status bar
     psANSI $ printf "\nChecking %2i test cases on %2i core(s) with %2i thread(s)\n"
         numTests cores osThreads
@@ -248,7 +245,7 @@ testSuite tm tnMatch eventQueue sem trOvrM = do
                     success <- checkEmuTestResult testName logFile trMode' =<< test trMode'
                     atomically $ writeTQueue eventQueue
                         ( testID
-                        ,   if success
+                        , if   success
                           then TestSucceess
                           else TestFailure
                         )

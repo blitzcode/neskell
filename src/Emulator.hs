@@ -56,6 +56,7 @@ runEmulator ::
     , B.ByteString              -- Last traceMB MB of the execution trace
     ) -- TODO: Use a type synonym or a record
 runEmulator processor bins setup stopc verc trMode traceMB =
+    -- TODO: Allocate a smaller buffer when execution tracing is basic / disabled
     runSTEmulator (trMode /= TraceNone) traceMB processor $ do
         trace "Load Binary:\n\n"
         mapM_ (\(bin, offs) -> do loadBinary bin offs
@@ -83,9 +84,9 @@ runEmulator processor bins setup stopc verc trMode traceMB =
                     execute inst
                     loop
          in do
-            if trMode /= TraceFullExe
-                then trace "\n(Execution trace disabled)" >> runNoTrace loop
-                else loop
+            if   trMode /= TraceFullExe
+            then trace "\n(Execution trace disabled)" >> runNoTrace loop
+            else loop
             -- Detect Blargg's test ROMs, trace results
             magic <- mapM (load8 . Addr) [0x6001, 0x6002, 0x6003]
             when (magic == [0xDE, 0xB0, 0x61]) $ do

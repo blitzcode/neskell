@@ -54,10 +54,10 @@ showCPUState fieldNames = do
     pc <- load16 PC
     c  <- getCycles
     return $ printf
-         (if fieldNames
-        then "C:%07i PC:$%04X A:$%02X X:$%02X Y:$%02X SR:$%02X:%s SP:$%02X"
-        else "%07i %04X %02X %02X %02X %02X:%s %02X")
-        c pc a x y sr (makeSRString sr) sp
+        (if   fieldNames
+         then "C:%07i PC:$%04X A:$%02X X:$%02X Y:$%02X SR:$%02X:%s SP:$%02X"
+         else "%07i %04X %02X %02X %02X %02X:%s %02X")
+         c pc a x y sr (makeSRString sr) sp
 
 -- The 'standard' way of doing this would probably be using a newtype wrapper,
 -- but with FlexibleInstances on this works and just seems simpler
@@ -151,7 +151,6 @@ runSTEmulator traceEnable traceMB processor f =
     runST $ do
         initState   <- VUM.replicate (65536 + 7) (0 :: Word8)
         initCycles  <- newSTRef 0
-        -- TODO: Maybe we can allocate a smaller buffer when execution tracing is disabled
         initTraceRB <- makeRingBuffer traceMB
         let cpu = CPUState
                   { cpuState        = initState

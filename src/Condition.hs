@@ -42,6 +42,7 @@ instance Show Cond where
 -- Instruction is passed just to avoid decoding 2x
 checkCond :: MonadEmulator m => Instruction -> Cond -> m Bool
 checkCond inst@(Instruction (viewOpCode -> OpCode _ decMn _) _) cond =
+    {-# SCC checkCond #-}
     case cond of
         CondLS     ls w -> case w of
                                Left  w8  -> (== w8 ) <$> load8  ls

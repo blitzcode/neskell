@@ -51,6 +51,8 @@ options = [ Option ['t']
                    "override test tracing to [n]one, [b]asic, full [e]xecution"
           ]
 
+-- TODO: Add flag to specify amount of trace memory
+
 main :: IO ()
 main = do
     name <- getProgName
@@ -76,7 +78,7 @@ main = do
                                   unless success exitFailure
         FlagQuickTest       -> do success <- runTests TMQuick "" lowVerbosity traceOverride
                                   unless success exitFailure
-        FlagListTests tname -> void $ runTests TMList tname lowVerbosity Nothing
+        FlagListTests tname -> void $ runTests TMList tname False Nothing
         FlagDAsm fn         -> mapM_ B8.putStrLn . disassemble =<< B.readFile fn
         FlagNoVerbose       -> return ()
         FlagTraceOverride _ -> return ()
