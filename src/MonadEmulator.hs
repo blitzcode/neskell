@@ -63,7 +63,7 @@ showCPUState fieldNames = do
 -- but with FlexibleInstances on this works and just seems simpler
 type RSTEmu s = ReaderT (CPUState s) (ST s)
 
-class (Functor m, Monad m, Applicative m) => MonadEmulator m where
+class (Monad m, Applicative m) => MonadEmulator m where
     load8      :: LoadStore -> m Word8
     load16     :: LoadStore -> m Word16
     store8     :: LoadStore -> Word8  -> m ()
