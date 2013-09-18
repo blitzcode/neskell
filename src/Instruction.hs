@@ -17,7 +17,7 @@ module Instruction ( AddressMode(..)
 -- This module contains types and function for representing and decoding all 6502 instructions
 
 import Util (makeW16)
-import MonadEmulator (MonadEmulator(..), LoadStore(..))
+import MonadEmulator (MonadEmulator(..), LoadStore(..), RSTEmu)
 
 import Data.Word (Word8)
 import Text.Printf
@@ -42,7 +42,6 @@ data AddressMode =
     | IndIdx
       deriving (Show, Eq)
 
-{-# INLINE operandLen #-}
 operandLen :: AddressMode -> Int
 operandLen Implied     = 0
 operandLen Accumulator = 0
@@ -216,7 +215,6 @@ instance Show Instruction where
     show (Instruction (viewOpCode -> OpCode _ mn am) op) =
         show mn ++ showAMAndOP am op
 
-{-# INLINE instructionLen #-}
 instructionLen :: Instruction -> Int
 instructionLen (Instruction (viewOpCode -> OpCode _ _ a) _) = 1 + operandLen a
 
@@ -233,7 +231,7 @@ decodeInstruction mem pc = do
                 return $ Instruction opc [op1, op2]
         _ ->    return $ Instruction opc []
 
-{-# INLINE decodeInstructionM #-}
+{-# SPECIALIZE INLINE decodeInstructionM :: RSTEmu s Instruction #-}
 decodeInstructionM :: MonadEmulator m => m Instruction
 decodeInstructionM = {-# SCC decodeInstructionM #-} do
     pc <- load16 PC

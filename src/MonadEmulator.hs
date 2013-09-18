@@ -7,6 +7,7 @@ module MonadEmulator (MonadEmulator(..)
                      , getTrace
                      , showCPUState
                      , Processor (..)
+                     , RSTEmu -- Export internal monad type to allow for specialisation
                      ) where
 
 -- Exports the principal monad in which emulator code modifying the state of
@@ -75,6 +76,7 @@ class (Monad m, Applicative m) => MonadEmulator m where
     getCycles  :: m Word64
     getModel   :: m Processor
 
+{-# INLINE lsToStateIdx #-}
 lsToStateIdx :: LoadStore -> Int
 lsToStateIdx ls =
     case ls of
@@ -92,9 +94,11 @@ lsToStateIdx ls =
     rbase = 65536
 
 instance MonadEmulator (RSTEmu s) where
+    {-# INLINE load8 #-}
     load8 ls = do
         state <- asks cpuState
         lift $ VUM.read state . lsToStateIdx $ ls
+    {-# INLINE load16 #-}
     load16 ls = do
         let e8 = error "16 bit load from 8 bit register"
         state <- asks cpuState
@@ -104,9 +108,11 @@ instance MonadEmulator (RSTEmu s) where
                            l <- VUM.read state i
                            h <- VUM.read state (i + 1)
                            return $ makeW16 l h
+    {-# INLINE store8 #-}
     store8 ls val = do
         state <- asks cpuState
         lift $ VUM.write state (lsToStateIdx ls) val
+    {-# INLINE store16 #-}
     store16 ls val = do
         let e8 = error "16 bit store to 8 bit register"
         state <- asks cpuState
@@ -128,6 +134,7 @@ instance MonadEmulator (RSTEmu s) where
             lift . writeRingBuffer (cpuTraceRB cpu) =<< s
     -- Disable tracing and run the argument function
     runNoTrace f = local (\cpu -> cpu { cpuTraceEnable = False }) f 
+    {-# INLINE advCycles #-}
     advCycles n = do
         cycles <- asks cpuCycles
         lift $ modifySTRef' cycles (+ n)
@@ -146,6 +153,7 @@ getTrace = do
     return $ B.pack list
 
 -- Need RankNTypes for the ST type
+{-# INLINE runSTEmulator #-}
 runSTEmulator :: Bool -> Int -> Processor -> (forall s. RSTEmu s a) -> a
 runSTEmulator traceEnable traceMB processor f = 
     runST $ do

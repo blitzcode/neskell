@@ -12,7 +12,7 @@ module Condition ( Cond(..)
 import Instruction (Mnemonic(..), Instruction(..), OpCodeView(..), viewOpCode)
 import Util (L8R16, makeSRString)
 import Execution (detectLoopOnPC)
-import MonadEmulator (MonadEmulator(..), LoadStore(..))
+import MonadEmulator (MonadEmulator(..), LoadStore(..), RSTEmu)
 
 import Control.Applicative ((<$>))
 import Data.Word (Word8, Word16, Word64)
@@ -38,7 +38,7 @@ instance Show Cond where
     show (CondCycleR l h) = unwords ["Cycle ∈ [", show l, ",", show h, "]"]
     show CondLoopPC       = "CondLoopPC"
 
-{-# INLINE checkCond #-}
+{-# SPECIALIZE INLINE checkCond :: Instruction -> Cond -> RSTEmu s Bool #-}
 -- Instruction is passed just to avoid decoding 2x
 checkCond :: MonadEmulator m => Instruction -> Cond -> m Bool
 checkCond inst@(Instruction (viewOpCode -> OpCode _ decMn _) _) cond =

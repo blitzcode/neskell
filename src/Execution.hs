@@ -18,10 +18,12 @@ import Text.Printf
 import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR, complement)
 import Control.Applicative ((<$>), (<*>))
 
+{-# SPECIALIZE INLINE store8Trace :: LoadStore -> Word8 -> RSTEmu s () #-}
 store8Trace :: MonadEmulator m => LoadStore -> Word8 -> m ()
 store8Trace ls val = do
     trace $ printf "%02X→%s " val (show ls)
     store8 ls val
+{-# SPECIALIZE INLINE store16Trace :: LoadStore -> Word16 -> RSTEmu s () #-}
 store16Trace :: MonadEmulator m => LoadStore -> Word16 -> m ()
 store16Trace ls val = do
     trace $ printf "%04X→%s " val (show ls)
@@ -32,6 +34,7 @@ store16Trace ls val = do
 -- mode, having no operand data for anything but Immediate/Accumulator, etc.)
 -- will result in an error trace and a dummy return value
 
+{-# SPECIALIZE getOperandAddr8 :: Instruction -> RSTEmu s LoadStore #-}
 getOperandAddr8 :: MonadEmulator m => Instruction -> m LoadStore
 getOperandAddr8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
@@ -65,6 +68,7 @@ getOperandAddr8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
 traceNoOpLoad :: MonadEmulator m => m ()
 traceNoOpLoad = trace "-         "
 
+{-# SPECIALIZE loadOperand8 :: Instruction -> RSTEmu s Word8 #-}
 loadOperand8 :: MonadEmulator m => Instruction -> m Word8
 loadOperand8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
@@ -82,6 +86,7 @@ loadOperand8 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
                           _         -> traceNoOpLoad
                       return w8
 
+{-# SPECIALIZE storeOperand8 :: Instruction -> Word8 -> RSTEmu s () #-}
 storeOperand8 :: MonadEmulator m => Instruction -> Word8 -> m ()
 storeOperand8 inst val = (\ls -> store8Trace ls val) =<< getOperandAddr8 inst
 
@@ -90,6 +95,7 @@ storeOperand8 inst val = (\ls -> store8Trace ls val) =<< getOperandAddr8 inst
 -- bit value (covered by loadOperand8) are JMP / JSR with Absolute / Indirect
 -- addressing
 
+{-# SPECIALIZE loadOperand16 :: Instruction -> RSTEmu s Word16 #-}
 loadOperand16 :: MonadEmulator m => Instruction -> m Word16
 loadOperand16 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
@@ -107,6 +113,7 @@ loadOperand16 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
   where
     err = trace ("loadOperand16: AM/OpLen Error: " ++ show inst) >> return 0
 
+{-# SPECIALIZE INLINE update16 :: LoadStore -> (Word16 -> Word16) -> RSTEmu s () #-}
 update16 :: MonadEmulator m => LoadStore -> (Word16 -> Word16) -> m ()
 update16 ls f = load16 ls >>= return . f >>= store16Trace ls
 
@@ -116,6 +123,7 @@ setNZ x sr =
         isZ = x == 0
      in modifyFlag FN isN . modifyFlag FZ isZ $ sr
 
+{-# SPECIALIZE INLINE updateNZ :: Word8 -> RSTEmu s () #-}
 updateNZ :: MonadEmulator m => Word8 -> m ()
 updateNZ x = do
     sr <- load8 SR
@@ -127,17 +135,20 @@ setNZC x carry sr =
         isZ = x == 0
      in modifyFlag FN isN . modifyFlag FZ isZ .  modifyFlag FC carry $ sr
 
+{-# SPECIALIZE INLINE updateNZC :: Word8 -> Bool -> RSTEmu s () #-}
 updateNZC :: MonadEmulator m => Word8 -> Bool -> m ()
 updateNZC x carry = do
     sr <- load8 SR
     store8Trace SR . setNZC x carry $ sr
 
+{-# SPECIALIZE INLINE storeStack8 :: Word8 -> RSTEmu s () #-}
 storeStack8 :: MonadEmulator m => Word8 -> m ()
 storeStack8 w8 = do
     sp <- load8 SP
     store8Trace (Addr $ 0x0100 + fromIntegral sp) w8
     store8Trace SP (sp - 1)
 
+{-# SPECIALIZE INLINE storeStack16 :: Word16 -> RSTEmu s () #-}
 storeStack16 :: MonadEmulator m => Word16 -> m ()
 storeStack16 w16 = do
     let (l, h) = splitW16 w16
@@ -148,6 +159,7 @@ storeStack16 w16 = do
     store8Trace (Addr $ 0x0100 + fromIntegral sp2) l
     store8Trace SP (sp - 2)
 
+{-# SPECIALIZE INLINE loadStack8 :: RSTEmu s Word8 #-}
 loadStack8 :: MonadEmulator m => m Word8
 loadStack8 = do
     sp <- (+) 1 <$> load8 SP
@@ -155,6 +167,7 @@ loadStack8 = do
     store8Trace SP sp
     return w8
 
+{-# SPECIALIZE INLINE loadStack16 :: RSTEmu s Word16 #-}
 loadStack16 :: MonadEmulator m => m Word16
 loadStack16 = do
     sp <- load8 SP
@@ -186,6 +199,7 @@ getAMCycles =
     -- ++ = Add one cycle if the branch is taken, one more if the branch occurs to different page
 
 -- Determine penalty for page crossing in load instructions
+{-# SPECIALIZE getOperandPageCross :: Instruction -> RSTEmu s Bool #-}
 getOperandPageCross :: MonadEmulator m => Instruction -> m Bool
 getOperandPageCross (Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
@@ -199,6 +213,7 @@ getOperandPageCross (Instruction (viewOpCode -> OpCode _ _ am) oper) =
                                                  return $ opl + y < opl
                                  _         -> return False
         _          -> return False
+{-# SPECIALIZE INLINE getOperandPageCrossPenalty :: Instruction -> RSTEmu s Word64 #-}
 getOperandPageCrossPenalty :: MonadEmulator m => Instruction -> m Word64
 getOperandPageCrossPenalty inst = fromIntegral . fromEnum <$> getOperandPageCross inst
 
@@ -317,7 +332,7 @@ sbcCore a op carry bcd =
                   in (rBCD, n, v, z, c)
             else (r, n, v, z, c)
 
-{-# INLINE execute #-}
+{-# SPECIALIZE execute :: Instruction -> RSTEmu s () #-}
 execute :: MonadEmulator m => Instruction -> m ()
 execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-} do
     traceM $ do
