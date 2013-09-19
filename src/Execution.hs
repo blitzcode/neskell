@@ -100,15 +100,15 @@ loadOperand16 :: MonadEmulator m => Instruction -> m Word16
 loadOperand16 inst@(Instruction (viewOpCode -> OpCode _ _ am) oper) =
     case oper of
         (opl:oph:[]) -> case am of
-            Absolute  -> do traceNoOpLoad
-                            return $ makeW16 opl oph
-            Indirect  -> do l <- load8 . Addr $ makeW16  opl      oph
-                            -- The NMOS 6502 actually does it like this
-                            h <- load8 . Addr $ makeW16 (opl + 1) oph
-                            let w16 = makeW16 l h
-                            trace $ printf "%04X→%04X " (makeW16 opl oph) w16
-                            return w16
-            _         -> err
+            Absolute -> do traceNoOpLoad
+                           return $ makeW16 opl oph
+            Indirect -> do l <- load8 . Addr $ makeW16  opl      oph
+                           -- The NMOS 6502 actually does it like this
+                           h <- load8 . Addr $ makeW16 (opl + 1) oph
+                           let w16 = makeW16 l h
+                           trace $ printf "%04X→%04X " (makeW16 opl oph) w16
+                           return w16
+            _        -> err
         _            -> err
   where
     err = trace ("loadOperand16: AM/OpLen Error: " ++ show inst) >> return 0
@@ -334,14 +334,13 @@ sbcCore a op carry bcd =
 
 {-# SPECIALIZE execute :: Instruction -> RSTEmu s () #-}
 execute :: MonadEmulator m => Instruction -> m ()
-execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-} do
+execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = do
     traceM $ do
         cpustate <- showCPUState False
         return $ "\n" ++ cpustate ++ " "
     let ilen = fromIntegral $ instructionLen inst :: Word16
-    -- TODO: Put SCC annotations at the start of each Instruction
     case mn of
-        LDA -> do
+        LDA -> {-# SCC lda #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -351,7 +350,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A a
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        LDX -> do
+        LDX -> {-# SCC ldx #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -361,7 +360,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace X x
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        LDY -> do
+        LDY -> {-# SCC ldy #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -371,7 +370,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace Y y
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        STA -> do
+        STA -> {-# SCC sta #-} do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -379,7 +378,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst a
             update16 PC (ilen +)
             advCycles baseC
-        STX -> do
+        STX -> {-# SCC stx #-} do
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -387,7 +386,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst x
             update16 PC (ilen +)
             advCycles baseC
-        STY -> do
+        STY -> {-# SCC sty #-} do
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -395,7 +394,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst y
             update16 PC (ilen +)
             advCycles baseC
-        AND -> do
+        AND -> {-# SCC and #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -407,7 +406,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        ORA -> do
+        ORA -> {-# SCC ora #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -419,7 +418,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        EOR -> do
+        EOR -> {-# SCC eor #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -431,7 +430,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        INC -> do
+        INC -> {-# SCC inc #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             x <- loadOperand8 inst
@@ -440,7 +439,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst r
             update16 PC (ilen +)
             advCycles baseC
-        DEC -> do
+        DEC -> {-# SCC dec #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             x <- loadOperand8 inst
@@ -449,7 +448,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst r
             update16 PC (ilen +)
             advCycles baseC
-        ASL -> do
+        ASL -> {-# SCC asl #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             x <- loadOperand8 inst
@@ -459,7 +458,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst r
             update16 PC (ilen +)
             advCycles baseC
-        LSR -> do
+        LSR -> {-# SCC lsr #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             x <- loadOperand8 inst
@@ -469,7 +468,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst r
             update16 PC (ilen +)
             advCycles baseC
-        ROL -> do
+        ROL -> {-# SCC rol #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             x <- loadOperand8 inst
@@ -479,7 +478,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst r
             update16 PC (ilen +)
             advCycles baseC
-        ROR -> do
+        ROR -> {-# SCC ror #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             x <- loadOperand8 inst
@@ -489,13 +488,13 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst r
             update16 PC (ilen +)
             advCycles baseC
-        JMP -> do
+        JMP -> {-# SCC jmp #-} do
             let baseC = case am of Absolute -> 3; Indirect -> 5; _ -> 0
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             npc <- loadOperand16 inst
             store16Trace PC npc
             advCycles baseC
-        JSR -> do
+        JSR -> {-# SCC jsr #-} do
             let baseC = 6
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             npc <- loadOperand16 inst
@@ -503,14 +502,14 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeStack16 $ pc + ilen - 1
             store16Trace PC npc
             advCycles baseC
-        RTS -> do
+        RTS -> {-# SCC rts #-} do
             let baseC = 6
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
             pc <- loadStack16
             store16Trace PC $ pc + 1
             advCycles baseC
-        TAX -> do
+        TAX -> {-# SCC tax #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -519,7 +518,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace X a
             update16 PC (ilen +)
             advCycles baseC
-        TXA -> do
+        TXA -> {-# SCC txa #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -528,7 +527,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A x
             update16 PC (ilen +)
             advCycles baseC
-        TYA -> do
+        TYA -> {-# SCC tya #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -537,7 +536,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A y
             update16 PC (ilen +)
             advCycles baseC
-        TAY -> do
+        TAY -> {-# SCC tay #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -546,7 +545,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace Y a
             update16 PC (ilen +)
             advCycles baseC
-        DEX -> do
+        DEX -> {-# SCC dex #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -555,7 +554,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace X x
             update16 PC (ilen +)
             advCycles baseC
-        INX -> do
+        INX -> {-# SCC inx #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -564,7 +563,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace X x
             update16 PC (ilen +)
             advCycles baseC
-        DEY -> do
+        DEY -> {-# SCC dey #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -573,7 +572,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace Y y
             update16 PC (ilen +)
             advCycles baseC
-        INY -> do
+        INY -> {-# SCC iny #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -582,7 +581,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace Y y
             update16 PC (ilen +)
             advCycles baseC
-        TXS -> do
+        TXS -> {-# SCC txs #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -590,7 +589,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SP x
             update16 PC (ilen +)
             advCycles baseC
-        TSX -> do
+        TSX -> {-# SCC tsx #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -599,7 +598,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace X sp
             update16 PC (ilen +)
             advCycles baseC
-        CLC -> do
+        CLC -> {-# SCC clc #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -607,7 +606,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SR . clearFlag FC $ sr
             update16 PC (ilen +)
             advCycles baseC
-        SEC -> do
+        SEC -> {-# SCC sec #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -615,7 +614,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SR . setFlag FC $ sr
             update16 PC (ilen +)
             advCycles baseC
-        PHP -> do
+        PHP -> {-# SCC php #-} do
             let baseC = 3
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -623,7 +622,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeStack8 $ setFlag FB sr
             update16 PC (ilen +)
             advCycles baseC
-        PHA -> do
+        PHA -> {-# SCC pha #-} do
             let baseC = 3
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -631,7 +630,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeStack8 a
             update16 PC (ilen +)
             advCycles baseC
-        PLP -> do
+        PLP -> {-# SCC plp #-} do
             let baseC = 4
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -639,7 +638,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SR . clearFlag FB . setFlag F1 $ sr
             update16 PC (ilen +)
             advCycles baseC
-        PLA -> do
+        PLA -> {-# SCC pla #-} do
             let baseC = 4
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -648,7 +647,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A a
             update16 PC (ilen +)
             advCycles baseC
-        SED -> do
+        SED -> {-# SCC sed #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -656,7 +655,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             update16 PC (ilen +)
             store8Trace SR . setFlag FD $ sr
             advCycles baseC
-        CLD -> do
+        CLD -> {-# SCC cld #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -664,7 +663,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SR . clearFlag FD $ sr
             update16 PC (ilen +)
             advCycles baseC
-        SEI -> do
+        SEI -> {-# SCC sei #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -672,7 +671,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SR . setFlag FI $ sr
             update16 PC (ilen +)
             advCycles baseC
-        CLI -> do
+        CLI -> {-# SCC cli #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -680,7 +679,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SR . clearFlag FI $ sr
             update16 PC (ilen +)
             advCycles baseC
-        ADC -> do
+        ADC -> {-# SCC adc #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -700,7 +699,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        SBC -> do
+        SBC -> {-# SCC sbc #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s %s%ib%iC%s "
@@ -724,7 +723,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        CMP -> do
+        CMP -> {-# SCC cmp #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -740,7 +739,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        CPX -> do
+        CPX -> {-# SCC cpx #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -756,7 +755,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        CPY -> do
+        CPY -> {-# SCC cpy #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC%s " w (show inst) ilen baseC
@@ -772,7 +771,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        BIT -> do
+        BIT -> {-# SCC bit #-} do
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             a  <- load8 A
@@ -786,7 +785,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles baseC
-        BEQ -> do
+        BEQ -> {-# SCC beq #-} do
             f    <- getFlag FZ <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -800,7 +799,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        BNE -> do
+        BNE -> {-# SCC bne #-} do
             f    <- not . getFlag FZ <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -814,7 +813,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        BPL -> do
+        BPL -> {-# SCC bpl #-} do
             f    <- not . getFlag FN <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -828,7 +827,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        BMI -> do
+        BMI -> {-# SCC bmi #-} do
             f    <- getFlag FN <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -842,7 +841,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        BVC -> do
+        BVC -> {-# SCC bvc #-} do
             f    <- not . getFlag FV <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -856,7 +855,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        BVS -> do
+        BVS -> {-# SCC bvs #-} do
             f    <- getFlag FV <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -870,7 +869,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        BCC -> do
+        BCC -> {-# SCC bcc #-} do
             f    <- not . getFlag FC <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -884,7 +883,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        BCS -> do
+        BCS -> {-# SCC bcs #-} do
             f    <- getFlag FC <$> load8 SR
             oper <- loadOperand8 inst
             pc   <- (+) ilen <$> load16 PC
@@ -898,7 +897,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             store16Trace PC $ if f then dest else pc
             advCycles $ baseC + penalty
-        CLV -> do
+        CLV -> {-# SCC clv #-} do
             let baseC = 2
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -906,7 +905,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace SR . clearFlag FV $ sr
             update16 PC (ilen +)
             advCycles baseC
-        NOP -> do
+        NOP -> {-# SCC nop #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s %s%ib%iC%s "
@@ -918,7 +917,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             traceNoOpLoad
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        RTI -> do
+        RTI -> {-# SCC rti #-} do
             let baseC = 6
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -927,7 +926,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             pc <- loadStack16
             store16Trace PC pc
             advCycles baseC
-        BRK -> do
+        BRK -> {-# SCC brk #-} do
             let baseC = 7
             trace $ printf "%02X:%-11s O%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -939,11 +938,11 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             ivec <- load16 $ Addr 0xFFFE
             store16Trace PC ivec
             advCycles baseC
-        KIL -> do
+        KIL -> {-# SCC kil #-} do
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen (1 :: Int)
             traceNoOpLoad
             advCycles 1
-        LAX -> do
+        LAX -> {-# SCC lax #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s %s%ib%iC%s "
@@ -960,7 +959,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace X op
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        SAX -> do
+        SAX -> {-# SCC sax #-} do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -969,7 +968,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             storeOperand8 inst $ a .&. x
             update16 PC (ilen +)
             advCycles baseC
-        DCP -> do
+        DCP -> {-# SCC dcp #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
@@ -985,7 +984,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles baseC
-        ISC -> do
+        ISC -> {-# SCC isc #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op  <- loadOperand8 inst
@@ -1005,7 +1004,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
-        RLA -> do
+        RLA -> {-# SCC rla #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
@@ -1018,7 +1017,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A and'
             update16 PC (ilen +)
             advCycles baseC
-        RRA -> do
+        RRA -> {-# SCC rra #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
@@ -1039,7 +1038,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles baseC
-        SLO -> do
+        SLO -> {-# SCC slo #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
@@ -1051,7 +1050,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
-        SRE -> do
+        SRE -> {-# SCC sre #-} do
             let baseC = 2 + getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
@@ -1063,7 +1062,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
-        ANC -> do
+        ANC -> {-# SCC anc #-} do
             let baseC = 2 :: Word64
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
@@ -1074,7 +1073,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
-        ALR -> do
+        ALR -> {-# SCC alr #-} do
             let baseC = 2 :: Word64
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
@@ -1086,7 +1085,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace A r
             update16 PC (ilen +)
             advCycles baseC
-        ARR -> do
+        ARR -> {-# SCC arr #-} do
             let baseC = 2 :: Word64
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op  <- loadOperand8 inst
@@ -1133,7 +1132,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
                 $ sr
             update16 PC (ilen +)
             advCycles baseC
-        XAA -> do
+        XAA -> {-# SCC xaa #-} do
             let baseC = 2 :: Word64
             trace $ printf "%02X:%-11s U%ib%iC   " w (show inst) ilen baseC
             -- This opcode is not stable on a real 6502 and its result depends
@@ -1149,7 +1148,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             updateNZ r
             update16 PC (ilen +)
             advCycles baseC
-        AHX -> do
+        AHX -> {-# SCC ahx #-} do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -1172,7 +1171,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
-        TAS -> do
+        TAS -> {-# SCC tas #-} do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -1193,7 +1192,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
-        SHX -> do
+        SHX -> {-# SCC shx #-} do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -1211,7 +1210,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
-        SHY -> do
+        SHY -> {-# SCC shy #-} do
             let baseC = getAMCycles am + getStorePageCrossPenalty am
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             traceNoOpLoad
@@ -1229,7 +1228,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             store8Trace (Addr addr) r
             update16 PC (ilen +)
             advCycles baseC
-        LAS -> do
+        LAS -> {-# SCC las #-} do
             penalty <- getOperandPageCrossPenalty inst
             let baseC = getAMCycles am
             trace $ printf "%02X:%-11s I%ib%iC%s " w (show inst) ilen baseC
@@ -1243,7 +1242,7 @@ execute inst@(Instruction (viewOpCode -> OpCode w mn am) _) = {-# SCC execute #-
             updateNZ r
             update16 PC (ilen +)
             advCycles $ baseC + penalty
-        AXS -> do
+        AXS -> {-# SCC axs #-} do
             let baseC = 2 :: Word64
             trace $ printf "%02X:%-11s I%ib%iC   " w (show inst) ilen baseC
             op <- loadOperand8 inst
