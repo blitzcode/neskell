@@ -83,7 +83,8 @@ data OpCodeView = OpCode Word8 Mnemonic AddressMode
 newtype OpCode = OpCodeC { viewOpCode :: OpCodeView }
 
 decodeOpCode :: Word8 -> OpCode
-decodeOpCode w = let o = OpCode w in OpCodeC $ case w of
+decodeOpCode w = let {-# INLINE o #-}
+                     o = OpCode w in OpCodeC $ case w of
     -- Official
     ; 0x69 -> o ADC Immediate   ; 0x65 -> o ADC ZeroPage    ; 0x75 -> o ADC ZeroPageX
     ; 0x6D -> o ADC Absolute    ; 0x7D -> o ADC AbsoluteX   ; 0x79 -> o ADC AbsoluteY

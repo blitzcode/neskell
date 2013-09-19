@@ -45,6 +45,7 @@ data CPUState s = CPUState
     , cpuModel       :: Processor
     }
 
+{-# SPECIALIZE INLINE showCPUState :: Bool -> RSTEmu s String #-}
 showCPUState :: MonadEmulator m => Bool -> m String
 showCPUState fieldNames = do
     a  <- load8 A
