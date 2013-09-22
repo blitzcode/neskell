@@ -1,11 +1,14 @@
 
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 
-module Main where
+module Main (main) where
 
-import Language.Haskell.TH
+import MainTH
+
+$(makeExecute)
 
 main :: IO ()
 main = do
-    putStrLn "Hello World"
+    mapM_ (\x -> putStr $ execute x Implied ++ " ") ([minBound..maxBound] :: [Mnemonic])
+    return ()
 
