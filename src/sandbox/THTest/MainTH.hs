@@ -3,10 +3,11 @@
 
 module MainTH where
 
+import EnumLiftInstanceTH
+
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import System.IO
-import Control.Monad (forM)
 
 data Mnemonic =
     -- Official
@@ -27,6 +28,7 @@ data Mnemonic =
     | AXS
       deriving (Show, Eq, Enum, Bounded)
 
+{-
 instance Lift Mnemonic where
     lift ADC = [| ADC |]
     lift AND = [| AND |]
@@ -103,6 +105,9 @@ instance Lift Mnemonic where
     lift SHY = [| SHY |]
     lift LAS = [| LAS |]
     lift AXS = [| AXS |]
+-}
+
+makeEnumLiftInstance ''Mnemonic
 
 data AddressMode =
       Implied
@@ -119,6 +124,8 @@ data AddressMode =
     | IdxInd
     | IndIdx
       deriving (Show, Eq)
+
+makeEnumLiftInstance ''AddressMode
 
 uopCond :: Q Exp
 uopCond = do
@@ -151,34 +158,45 @@ sel i n = [| \x -> $(caseE [| x |] [alt]) |]
 -}
 
 --where func = [| \mn am -> putStr $ show mn ++ " " ++ show am |]
---
+
+
+someDoFunc :: Q Exp
+someDoFunc =
+    [| do putStr "2"
+          x <- getLine
+          putStr x
+    |]
+
+someDoFunc2 :: Q Exp
+someDoFunc2 =
+    doE . map noBindS $
+        [ [| putStr "1" |]
+        , [| putStr "2" |]
+        ]
+
 makeExecute :: Q [Dec]
 makeExecute =
-    [d| execute :: Mnemonic -> AddressMode -> String;
-        execute mn am = $(func) mn am
-    |]
-    where
+    [d| execute :: Mnemonic -> AddressMode -> IO ();
+        execute = $(func)
+    |] where
+      --func = [| \mn am -> "" |]
       func = do mn <- newName "mn"
                 am <- newName "am"
                 lamE [varP mn, varP am]
-                  (
-                    caseE (varE mn) $
-                      map
-                        (
-                           \x -> do ConE n <- lift x
-                                    match (conP n []) (normalB (litE (StringL (show x)))) []
-                        )
-                        {-
-                        [ match (conP 'MainTH.ANC []) (normalB (litE (StringL "ANC"))) []
-                        , match (conP 'MainTH.LDA []) (normalB (litE (StringL "LDA"))) []
-                        ]
-                        -}
-                        ([minBound..maxBound] :: [Mnemonic])
-                  )
-      func2 x = x
-      -- $(mapM (\y -> do ConE n <- lift y; return n) [False, True] >>= stringE . show)
+                    . caseE (varE mn)
+                    . (flip map) ([minBound..maxBound] :: [Mnemonic])
+                    $ \x -> do ConE n <- lift x
+                               match (conP n []) (normalB $ instrImpl x) []
+      instrImpl x = doE . map noBindS $
+          [ [| putStrLn $ show x |]
+          ]
+
+-- $(mapM (\y -> do ConE n <- lift y; return n) [False, True] >>= stringE . show)
+
 --(Just (LamE [VarP x_0] (CaseE (ConE MainTH.LDA) [Match (VarP x_1) (NormalB (LitE (StringL ""))) []])))
 
+--match (conP n []) (normalB (litE (StringL (show x)))) []
+                              
 --  $(reify ''Bool >>= \(TyConI (DataD _ _ _ x _)) -> stringE $ show x)
 
 {-
@@ -224,6 +242,44 @@ DoE
     NoBindS (AppE (VarE System.IO.putStr) (LitE (StringL "1"))),
     NoBindS (AppE (VarE System.IO.putStr) (LitE (StringL "2")))
 ]
+
+-}
+
+-- $(reify ''Bool >>= \(TyConI (DataD _ _ _ x _)) -> stringE $ show x)
+-- [NormalC GHC.Types.False [],NormalC GHC.Types.True []]
+
+{-
+▸▸▸ runQ [d|instance Lift MyEnum where lift MyEnum123 = litE (StringL "123") ; lift MyEnum456 = litE (StringL "456") |]
+[InstanceD [] (AppT (ConT Language.Haskell.TH.Syntax.Lift) (ConT :Interactive.MyEnum)) [FunD Language.Haskell.TH.Syntax.lift [Clause [ConP :Interactive.MyEnum123 []] (NormalB (AppE (VarE Language.Haskell.TH.Lib.litE) (AppE (ConE Language.Haskell.TH.Syntax.StringL) (LitE (StringL "123"))))) [],Clause [ConP :Interactive.MyEnum456 []] (NormalB (AppE (VarE Language.Haskell.TH.Lib.litE) (AppE (ConE Language.Haskell.TH.Syntax.StringL) (LitE (StringL "456"))))) []]]]
+-}
+{-
+
+makeEnumLiftInstance :: Name -> Q [Dec]
+makeEnumLiftInstance name = do
+    (TyConI (DataD _ _ _ ctors _)) <- reify name
+    sequence $
+        [
+            instanceD (return []) (appT (conT ''Lift) (conT name)) .
+                (flip map) ctors $ \(NormalC ctorName _) ->
+                    funD 'Language.Haskell.TH.Syntax.lift
+                    [
+                        clause [conP ctorName []]
+                        (
+                            normalB
+                            (
+                                 conE ctorName
+                            )
+                        ) []
+                    ]
+        ]
+
+-}
+
+{-
+
+▸▸▸ runQ [d|instance Lift MyEnum where lift MyEnum123 = litE (StringL "ANC") |]
+
+[InstanceD [] (AppT (ConT Language.Haskell.TH.Syntax.Lift) (ConT :Interactive.MyEnum)) [FunD Language.Haskell.TH.Syntax.lift [Clause [ConP :Interactive.MyEnum123 []] (NormalB (AppE (VarE Language.Haskell.TH.Lib.litE) (AppE (ConE Language.Haskell.TH.Syntax.StringL) (LitE (StringL "ANC"))))) []]]]
 
 -}
 

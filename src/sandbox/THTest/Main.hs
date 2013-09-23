@@ -9,6 +9,6 @@ $(makeExecute)
 
 main :: IO ()
 main = do
-    mapM_ (\x -> putStr $ execute x Implied ++ " ") ([minBound..maxBound] :: [Mnemonic])
+    mapM_ (\x -> execute x Implied) ([minBound..maxBound] :: [Mnemonic])
     return ()
 
