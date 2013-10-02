@@ -40,7 +40,7 @@ data AddressMode =
     | Indirect
     | IdxInd
     | IndIdx
-      deriving (Show, Eq)
+      deriving (Show, Eq, Enum, Bounded)
 
 operandLen :: AddressMode -> Int
 operandLen Implied     = 0
@@ -74,7 +74,7 @@ data Mnemonic =
     | RRA | SLO | SRE | ANC | ALR | ARR
     | XAA | AHX | TAS | SHX | SHY | LAS
     | AXS
-      deriving (Show, Eq)
+      deriving (Show, Eq, Enum, Bounded)
 
 -- We store the binary representation as well so we can later distinguish
 -- otherwise identical instructions. The actual OpCode type is abstract, use

@@ -1,7 +1,9 @@
 
 .PHONY : out
 out:
-	ghc -rtsopts -O2 -o $@ -Wall --make Main
+	ghc -rtsopts -O2 -o $@ -Wall -i../../ --make Main
+
+# -ddump-splices
 
 HSSRC = $(wildcard *.hs)
 .PHONY : clean

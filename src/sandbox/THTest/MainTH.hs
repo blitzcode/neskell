@@ -1,32 +1,17 @@
 
-{-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes, ViewPatterns #-}
 
 module MainTH where
+
+import Instruction
+import MonadEmulator
 
 import EnumLiftInstanceTH
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
-import System.IO
-
-data Mnemonic =
-    -- Official
-      ADC | AND | ASL | BCC | BCS | BEQ
-    | BIT | BMI | BNE | BPL | BRK | BVC
-    | BVS | CLC | CLD | CLI | CLV | CMP
-    | CPX | CPY | DEC | DEX | DEY | EOR
-    | INC | INX | INY | JMP | JSR | LDA
-    | LDX | LDY | LSR | NOP | ORA | PHA
-    | PHP | PLA | PLP | ROL | ROR | RTI
-    | RTS | SBC | SEC | SED | SEI | STA
-    | STX | STY | TAX | TAY | TSX | TXA
-    | TXS | TYA
-    -- Illegal / Unofficial
-    | KIL | LAX | SAX | DCP | ISC | RLA
-    | RRA | SLO | SRE | ANC | ALR | ARR
-    | XAA | AHX | TAS | SHX | SHY | LAS
-    | AXS
-      deriving (Show, Eq, Enum, Bounded)
+--import Control.Applicative ((<$>))
+import Data.Word (Word8)
 
 {-
 instance Lift Mnemonic where
@@ -109,33 +94,28 @@ instance Lift Mnemonic where
 
 makeEnumLiftInstance ''Mnemonic
 
-data AddressMode =
-      Implied
-    | Accumulator
-    | Immediate
-    | ZeroPage
-    | ZeroPageX
-    | ZeroPageY
-    | Relative
-    | Absolute
-    | AbsoluteX
-    | AbsoluteY
-    | Indirect
-    | IdxInd
-    | IndIdx
-      deriving (Show, Eq)
-
 makeEnumLiftInstance ''AddressMode
 
+{-
+instance Lift Int where
+    lift x = return (LitE (IntegerL (fromIntegral x)))
+
+▸▸▸ runQ [| 10 :: Word8 |]
+SigE (LitE (IntegerL 10)) (ConT GHC.Word.Word8)
+-}
+
+instance Lift Word8 where
+    lift x = sigE (litE (integerL (fromIntegral x))) (conT ''Word8)
+
+{-
 uopCond :: Q Exp
 uopCond = do
-    appE [| System.IO.putStrLn |] (litE $ StringL "123")
+    appE [| putStrLn |] (litE $ StringL "123")
 
 opSwitch :: Q Exp
 opSwitch = do
-    appE [| System.IO.putStrLn |] (litE $ StringL "123")
+    appE [| putStrLn |] (litE $ StringL "123")
 
-{-
 sel :: Int -> Int -> ExpQ
 sel i n = [| \x -> $(caseE [| x |] [alt]) |]
     where alt :: MatchQ
@@ -159,7 +139,7 @@ sel i n = [| \x -> $(caseE [| x |] [alt]) |]
 
 --where func = [| \mn am -> putStr $ show mn ++ " " ++ show am |]
 
-
+{-
 someDoFunc :: Q Exp
 someDoFunc =
     [| do putStr "2"
@@ -173,28 +153,40 @@ someDoFunc2 =
         [ [| putStr "1" |]
         , [| putStr "2" |]
         ]
+-}
 
 makeExecute :: Q [Dec]
 makeExecute =
-    [d| execute :: Mnemonic -> AddressMode -> IO ();
-        execute = $(func)
+    [d| {-# SPECIALIZE execute :: Word8 -> RSTEmu s () #-}
+        execute :: MonadEmulator m => Word8 -> m ();
+        execute = $(f)
     |] where
-      --func = [| \mn am -> "" |]
-      func = do mn <- newName "mn"
-                am <- newName "am"
-                lamE [varP mn, varP am]
-                    . caseE (varE mn)
-                    . (flip map) ([minBound..maxBound] :: [Mnemonic])
-                    $ \x -> do ConE n <- lift x
-                               match (conP n []) (normalB $ instrImpl x) []
-      instrImpl x = doE . map noBindS $
-          [ [| putStrLn $ show x |]
-          ]
+      f =
+        do -- mnName <- newName "mn"
+           -- amName <- newName "am"
+           w8Name <- newName "w8"
+           lamE [{-varP mnName, varP amName-} varP w8Name]
+               . caseE (tupE [ {-varE mnName, varE amName-} varE w8Name ])
+               . (++ [errMatch])
+               . (flip map) [decodeOpCode w8 | w8 <- [0..255]]
+               $ \(viewOpCode -> OpCode w8 mn am) ->
+                   do --ConE mnName' <- lift mn
+                      --ConE amName' <- lift am
+                      ConE w8Name' <- lift w8
+                      match (tupP [ {-conP mnName' [], conP amName' []-} conP w8Name' [] ])
+                            (normalB $ instrImpl w8 mn am) []
+      instrImpl w8 mn am = doE . map noBindS $
+          [ [| {-putStrLn $ show mn ++ " " ++ show am-} advCycles 1 |]
+          ] 
+      errMatch = match wildP
+                       (normalB $ appE (varE 'error) (litE (StringL "Invalid OpCode")))
+                       []
 
 -- $(mapM (\y -> do ConE n <- lift y; return n) [False, True] >>= stringE . show)
 
 --(Just (LamE [VarP x_0] (CaseE (ConE MainTH.LDA) [Match (VarP x_1) (NormalB (LitE (StringL ""))) []])))
 
+--func = [| \mn am -> "" |]
 --match (conP n []) (normalB (litE (StringL (show x)))) []
                               
 --  $(reify ''Bool >>= \(TyConI (DataD _ _ _ x _)) -> stringE $ show x)
