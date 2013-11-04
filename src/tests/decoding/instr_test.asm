@@ -18,7 +18,8 @@
 ; bug in 6502js prevents the relative addressing in branch instructions to
 ; assemble, only labels can be targeted. As a workaround, all branch
 ; instructions target 'lbl' and were later manually fixed in the binary /
-; disassembly to their correct targets (sequential numbers). At the end of the
+; disassembly to their correct targets (sequential numbers). There's also a
+; fixed version available at http://biged.github.io/6502js/. At the end of the
 ; file are also all supported illegal / unofficial opcodes.
 ;
 ; References / Sources / Originals:
