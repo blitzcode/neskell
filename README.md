@@ -221,7 +221,7 @@ References / Sources / Originals:
 
 http://www.6502.org/tutorials/6502opcodes.html
 http://e-tradition.net/bytes/6502/6502_instruction_set.html
-http://www.obelisk.demon.co.uk/6502/reference.html
+http://obelisk.me.uk/6502/reference.html
 http://www.atariarchives.org/alp/appendix_1.php
 http://visual6502.org/wiki/index.php?title=6502_all_256_Opcodes
 http://wiki.nesdev.com/w/index.php/Programming_with_unofficial_opcodes
