@@ -15,9 +15,8 @@ import Condition
 
 import qualified Data.ByteString.Lazy as B
 import Data.Word (Word8, Word16)
-import Data.Monoid (getAll, All(..), mempty, (<>))
+import Data.Monoid (getAll, All(..), (<>))
 import Control.Monad (when, unless, filterM)
-import Control.Applicative ((<$>))
 import Text.Printf
 
 traceMemory :: MonadEmulator m => Word16 -> Word16 -> m ()

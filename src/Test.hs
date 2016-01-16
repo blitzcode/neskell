@@ -14,9 +14,9 @@ import Condition (Cond(..), makeStackCond, makeStringCond)
 
 import Data.Word (Word64)
 import Control.Monad (when, unless, guard, void)
-import Control.Monad.Error (throwError)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
+import Control.Monad.Except (throwError)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Maybe (runMaybeT)
 import Data.Maybe (fromMaybe)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B8
@@ -32,7 +32,6 @@ import qualified System.Console.ANSI as A
 import Text.Printf
 import Control.Concurrent (getNumCapabilities)
 import qualified Data.IntMap.Strict as IM
-import Control.Applicative ((<$>))
 import Data.List (delete, isInfixOf)
 import System.FilePath (splitFileName, dropExtension)
 
@@ -79,80 +78,80 @@ showTestResults tests eventQueue cores osThreads lowVerbosity = do
     -- Process events from test threads
     overallRes <-
         let processEvents ts = do
-            (testID, e) <- atomically $ readTQueue eventQueue
-            let invColored color = A.setSGRCode [ A.SetSwapForegroundBackground True
-                                                , A.SetColor A.Foreground A.Vivid color
-                                                ]
-            -- Update test status and status bar
-            psANSI $ A.cursorUpCode (8 + max 0 ((length $ tsFailed ts) - 1) + osThreads)
-                     ++ A.setCursorColumnCode (1 + testID)
-            ts' <- case e of
-                TestRunning  -> do psANSI $ invColored A.Yellow ++ "R"
-                                   return ts { tsRunning = testID : tsRunning ts }
-                TestSucceess -> do psANSI $ invColored A.Green  ++ "S"
-                                   return ts { tsRunning   = delete testID $ tsRunning ts
-                                             , tsSucceeded = tsSucceeded ts + 1
-                                             }
-                TestFailure  -> do psANSI $ invColored A.Red    ++ "F"
-                                   when lowVerbosity . putStrLn $ "Test Failed: " ++
-                                       case taName <$> IM.lookup testID mtests of
-                                           Just n -> n
-                                           _      -> ""
-                                   return ts { tsRunning = delete testID $ tsRunning ts
-                                             , tsFailed  = testID : tsFailed ts
-                                             }
-            psANSI $ A.setSGRCode []
-                     ++ A.setCursorColumnCode (3 + numTests)
-                     ++ A.clearFromCursorToLineEndCode
-                     ++ printf "%.2f%%"
-                            (fromIntegral (tsSucceeded ts' + length (tsFailed ts')) /
-                            fromIntegral numTests * 100.0 :: Float)
-                     ++ A.cursorDownCode 3
-                     ++ A.setCursorColumnCode 0
-            -- Summary
-            psANSI A.clearLineCode
-            psANSI $ printf
-                "Running: %s%2i%s | Succeeded: %s%2i%s | Failed: %s%2i%s | Pending: %i\n\n"
-                (invColored A.Yellow) (length $ tsRunning   ts') (A.setSGRCode [])
-                (invColored A.Green ) (         tsSucceeded ts') (A.setSGRCode [])
-                (invColored A.Red   ) (length $ tsFailed    ts') (A.setSGRCode [])
-                (numTests - (length (tsRunning ts') + tsSucceeded ts' + length (tsFailed ts')))
-            -- TODO: The next two completely break if any lines are too wide for the terminal
-            -- Running
-            mapM_ (\(i, x) ->
-                       psANSI $ A.clearLineCode ++ (invColored A.Yellow) ++ printf "Thread %i:" i
-                                ++ (A.setSGRCode []) ++ " "
-                                ++ case taName <$> IM.lookup x mtests of Just n -> n; _ -> "(Idle)"
-                                ++ "\n")
-                  $ zip [1..osThreads] (tsRunning ts' ++ repeat (maxBound :: Int))
-            psANSI "\n"
-            -- Failures
-            if   null $ tsFailed ts'
-            then psANSI $ A.clearLineCode
-                          ++ (A.setSGRCode [A.SetSwapForegroundBackground True])
-                          ++ "(No Failures)"
-                          ++ (A.setSGRCode [])
-                          ++ "\n"
-            else mapM_ (\x -> psANSI $ A.clearLineCode ++ (invColored A.Red) ++
-                                    (case taName <$> IM.lookup x mtests of
-                                         Just n -> n
-                                         _      -> "") ++
-                                    " Failed:" ++ (A.setSGRCode []) ++ " " ++
-                                    (case taLogFn <$> IM.lookup x mtests of
-                                         Just n -> n
-                                         _      -> "") ++
-                                    "\n")
-                       $ tsFailed ts'
-            psANSI "\n"
-            -- Done?
-            hFlush stdout
-            if   (tsSucceeded ts' + length (tsFailed ts') < numTests)
-            then processEvents ts'
-            else do let success = null $ tsFailed ts'
-                    psANSI "\n\n"
-                    when (lowVerbosity && success) $
-                        printf "All %i tests OK\n" (tsSucceeded ts')
-                    return success
+             (testID, e) <- atomically $ readTQueue eventQueue
+             let invColored color = A.setSGRCode [ A.SetSwapForegroundBackground True
+                                                 , A.SetColor A.Foreground A.Vivid color
+                                                 ]
+             -- Update test status and status bar
+             psANSI $ A.cursorUpCode (8 + max 0 ((length $ tsFailed ts) - 1) + osThreads)
+                      ++ A.setCursorColumnCode (1 + testID)
+             ts' <- case e of
+                 TestRunning  -> do psANSI $ invColored A.Yellow ++ "R"
+                                    return ts { tsRunning = testID : tsRunning ts }
+                 TestSucceess -> do psANSI $ invColored A.Green  ++ "S"
+                                    return ts { tsRunning   = delete testID $ tsRunning ts
+                                              , tsSucceeded = tsSucceeded ts + 1
+                                              }
+                 TestFailure  -> do psANSI $ invColored A.Red    ++ "F"
+                                    when lowVerbosity . putStrLn $ "Test Failed: " ++
+                                        case taName <$> IM.lookup testID mtests of
+                                            Just n -> n
+                                            _      -> ""
+                                    return ts { tsRunning = delete testID $ tsRunning ts
+                                              , tsFailed  = testID : tsFailed ts
+                                              }
+             psANSI $ A.setSGRCode []
+                      ++ A.setCursorColumnCode (3 + numTests)
+                      ++ A.clearFromCursorToLineEndCode
+                      ++ printf "%.2f%%"
+                             (fromIntegral (tsSucceeded ts' + length (tsFailed ts')) /
+                             fromIntegral numTests * 100.0 :: Float)
+                      ++ A.cursorDownCode 3
+                      ++ A.setCursorColumnCode 0
+             -- Summary
+             psANSI A.clearLineCode
+             psANSI $ printf
+                 "Running: %s%2i%s | Succeeded: %s%2i%s | Failed: %s%2i%s | Pending: %i\n\n"
+                 (invColored A.Yellow) (length $ tsRunning   ts') (A.setSGRCode [])
+                 (invColored A.Green ) (         tsSucceeded ts') (A.setSGRCode [])
+                 (invColored A.Red   ) (length $ tsFailed    ts') (A.setSGRCode [])
+                 (numTests - (length (tsRunning ts') + tsSucceeded ts' + length (tsFailed ts')))
+             -- TODO: The next two completely break if any lines are too wide for the terminal
+             -- Running
+             mapM_ (\(i, x) ->
+                        psANSI $ A.clearLineCode ++ (invColored A.Yellow) ++ printf "Thread %i:" i
+                                 ++ (A.setSGRCode []) ++ " "
+                                 ++ case taName <$> IM.lookup x mtests of Just n -> n; _ -> "(Idle)"
+                                 ++ "\n")
+                   $ zip [1..osThreads] (tsRunning ts' ++ repeat (maxBound :: Int))
+             psANSI "\n"
+             -- Failures
+             if   null $ tsFailed ts'
+             then psANSI $ A.clearLineCode
+                           ++ (A.setSGRCode [A.SetSwapForegroundBackground True])
+                           ++ "(No Failures)"
+                           ++ (A.setSGRCode [])
+                           ++ "\n"
+             else mapM_ (\x -> psANSI $ A.clearLineCode ++ (invColored A.Red) ++
+                                     (case taName <$> IM.lookup x mtests of
+                                          Just n -> n
+                                          _      -> "") ++
+                                     " Failed:" ++ (A.setSGRCode []) ++ " " ++
+                                     (case taLogFn <$> IM.lookup x mtests of
+                                          Just n -> n
+                                          _      -> "") ++
+                                     "\n")
+                        $ tsFailed ts'
+             psANSI "\n"
+             -- Done?
+             hFlush stdout
+             if   (tsSucceeded ts' + length (tsFailed ts') < numTests)
+             then processEvents ts'
+             else do let success = null $ tsFailed ts'
+                     psANSI "\n\n"
+                     when (lowVerbosity && success) $
+                         printf "All %i tests OK\n" (tsSucceeded ts')
+                     return success
          in let status = TestStatus { tsRunning   = []
                                     , tsSucceeded = 0
                                     , tsFailed    = []
@@ -232,47 +231,47 @@ testSuite tm tnMatch eventQueue sem trOvrM = do
         tracePath = "./trace/"
     flip execStateT [] . runMaybeT $ do -- MaybeT (StateT [TestAsync] IO) ()
         let runTestAsync testName logFile trMode test = do
-            -- Skip tests that do not match
-            when (isInfixOf tnMatch testName) $ do
-                s <- get
-                let testID  = length s -- Just a unique ID based on the list position
-                    trMode' = fromMaybe trMode trOvrM 
-                -- Limit concurrency through semaphore (memory consumption for
-                -- tracing would otherwise explode). Also note that we're not
-                -- actually executing the test when we're just listing them
-                t <- liftIO . async . when (tm /= TMList) . withSemaphore sem $ do
-                    atomically $ writeTQueue eventQueue (testID, TestRunning)
-                    success <- checkEmuTestResult testName logFile trMode' =<< test trMode'
-                    atomically $ writeTQueue eventQueue
-                        ( testID
-                        , if   success
-                          then TestSucceess
-                          else TestFailure
-                        )
-                    -- Workaround for a GC bug. Without this, the GC just isn't collecting. If we
-                    -- allocate some memory with an unboxed mutable vector inside the ST monad in
-                    -- the emulator (ring buffer trace log), the memory seems to be retained
-                    -- sometimes. There's no reference to the vector outside of ST. Even if we
-                    -- never do anything but create the vector and put it inside the Reader record,
-                    -- and then only return a single Int from ST, which is immediately evaluated,
-                    -- the memory is retained (sometimes...). All memory profiles always show we
-                    -- never allocate more than one vector at a time, yet multiple runs would cause
-                    -- OS memory for multiple vectors to be used and would eventually cause an
-                    -- out-of-memory error. Even then the RTS would not collect. Forcing collection
-                    -- after leaving ST and evaluating all return values seems to solve the problem
-                    -- entirely. This seems like a bug in the GC, running out of OS memory instead
-                    -- of garbage collecting allocations it (demonstrably) knows how to free, while
-                    -- all RTS memory profiles confirm it is indeed not referenced. In the parallel
-                    -- case this only alleviates the situation, not fixing it entirely like for the
-                    -- serial version before. Unfortunately, the bug is rather hard to reduce to a
-                    -- simple reproduction case
-                    liftIO performGC
-                put $ TestAsync { taID     = testID
-                                , taName   = testName
-                                , taLogFn  = logFile
-                                , taTrMode = trMode'
-                                , taAsync  = t
-                                } : s -- Put test into State
+             -- Skip tests that do not match
+             when (isInfixOf tnMatch testName) $ do
+                 s <- get
+                 let testID  = length s -- Just a unique ID based on the list position
+                     trMode' = fromMaybe trMode trOvrM
+                 -- Limit concurrency through semaphore (memory consumption for
+                 -- tracing would otherwise explode). Also note that we're not
+                 -- actually executing the test when we're just listing them
+                 t <- liftIO . async . when (tm /= TMList) . withSemaphore sem $ do
+                     atomically $ writeTQueue eventQueue (testID, TestRunning)
+                     success <- checkEmuTestResult testName logFile trMode' =<< test trMode'
+                     atomically $ writeTQueue eventQueue
+                         ( testID
+                         , if   success
+                           then TestSucceess
+                           else TestFailure
+                         )
+                     -- Workaround for a GC bug. Without this, the GC just isn't collecting. If we
+                     -- allocate some memory with an unboxed mutable vector inside the ST monad in
+                     -- the emulator (ring buffer trace log), the memory seems to be retained
+                     -- sometimes. There's no reference to the vector outside of ST. Even if we
+                     -- never do anything but create the vector and put it inside the Reader record,
+                     -- and then only return a single Int from ST, which is immediately evaluated,
+                     -- the memory is retained (sometimes...). All memory profiles always show we
+                     -- never allocate more than one vector at a time, yet multiple runs would cause
+                     -- OS memory for multiple vectors to be used and would eventually cause an
+                     -- out-of-memory error. Even then the RTS would not collect. Forcing collection
+                     -- after leaving ST and evaluating all return values seems to solve the problem
+                     -- entirely. This seems like a bug in the GC, running out of OS memory instead
+                     -- of garbage collecting allocations it (demonstrably) knows how to free, while
+                     -- all RTS memory profiles confirm it is indeed not referenced. In the parallel
+                     -- case this only alleviates the situation, not fixing it entirely like for the
+                     -- serial version before. Unfortunately, the bug is rather hard to reduce to a
+                     -- simple reproduction case
+                     liftIO performGC
+                 put $ TestAsync { taID     = testID
+                                 , taName   = testName
+                                 , taLogFn  = logFile
+                                 , taTrMode = trMode'
+                                 , taAsync  = t
+                                 } : s -- Put test into State
 
         -- Tests follow
 

@@ -21,7 +21,6 @@ import MonadEmulator (MonadEmulator(..), LoadStore(..), RSTEmu)
 
 import Data.Word (Word8)
 import Text.Printf
-import Control.Applicative ((<$>))
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B8

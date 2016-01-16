@@ -16,7 +16,6 @@ import Util
 import Data.Word (Word8, Word16, Word64)
 import Text.Printf
 import Data.Bits (testBit, (.&.), (.|.), xor, shiftL, shiftR, complement)
-import Control.Applicative ((<$>), (<*>))
 
 {-# SPECIALIZE INLINE store8Trace :: LoadStore -> Word8 -> RSTEmu s () #-}
 store8Trace :: MonadEmulator m => LoadStore -> Word8 -> m ()

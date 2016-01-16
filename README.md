@@ -7,6 +7,8 @@ This repository contains the Haskell source code of an emulator for the [6502 CP
 
 # Building
 
+(*Update*: Now also builds with Stack/Cabal)
+
 Tested on OS X 10.6 with the [Haskell Platform](http://www.haskell.org/platform/) 2013.2.0.0, building should succeed with a simple
 
     $ make

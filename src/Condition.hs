@@ -14,7 +14,6 @@ import Util (L8R16, makeSRString)
 import Execution (detectLoopOnPC)
 import MonadEmulator (MonadEmulator(..), LoadStore(..), RSTEmu)
 
-import Control.Applicative ((<$>))
 import Data.Word (Word8, Word16, Word64)
 import Text.Printf
 import Numeric (readHex)
